@@ -1,0 +1,190 @@
+:root {
+  font-family: 'Noto Sans JP', 'Inter', system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+  background: #000;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+#pv-container {
+  width: 100%;
+  height: 100%;
+}
+
+.controls {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 16px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  backdrop-filter: blur(10px);
+  min-width: 220px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+}
+
+.controls-right {
+  left: auto;
+  right: 16px;
+}
+
+.panel-title {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  margin-bottom: 2px;
+}
+
+.controls-bottom {
+  left: 50%;
+  transform: translateX(-50%);
+  top: auto;
+  bottom: 16px;
+  min-width: 600px;
+  max-width: 90vw;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.effect-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 4px 12px;
+}
+
+.effect-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 3px 0;
+  transition: color 0.15s;
+}
+
+.effect-toggle:hover {
+  color: #fff;
+}
+
+.effect-toggle input[type="checkbox"] {
+  accent-color: #6688cc;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.control-group label {
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+select,
+input[type='text'] {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+select:focus,
+input[type='text']:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+select option {
+  background: #222;
+  color: #fff;
+}
+
+input[type='file'] {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+input[type='file']::file-selector-button {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+input[type='file']::file-selector-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+input[type='range'] {
+  width: 100%;
+  accent-color: #6688cc;
+  cursor: pointer;
+}
+
+.btn {
+  margin-top: 4px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.audio-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audio-status {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.5);
+}
