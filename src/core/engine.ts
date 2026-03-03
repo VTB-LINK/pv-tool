@@ -1,3 +1,6 @@
+// PV Tool — Copyright (c) 2026 DanteAlighieri13210914
+// Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
+
 import * as PIXI from 'pixi.js';
 import type { TemplateConfig, UpdateContext, ColorPalette, LayerType, MotionTargetInfo } from './types';
 import { createEffect, BaseEffect } from '../effects';

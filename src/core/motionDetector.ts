@@ -1,3 +1,6 @@
+// PV Tool — Copyright (c) 2026 DanteAlighieri13210914
+// Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
+
 /**
  * Browser-based motion detector using frame differencing.
  * Translates the OpenCV MOG2-based MotionDetector from the reference project

@@ -1,3 +1,6 @@
+// PV Tool — Copyright (c) 2026 DanteAlighieri13210914
+// Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
+
 /**
  * Provides beat intensity (0~1) from either an internal metronome
  * or real-time audio analysis via Web Audio API (all free, built-in browser APIs).
