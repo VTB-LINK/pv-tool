@@ -52,6 +52,7 @@ export const effectCatalog: EffectPreset[] = [
   { type: 'textStrip', label: '文字条 Strip', category: '文字', layer: 'text', config: { color: '$text', bgColor: '$accent' } },
   { type: 'textCards', label: '文字卡片 Cards', category: '文字', layer: 'text', config: { color: '$text' } },
   { type: 'bigOutlineText', label: '大字描边 BigText', category: '文字', layer: 'text', config: { color: '#e0e0e0', strokeColor: '#ffffff' } },
+  { type: 'cuteOutlineText', label: '可爱描边 CuteText', category: '文字', layer: 'text', config: { fillColor: '#fab2b5', strokeColor: '#ffffff', fontSize: 80, strokeWidth: 8 } },
   { type: 'layeredText', label: '叠层文字 Layered', category: '文字', layer: 'text', config: { color: '$text' } },
   { type: 'glowTextCards', label: '发光卡片字 GlowCards', category: '文字', layer: 'text', config: { cardColor: '#ffffff', textColor: '#1a1a1a', fontSize: 68 } },
   { type: 'verticalSubText', label: '竖排副文字 VertSub', category: '文字', layer: 'text', config: { color: '#ffffff', fontSize: 13 } },
@@ -95,4 +96,7 @@ export const effectCatalog: EffectPreset[] = [
   // 云朵条纹 Clouds & Stripes
   { type: 'edgeClouds', label: '边缘云朵 EdgeClouds', category: '云朵条纹', layer: 'decoration', config: { color: '#ffffff', alpha: 1.0, cloudCount: 5, baseRadius: 100, seed: 914 } },
   { type: 'pinkStripes', label: '粉色条纹 PinkStripes', category: '云朵条纹', layer: 'background', config: { pinkColor: '#fbbdbe', stripeWidth: 150, speed: 0.3, angle: -45 } },
+  { type: 'pinkGrid', label: '粉色格子 PinkGrid', category: '云朵条纹', layer: 'background', config: { color: '#f8c7ca', cellSize: 50, lineColor: '#ffffff', lineWidth: 2, speed: 30, alpha: 1.0 } },
+  { type: 'scalloppedBorder', label: '上下花边 Scallop', category: '云朵条纹', layer: 'decoration', config: { color: '#ffffff', shadowColor: '#ecbfc0', shadowAlpha: 0.6, shadowOffsetX: 0, shadowOffsetY: 8, circleRadius: 80, animSpeed: 0.5, moveAmount: 15, alpha: 1.0 } },
+  { type: 'pulsingCircle', label: '跃动圆形 Pulse', category: '云朵条纹', layer: 'background', config: { strokeColor: '#ffffff', strokeAlpha: 0.8, strokeWidth: 8, outerStrokeColor: '#ecbfc0', outerStrokeWidth: 3, outerStrokeAlpha: 0.6, radius: 250, x: 0.5, y: 0.5, animSpeed: 0.3, strokePulseAmount: 0.5, radiusPulseAmount: 0.08, enableBeatReact: false } },
 ];

@@ -79,6 +79,7 @@ export const zh = {
   'tpl_staggeredText': '错落文字',
   'tpl_calmVillain': '冷静的反派',
   'tpl_girlyClouds': '少女云朵',
+  'tpl_sweetPink': '格子花边',
 
   // File picker
   'choose_file': '选择文件',
@@ -147,6 +148,7 @@ export const zh = {
   'fx_textStrip': '文字条 Strip',
   'fx_textCards': '文字卡片 Cards',
   'fx_bigOutlineText': '大字描边 BigText',
+  'fx_cuteOutlineText': '可爱描边 CuteText',
   'fx_layeredText': '叠层文字 Layered',
   'fx_glowTextCards': '发光卡片字 GlowCards',
   'fx_verticalSubText': '竖排副文字 VertSub',
@@ -178,6 +180,9 @@ export const zh = {
   'fx_jigsawGrid': '拼图网格 Jigsaw',
   'fx_edgeClouds': '边缘云朵 EdgeClouds',
   'fx_pinkStripes': '粉色条纹 PinkStripes',
+  'fx_pinkGrid': '粉色格子 PinkGrid',
+  'fx_scalloppedBorder': '上下花边 Scallop',
+  'fx_pulsingCircle': '跃动圆形 Pulse',
 } as const;
 
 export type LocaleKey = keyof typeof zh;

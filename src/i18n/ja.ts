@@ -81,6 +81,7 @@ export const ja: Record<LocaleKey, string> = {
   'tpl_staggeredText': 'スタッガードテキスト',
   'tpl_calmVillain': 'クールヴィラン',
   'tpl_girlyClouds': 'ガーリークラウド',
+  'tpl_sweetPink': 'グリッドスカラップ',
 
   // File picker
   'choose_file': 'ファイル選択',
@@ -149,6 +150,7 @@ export const ja: Record<LocaleKey, string> = {
   'fx_textStrip': 'テキストストリップ Strip',
   'fx_textCards': 'テキストカード Cards',
   'fx_bigOutlineText': '大文字アウトライン BigText',
+  'fx_cuteOutlineText': 'キュートアウトライン CuteText',
   'fx_layeredText': 'レイヤードテキスト Layered',
   'fx_glowTextCards': 'グローカード GlowCards',
   'fx_verticalSubText': '縦書きサブ VertSub',
@@ -180,4 +182,7 @@ export const ja: Record<LocaleKey, string> = {
   'fx_jigsawGrid': 'ジグソーグリッド Jigsaw',
   'fx_edgeClouds': 'エッジクラウド EdgeClouds',
   'fx_pinkStripes': 'ピンクストライプ PinkStripes',
+  'fx_pinkGrid': 'ピンクグリッド PinkGrid',
+  'fx_scalloppedBorder': 'スカラップボーダー Scallop',
+  'fx_pulsingCircle': 'パルスサークル Pulse',
 };
