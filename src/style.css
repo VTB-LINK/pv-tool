@@ -593,3 +593,29 @@ input[type='range'] {
     font-size: 0.9rem;
   }
 }
+
+/* Toast */
+.pv-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  z-index: 9999;
+  pointer-events: none;
+  animation: pv-toast-in 0.3s ease, pv-toast-out 0.3s ease 1.7s forwards;
+}
+
+@keyframes pv-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes pv-toast-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}

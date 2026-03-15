@@ -126,15 +126,15 @@ app.innerHTML = `
       <div class="control-group">
         <label>LRC</label>
         <div class="file-pick">
-          <button class="btn btn-sm" id="lrc-pick-btn">导入 LRC</button>
-          <span class="file-pick-name" id="lrc-pick-name">未选择文件</span>
+          <button class="btn btn-sm" id="lrc-pick-btn">${t('lrc_import')}</button>
+          <span class="file-pick-name" id="lrc-pick-name">${t('no_file')}</span>
           <input type="file" id="lrc-input" accept=".lrc,text/plain" hidden>
         </div>
       </div>
 
       <div class="control-group">
-        <label>计时 Time</label>
-        <div id="playback-time">00:00 / 00:00</div>
+        <label>${t('timer_label')} <span id="playback-time">00:00 / 00:00</span></label>
+        <input type="range" id="seek-slider" min="0" max="1" step="0.001" value="0">
       </div>
 
       <div class="control-group">
@@ -430,7 +430,6 @@ const shareCodeText = document.getElementById('share-code-text') as HTMLInputEle
 const shareCodeOk = document.getElementById('share-code-ok')!;
 const shareCodeCancel = document.getElementById('share-code-cancel')!;
 
-let shareCodeMode: 'import' | 'export' = 'import';
 
 // Save: show inline name input
 tplSaveBtn.addEventListener('click', () => {
@@ -491,24 +490,27 @@ tplDeleteOk.addEventListener('click', () => {
   tplDeleteConfirm.style.display = 'none';
 });
 
+// Toast helper
+function showToast(msg: string) {
+  const el = document.createElement('div');
+  el.className = 'pv-toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
 // Export share code
 tplExportBtn.addEventListener('click', async () => {
   const val = templateSelect.value;
   if (!val.startsWith('user-')) return;
   const idx = parseInt(val.split('-')[1]);
-  shareCodeMode = 'export';
-  shareCodeLabel.textContent = `${t('share_code')} (${t('code_copied')})`;
   const code = await encodeShareCode(customTemplates[idx]);
-  shareCodeText.value = code;
-  shareCodeGroup.style.display = '';
-  shareCodeText.readOnly = true;
-  shareCodeOk.textContent = t('copy');
-  try { await navigator.clipboard.writeText(code); } catch { /* fallback: user copies manually */ }
+  try { await navigator.clipboard.writeText(code); } catch { /* noop */ }
+  showToast(t('code_copied'));
 });
 
 // Import share code
 tplImportBtn.addEventListener('click', () => {
-  shareCodeMode = 'import';
   shareCodeLabel.classList.remove('label-error');
   shareCodeLabel.textContent = t('import_code');
   shareCodeText.value = '';
@@ -518,12 +520,6 @@ tplImportBtn.addEventListener('click', () => {
 });
 
 shareCodeOk.addEventListener('click', async () => {
-  if (shareCodeMode === 'export') {
-    try { await navigator.clipboard.writeText(shareCodeText.value); } catch { /* noop */ }
-    shareCodeGroup.style.display = 'none';
-    return;
-  }
-  // Import
   const code = shareCodeText.value.trim();
   if (!code) return;
   try {
@@ -629,10 +625,26 @@ function formatClock(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+const seekSlider = document.getElementById('seek-slider') as HTMLInputElement;
+let isSeeking = false;
+
+seekSlider.addEventListener('mousedown', () => { isSeeking = true; });
+seekSlider.addEventListener('touchstart', () => { isSeeking = true; });
+seekSlider.addEventListener('input', () => {
+  const total = engine.timelineDuration;
+  const target = parseFloat(seekSlider.value) * total;
+  engine.seek(target);
+});
+seekSlider.addEventListener('mouseup', () => { isSeeking = false; });
+seekSlider.addEventListener('touchend', () => { isSeeking = false; });
+
 function updatePlaybackTimer(): void {
   const current = engine.playbackTime;
   const total = engine.timelineDuration;
   playbackTimeEl.textContent = `${formatClock(current)} / ${formatClock(total)}`;
+  if (!isSeeking && total > 0) {
+    seekSlider.value = String(current / total);
+  }
   requestAnimationFrame(updatePlaybackTimer);
 }
 

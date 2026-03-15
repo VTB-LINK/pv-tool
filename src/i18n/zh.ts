@@ -46,6 +46,8 @@ export const zh = {
   'packing': '打包中...',
   'alpha_export': '透明背景导出 Alpha',
   'srt_import': '字幕时间轴 SRT',
+  'lrc_import': '导入 LRC',
+  'timer_label': '计时 Time',
 
   // Color swatch titles
   'white': '白',
@@ -93,7 +95,7 @@ export const zh = {
   'export_code': '导出分享码',
   'import_code': '导入分享码',
   'import_btn': '导入',
-  'code_copied': '已复制',
+  'code_copied': '分享码已复制到剪贴板',
   'code_invalid': '分享码无效',
   'save_tpl': '保存',
   'delete_tpl': '删除',
