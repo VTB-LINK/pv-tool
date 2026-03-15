@@ -5,6 +5,7 @@ import type { TemplateConfig } from '../core/types';
 
 export const sweetPinkTemplate: TemplateConfig = {
   name: '格子花边',
+  nameKey: 'tpl_sweetPink',
   palette: {
     background: '#fef5f8',
     primary: '#fab2b5',

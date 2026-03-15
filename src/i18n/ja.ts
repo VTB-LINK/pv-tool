@@ -48,6 +48,8 @@ export const ja: Record<LocaleKey, string> = {
   'packing': 'パッキング中...',
   'alpha_export': '透明背景出力 Alpha',
   'srt_import': '字幕タイムライン SRT',
+  'lrc_import': 'LRC読込',
+  'timer_label': 'タイマー Time',
 
   // Color swatch titles
   'white': '白',
@@ -95,7 +97,7 @@ export const ja: Record<LocaleKey, string> = {
   'export_code': 'シェアコード出力',
   'import_code': 'シェアコード入力',
   'import_btn': '読込',
-  'code_copied': 'コピー済',
+  'code_copied': 'シェアコードをクリップボードにコピーしました',
   'code_invalid': 'コード無効',
   'save_tpl': '保存',
   'delete_tpl': '削除',

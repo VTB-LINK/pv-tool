@@ -48,6 +48,8 @@ export const en: Record<LocaleKey, string> = {
   'packing': 'Packing...',
   'alpha_export': 'Alpha Export',
   'srt_import': 'SRT Timeline',
+  'lrc_import': 'Import LRC',
+  'timer_label': 'Time',
 
   // Color swatch titles
   'white': 'White',
@@ -95,7 +97,7 @@ export const en: Record<LocaleKey, string> = {
   'export_code': 'Export Code',
   'import_code': 'Import Code',
   'import_btn': 'Import',
-  'code_copied': 'Copied',
+  'code_copied': 'Share code copied to clipboard',
   'code_invalid': 'Invalid code',
   'save_tpl': 'Save',
   'delete_tpl': 'Delete',
