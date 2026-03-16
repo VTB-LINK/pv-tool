@@ -1,8 +1,1 @@
-{
-  "routes": [
-    {
-      "route": "/pv-tool/assets/*",
-      "rewrite": "/assets/*"
-    }
-  ]
-}
+{}
