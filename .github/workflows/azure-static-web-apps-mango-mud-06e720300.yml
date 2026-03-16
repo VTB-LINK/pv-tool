@@ -35,7 +35,11 @@ jobs:
         
       - name: Use npm to build
         run: npm run build
-      - run: mkdir -p dist/pv-tool/ && mv dist/assets dist/pv-tool/ && mv dist/*.svg dist/pv-tool/
+      - name: Organize dist files
+        run: |
+          mkdir -p dist/pv-tool
+          shopt -s extglob
+          cd dist && mv !(index.html|staticwebapp.config.json|pv-tool) pv-tool/
 
       - name: Build And Deploy
         id: builddeploy
