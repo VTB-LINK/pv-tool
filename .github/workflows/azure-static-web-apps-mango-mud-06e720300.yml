@@ -35,7 +35,7 @@ jobs:
         
       - name: Use npm to build
         run: npm run build
-      - run: mkdir -p dist/pv-tool/ && mv -r dist/assets dist/pv-tool/
+      - run: mkdir -p dist/pv-tool/ && mv dist/assets dist/pv-tool/
 
       - name: Build And Deploy
         id: builddeploy
