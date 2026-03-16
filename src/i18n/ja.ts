@@ -51,6 +51,14 @@ export const ja: Record<LocaleKey, string> = {
   'lrc_import': 'LRC読込',
   'timer_label': 'タイマー Time',
 
+  // Right panel — Export
+  'export': '書き出し Export',
+  'copy_url': 'URL をコピー',
+
+  // Right panel — Listen
+  'listen': 'モニタリング Listen',
+  'listen_now_playing': 'Now Playing をモニタリング',
+
   // Color swatch titles
   'white': '白',
   'black': '黒',
@@ -192,4 +200,18 @@ export const ja: Record<LocaleKey, string> = {
   'fx_pinkGrid': 'ピンクグリッド PinkGrid',
   'fx_scalloppedBorder': 'スカラップボーダー Scallop',
   'fx_pulsingCircle': 'パルスサークル Pulse',
+
+  // Hint messages
+  'hint_press': '押す',
+  'hint_hide_panels': 'でパネルを非表示にする',
+
+  // Modal messages
+  'modal_confirm': 'OK',
+  'np_fail_title': '再生に失敗しました：Now Playingサービスが検出されません！',
+  'np_fail_body': 'Now Playingは20以上の音楽アプリに対応した無料のオープンソース楽曲表示ツールです。以下からダウンロードしてください：',
+  'copy_url_settings': '設定',
+  'copy_url_transparent_bg': '透明背景',
+  'copy_url_use_template': '現在のテンプレートを使用',
+  'copy_url_copy_btn': 'コピー',
+  'url_copied': 'URLをクリップボードにコピーしました',
 };

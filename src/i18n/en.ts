@@ -51,6 +51,14 @@ export const en: Record<LocaleKey, string> = {
   'lrc_import': 'Import LRC',
   'timer_label': 'Time',
 
+  // Right panel — Export
+  'export': 'Export',
+  'copy_url': 'Copy URL',
+
+  // Right panel — Listen
+  'listen': 'Listen',
+  'listen_now_playing': 'Listen Now Playing',
+
   // Color swatch titles
   'white': 'White',
   'black': 'Black',
@@ -191,4 +199,18 @@ export const en: Record<LocaleKey, string> = {
   'fx_pulsingCircle': 'Pulsing Circle',
   'fx_starTrail': 'Star Trail',
   'fx_planet': 'Planet',
+
+  // Hint messages
+  'hint_press': 'Press',
+  'hint_hide_panels': 'to hide panels',
+
+  // Modal messages
+  'modal_confirm': 'OK',
+  'np_fail_title': 'Listen failed: Now Playing service not detected!',
+  'np_fail_body': 'Now Playing is a free, open-source song display tool that supports 20+ music apps. Download it from:',
+  'copy_url_settings': 'Settings',
+  'copy_url_transparent_bg': 'Transparent Background',
+  'copy_url_use_template': 'Use Current Template',
+  'copy_url_copy_btn': 'Copy',
+  'url_copied': 'URL copied to clipboard',
 };

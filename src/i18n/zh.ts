@@ -49,6 +49,14 @@ export const zh = {
   'lrc_import': '导入 LRC',
   'timer_label': '计时 Time',
 
+  // Right panel — Export
+  'export': '导出 Export',
+  'copy_url': '复制 URL',
+
+  // Right panel — Listen
+  'listen': '监听 Listen',
+  'listen_now_playing': '监听 Now Playing',
+
   // Color swatch titles
   'white': '白',
   'black': '黑',
@@ -190,6 +198,20 @@ export const zh = {
   'fx_pinkGrid': '粉色格子 PinkGrid',
   'fx_scalloppedBorder': '上下花边 Scallop',
   'fx_pulsingCircle': '跃动圆形 Pulse',
+
+  // Hint messages
+  'hint_press': '按',
+  'hint_hide_panels': '键隐藏面板',
+
+  // Modal messages
+  'modal_confirm': '确定',
+  'np_fail_title': '监听失败：未检测到 Now Playing 程序运行！',
+  'np_fail_body': 'Now Playing 是一款开源免费的、全能的「正在播放」歌曲展示工具，支持检测 20+ 款音乐软件的歌曲信息。您可通过该链接下载使用：',
+  'copy_url_settings': '设置',
+  'copy_url_transparent_bg': '透明背景',
+  'copy_url_use_template': '使用当前模板',
+  'copy_url_copy_btn': '复制',
+  'url_copied': 'URL 已复制到剪贴板',
 } as const;
 
 export type LocaleKey = keyof typeof zh;
