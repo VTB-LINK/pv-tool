@@ -3,13 +3,14 @@ name: Sync Upstream Main
 on:
   schedule:
     - cron: '0 * * * *'
-  workflow_dispatch:
+  workflow_dispatch: 
 
 jobs:
   sync-main:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write # 必须新增这个权限，允许机器人提 PR
 
     steps:
       - name: Checkout main branch
@@ -20,18 +21,29 @@ jobs:
 
       - name: Sync with upstream and force update
         run: |
-          # 1. 配置 Action 机器人的 Git 身份信息
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-          # 2. 添加原作者的上游仓库地址
           git remote add upstream https://github.com/DanteAlighieri13210914/pv-tool.git
-
-          # 3. 拉取上游的最新代码数据
           git fetch upstream
-
-          # 4. 核心步骤：将本地的 main 分支强行覆盖为上游的 main 分支
           git reset --hard upstream/main
-
-          # 5. 强制推送到你自己的 GitHub 仓库的 main 分支
           git push origin main --force
+
+      - name: Create or Check Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 检查是否已经存在从 main 到 release 的开启状态的 PR
+          PR_EXISTS=$(gh pr list --base release --head main --state open --json number --jq 'length')
+
+          if [ "$PR_EXISTS" -eq "0" ]; then
+            # 如果没有，则自动创建一个新的 PR
+            gh pr create \
+              --repo ${{ github.repository }} \
+              --base release \
+              --head main \
+              --title "🚀 自动同步：上游最新代码已就绪" \
+              --body "上游代码已自动同步到 \`main\`。请审查是否有冲突，并合并到 \`release\` 以触发生产环境部署。"
+            echo "✅ 成功创建新的 PR。"
+          else
+            echo "ℹ️ PR 已存在，GitHub 已自动将其更新为包含最新的上游提交。"
+          fi
