@@ -160,7 +160,7 @@ export class StaggeredText extends BaseEffect {
   }
 
   update(ctx: UpdateContext): void {
-    const text = ctx.currentText || this.config.text || '春を告げる';
+    const text = ctx.currentText || this.config.text || '';
     const w = ctx.screenWidth;
     const h = ctx.screenHeight;
     const modeDuration = this.config.modeDuration ?? 3;

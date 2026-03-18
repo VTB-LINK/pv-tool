@@ -30,7 +30,7 @@ export class FallingText extends BaseEffect {
     this.initialized = true;
 
     const userText = this.config._userText || '';
-    const pool = userText || this.config.chars || '春を告げる夜を越えて踊れ';
+    const pool = userText || this.config.chars || '夜を越えて踊れ';
     const count = this.config.count ?? 30;
     const color = resolveColor(this.config.color ?? '$accent', this.palette);
     const fontFamily = this.config.fontFamily ?? '"Noto Serif JP", "Yu Mincho", serif';
