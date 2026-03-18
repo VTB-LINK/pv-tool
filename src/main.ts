@@ -602,15 +602,6 @@ tplDeleteOk.addEventListener('click', () => {
   tplDeleteConfirm.style.display = 'none';
 });
 
-// Toast helper
-function showToast(msg: string) {
-  const el = document.createElement('div');
-  el.className = 'pv-toast';
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2200);
-}
-
 // Export share code
 tplExportBtn.addEventListener('click', async () => {
   const val = templateSelect.value;
