@@ -219,4 +219,6 @@ export const en: Record<LocaleKey, string> = {
   'copy_url_use_template': 'Use Current Template',
   'copy_url_copy_btn': 'Copy',
   'url_copied': 'URL copied to clipboard',
+  'listen_np_tip': '',
+  'copy_url_tip': '',
 };
