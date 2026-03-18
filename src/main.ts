@@ -16,7 +16,6 @@ import {
 } from './core/templateStore';
 import { testNowPlayingConnection } from './core/nowPlayingProvider';
 import { initCopyUrlButton } from './core/copyUrl';
-import { showToast, attachModalDismiss } from './core/uiHelpers';
 
 console.log('%cPV Tool%c solaris:0914', 'color:#6688cc;font-weight:bold', 'color:#888');
 
@@ -44,9 +43,18 @@ function showModal(contentHtml: string, confirmText: string): void {
   `;
   document.body.appendChild(overlay);
 
-  overlay.querySelector('.pv-modal-confirm')!
-    .addEventListener('click', () => overlay.remove());
-  attachModalDismiss(overlay);
+  const confirmBtn = overlay.querySelector('.pv-modal-confirm')!;
+  confirmBtn.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  const onEsc = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      overlay.remove();
+      document.removeEventListener('keydown', onEsc);
+    }
+  };
+  document.addEventListener('keydown', onEsc);
 }
 
 app.innerHTML = `
