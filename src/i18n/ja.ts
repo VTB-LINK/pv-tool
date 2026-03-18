@@ -220,4 +220,6 @@ export const ja: Record<LocaleKey, string> = {
   'copy_url_use_template': '現在のテンプレートを使用',
   'copy_url_copy_btn': 'コピー',
   'url_copied': 'URLをクリップボードにコピーしました',
+  'listen_np_tip': '',
+  'copy_url_tip': '',
 };

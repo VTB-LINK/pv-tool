@@ -343,6 +343,16 @@ input[type='range'] {
   background: rgba(255, 50, 50, 0.25);
 }
 
+.copy-url-row {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 4px !important;
+}
+
+.copy-url-btn {
+  flex: 1;
+}
+
 .rec-timer {
   font-size: 0.72rem;
   font-family: 'Courier New', monospace;
@@ -694,4 +704,37 @@ input[type='range'] {
 body.pv-panels-hidden .panels-wrapper,
 body.pv-panels-hidden .mobile-toggle {
   display: none;
+}
+
+/* Help tooltip */
+.help-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  color: #999;
+  border: 1px solid #666;
+  border-radius: 50%;
+  cursor: default;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.help-tip-bubble {
+  position: fixed;
+  width: 220px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.92);
+  color: #ddd;
+  font-size: 11px;
+  font-weight: normal;
+  line-height: 1.5;
+  border-radius: 5px;
+  pointer-events: none;
+  z-index: 10000;
+  white-space: normal;
 }

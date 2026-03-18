@@ -53,8 +53,8 @@ export const zh = {
   'export': '导出 Export',
   'copy_url': '复制 URL',
 
-  // Right panel — Listen
-  'listen': '监听 Listen',
+  // Right panel — Live mode
+  'listen': '直播 mode',
   'listen_now_playing': '监听 Now Playing',
 
   // Color swatch titles
@@ -218,6 +218,8 @@ export const zh = {
   'copy_url_use_template': '使用当前模板',
   'copy_url_copy_btn': '复制',
   'url_copied': 'URL 已复制到剪贴板',
+  'listen_np_tip': '需要运行 Now Playing 服务，自动获取音乐软件正在播放的歌曲并同步显示歌词',
+  'copy_url_tip': '生成可直接粘贴到 OBS 浏览器源的 URL，自动隐藏面板 / 透明背景 / 加载指定模板',
 } as const;
 
 export type LocaleKey = keyof typeof zh;

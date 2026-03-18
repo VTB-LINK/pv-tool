@@ -7,7 +7,7 @@ import { parseLrc } from './core/lrc';
 import { templates } from './templates';
 import { effectCatalog } from './core/effectCatalog';
 import type { TemplateConfig } from './core/types';
-import { t } from './i18n';
+import { t, locale } from './i18n';
 import {
   loadCustomTemplates,
   saveCustomTemplates,
@@ -245,20 +245,25 @@ app.innerHTML = `
             <span id="rec-label">${t('rec')}</span>
           </button>
           <span id="rec-timer" class="rec-timer" style="display:none"></span>
-          <button id="copy-url-btn" class="btn" title="${t('copy_url')}">${t('copy_url')}</button>
         </div>
       </details>
 
+      ${locale === 'zh' ? `
       <details class="collapsible-section" open>
         <summary class="panel-title">${t('listen')}</summary>
 
         <div class="control-group">
           <label class="effect-toggle">
             <input type="checkbox" id="np-listen-toggle">
-            <span>${t('listen_now_playing')}</span>
+            <span>${t('listen_now_playing')}</span><span class="help-tip" data-tip="${t('listen_np_tip')}">?</span>
           </label>
         </div>
+
+        <div class="control-group copy-url-row">
+          <button id="copy-url-btn" class="btn copy-url-btn" title="${t('copy_url')}">${t('copy_url')}</button><span class="help-tip" data-tip="${t('copy_url_tip')}">?</span>
+        </div>
       </details>
+      ` : ''}
     </div>
 
     <div class="controls controls-bottom" id="custom-panel" style="display:none">
@@ -375,7 +380,7 @@ engine.init(container).then(() => {
 
   // URL param: np (Now Playing listener)
   const npParam = urlParams.get('np');
-  if (npParam === '1') {
+  if (npParam === '1' && npListenToggle) {
     npListenToggle.checked = true;
     npListenToggle.dispatchEvent(new Event('change'));
   }
@@ -956,15 +961,17 @@ alphaToggle.addEventListener('change', () => {
   engine.alphaMode = alphaToggle.checked;
 });
 
-// --- Now Playing listener toggle ---
-const npListenToggle = document.getElementById('np-listen-toggle') as HTMLInputElement;
+// --- Now Playing & Copy URL (zh only) ---
+const npListenToggle = document.getElementById('np-listen-toggle') as HTMLInputElement | null;
+const copyUrlBtn = document.getElementById('copy-url-btn') as HTMLButtonElement | null;
+
+if (copyUrlBtn && npListenToggle) {
+  initCopyUrlButton(copyUrlBtn, templateSelect, npListenToggle);
+}
+
 let npConnecting = false;
-
-// --- Copy URL button ---
-const copyUrlBtn = document.getElementById('copy-url-btn') as HTMLButtonElement;
-initCopyUrlButton(copyUrlBtn, templateSelect, npListenToggle);
-
-npListenToggle.addEventListener('change', async () => {
+npListenToggle?.addEventListener('change', async () => {
+  if (!npListenToggle) return;
   if (npListenToggle.checked) {
     if (npConnecting) {
       npListenToggle.checked = false;
@@ -1072,21 +1079,17 @@ async function finishPngExport(slug: string) {
   recLabel.textContent = t('rec');
 }
 
-/** Show the recording timer and hide the copy-url button */
 function showRecordingUI() {
   recBtn.classList.add('recording');
   recLabel.textContent = t('stop');
   recTimer.style.display = '';
-  copyUrlBtn.style.display = 'none';
 }
 
-/** Hide the recording timer and restore the copy-url button */
 function hideRecordingUI() {
   recBtn.classList.remove('recording');
   recLabel.textContent = t('rec');
   recTimer.textContent = '';
   recTimer.style.display = 'none';
-  copyUrlBtn.style.display = '';
 }
 
 recBtn.addEventListener('click', () => {
@@ -1170,3 +1173,31 @@ recBtn.addEventListener('click', () => {
     recTimer.textContent = formatTime(performance.now() - recStartTime);
   }, 500);
 });
+
+// --- Help tooltips ---
+{
+  let bubble: HTMLDivElement | null = null;
+  const show = (el: HTMLElement) => {
+    const tip = el.getAttribute('data-tip');
+    if (!tip) return;
+    if (!bubble) {
+      bubble = document.createElement('div');
+      bubble.className = 'help-tip-bubble';
+      document.body.appendChild(bubble);
+    }
+    bubble.textContent = tip;
+    bubble.style.display = '';
+    const r = el.getBoundingClientRect();
+    bubble.style.left = Math.max(4, r.right - 220) + 'px';
+    bubble.style.top = (r.top - bubble.offsetHeight - 6) + 'px';
+  };
+  const hide = () => { if (bubble) bubble.style.display = 'none'; };
+  document.addEventListener('pointerenter', (e) => {
+    const el = (e.target as HTMLElement).closest?.('.help-tip') as HTMLElement | null;
+    if (el) show(el);
+  }, true);
+  document.addEventListener('pointerleave', (e) => {
+    const el = (e.target as HTMLElement).closest?.('.help-tip');
+    if (el) hide();
+  }, true);
+}
