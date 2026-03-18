@@ -14,6 +14,9 @@ import {
   encodeShareCode,
   decodeShareCode,
 } from './core/templateStore';
+import { testNowPlayingConnection } from './core/nowPlayingProvider';
+import { initCopyUrlButton } from './core/copyUrl';
+import { showToast, attachModalDismiss } from './core/uiHelpers';
 
 console.log('%cPV Tool%c solaris:0914', 'color:#6688cc;font-weight:bold', 'color:#888');
 
@@ -26,6 +29,24 @@ function tplName(tpl: TemplateConfig): string {
     return t(tpl.nameKey as any);
   }
   return tpl.name;
+}
+
+function showModal(contentHtml: string, confirmText: string): void {
+  const overlay = document.createElement('div');
+  overlay.className = 'pv-modal-overlay';
+  overlay.innerHTML = `
+    <div class="pv-modal-box">
+      <div class="pv-modal-body">${contentHtml}</div>
+      <div class="pv-modal-footer">
+        <button class="btn pv-modal-confirm">${confirmText}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('.pv-modal-confirm')!
+    .addEventListener('click', () => overlay.remove());
+  attachModalDismiss(overlay);
 }
 
 app.innerHTML = `
@@ -147,6 +168,8 @@ app.innerHTML = `
         <input type="range" id="beat-slider" min="0" max="1" step="0.05" value="0.5">
       </div>
       </details>
+
+      <div class="hide-hint" id="hide-hint">${t('hint_press')} <kbd>H</kbd> ${t('hint_hide_panels')}</div>
     </div>
 
     <div class="controls controls-right">
@@ -196,6 +219,10 @@ app.innerHTML = `
             <span id="media-scale-val">1.0x</span>
           </div>
         </div>
+      </details>
+
+      <details class="collapsible-section" open>
+        <summary class="panel-title">${t('export')}</summary>
 
         <div class="control-group">
           <label class="effect-toggle">
@@ -209,7 +236,19 @@ app.innerHTML = `
             <span class="rec-icon"></span>
             <span id="rec-label">${t('rec')}</span>
           </button>
-          <span id="rec-timer" class="rec-timer"></span>
+          <span id="rec-timer" class="rec-timer" style="display:none"></span>
+          <button id="copy-url-btn" class="btn" title="${t('copy_url')}">${t('copy_url')}</button>
+        </div>
+      </details>
+
+      <details class="collapsible-section" open>
+        <summary class="panel-title">${t('listen')}</summary>
+
+        <div class="control-group">
+          <label class="effect-toggle">
+            <input type="checkbox" id="np-listen-toggle">
+            <span>${t('listen_now_playing')}</span>
+          </label>
         </div>
       </details>
     </div>
@@ -276,11 +315,62 @@ const container = document.getElementById('pv-container')!;
 
 engine.init(container).then(() => {
   engine.setText('深夜東京/の6畳半夢/を見てた/灯りの灯らない蛍光灯/明日には消えてる電脳城/に/開幕戦/打ち上げて/いなくなんないよね/ここには誰もいない/ここには誰もいないから');
-  engine.loadTemplate(templates[0]);
-  templateSelect.value = '0';
+
+  const urlParams = new URLSearchParams(window.location.search);
+
+  // URL param: t (template)
+  const tParam = urlParams.get('t');
+  if (tParam !== null) {
+    if (tParam.startsWith('user-')) {
+      const idx = parseInt(tParam.split('-')[1]);
+      if (idx >= 0 && idx < customTemplates.length) {
+        engine.loadTemplate(customTemplates[idx]);
+        templateSelect.value = tParam;
+      } else {
+        engine.loadTemplate(templates[0]);
+        templateSelect.value = '0';
+      }
+    } else {
+      const idx = parseInt(tParam);
+      if (!isNaN(idx) && idx >= 0 && idx < templates.length) {
+        engine.loadTemplate(templates[idx]);
+        templateSelect.value = String(idx);
+      } else {
+        engine.loadTemplate(templates[0]);
+        templateSelect.value = '0';
+      }
+    }
+  } else {
+    engine.loadTemplate(templates[0]);
+    templateSelect.value = '0';
+  }
+
   syncSpeedSlider();
   syncOpacitySlider();
   syncPostfxSliders();
+  updateTemplateButtons();
+
+  // URL param: bg (transparent background)
+  const bgParam = urlParams.get('bg');
+  if (bgParam === '0') {
+    engine.alphaMode = true;
+    document.body.style.background = 'transparent';
+    document.documentElement.style.background = 'transparent';
+  }
+
+  // URL param: panel (hide panels)
+  const panelParam = urlParams.get('panel');
+  if (panelParam === '0') {
+    panelsVisible = false;
+    document.body.classList.add('pv-panels-hidden');
+  }
+
+  // URL param: np (Now Playing listener)
+  const npParam = urlParams.get('np');
+  if (npParam === '1') {
+    npListenToggle.checked = true;
+    npListenToggle.dispatchEvent(new Event('change'));
+  }
 });
 
 // Mobile toggle
@@ -294,6 +384,20 @@ mobileToggle.addEventListener('click', () => {
   const hidden = panelsWrapper.classList.contains('panels-hidden');
   panelsWrapper.classList.toggle('panels-hidden', !hidden);
   mobileToggle.textContent = hidden ? '✕' : '☰';
+});
+
+// H key — toggle all panels visibility
+let panelsVisible = true;
+document.addEventListener('keydown', (e) => {
+  // Skip when typing in input fields or when a modal is open
+  const tag = (e.target as HTMLElement).tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (document.querySelector('.pv-modal-overlay')) return;
+
+  if (e.key.toLowerCase() === 'h') {
+    panelsVisible = !panelsVisible;
+    document.body.classList.toggle('pv-panels-hidden', !panelsVisible);
+  }
 });
 
 // Canvas color swatches
@@ -489,15 +593,6 @@ tplDeleteOk.addEventListener('click', () => {
   syncSpeedSlider();
   tplDeleteConfirm.style.display = 'none';
 });
-
-// Toast helper
-function showToast(msg: string) {
-  const el = document.createElement('div');
-  el.className = 'pv-toast';
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2200);
-}
 
 // Export share code
 tplExportBtn.addEventListener('click', async () => {
@@ -853,6 +948,39 @@ alphaToggle.addEventListener('change', () => {
   engine.alphaMode = alphaToggle.checked;
 });
 
+// --- Now Playing listener toggle ---
+const npListenToggle = document.getElementById('np-listen-toggle') as HTMLInputElement;
+let npConnecting = false;
+
+// --- Copy URL button ---
+const copyUrlBtn = document.getElementById('copy-url-btn') as HTMLButtonElement;
+initCopyUrlButton(copyUrlBtn, templateSelect, npListenToggle);
+
+npListenToggle.addEventListener('change', async () => {
+  if (npListenToggle.checked) {
+    if (npConnecting) {
+      npListenToggle.checked = false;
+      return;
+    }
+    npConnecting = true;
+    const ok = await testNowPlayingConnection();
+    npConnecting = false;
+
+    if (!ok) {
+      npListenToggle.checked = false;
+      const npFailLink = 'https://github.com/Widdit/now-playing-service';
+      showModal(
+        `<p class="pv-modal-title">${t('np_fail_title')}</p>
+         <p>${t('np_fail_body')}</p>
+         <p><a href="${npFailLink}" target="_blank" rel="noopener">${npFailLink}</a></p>`,
+        t('modal_confirm'),
+      );
+      return;
+    }
+  }
+  engine.nowPlayingListening = npListenToggle.checked;
+});
+
 // --- Recording ---
 const recBtn = document.getElementById('rec-btn')!;
 const recLabel = document.getElementById('rec-label')!;
@@ -936,6 +1064,23 @@ async function finishPngExport(slug: string) {
   recLabel.textContent = t('rec');
 }
 
+/** Show the recording timer and hide the copy-url button */
+function showRecordingUI() {
+  recBtn.classList.add('recording');
+  recLabel.textContent = t('stop');
+  recTimer.style.display = '';
+  copyUrlBtn.style.display = 'none';
+}
+
+/** Hide the recording timer and restore the copy-url button */
+function hideRecordingUI() {
+  recBtn.classList.remove('recording');
+  recLabel.textContent = t('rec');
+  recTimer.textContent = '';
+  recTimer.style.display = 'none';
+  copyUrlBtn.style.display = '';
+}
+
 recBtn.addEventListener('click', () => {
   const useAlpha = engine.alphaMode;
   const slug = getTemplateSlug();
@@ -946,7 +1091,7 @@ recBtn.addEventListener('click', () => {
       pngRecording = false;
       cancelAnimationFrame(pngCaptureRaf);
       if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
-      recBtn.classList.remove('recording');
+      hideRecordingUI();
       finishPngExport(slug);
       return;
     }
@@ -956,8 +1101,7 @@ recBtn.addEventListener('click', () => {
     pngLastCaptureTime = 0;
     pngRecording = true;
     recStartTime = performance.now();
-    recBtn.classList.add('recording');
-    recLabel.textContent = t('stop');
+    showRecordingUI();
     recTimerInterval = setInterval(() => {
       recTimer.textContent = formatTime(performance.now() - recStartTime);
     }, 500);
@@ -999,9 +1143,7 @@ recBtn.addEventListener('click', () => {
 
   mediaRecorder.onstop = () => {
     if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
-    recBtn.classList.remove('recording');
-    recLabel.textContent = t('rec');
-    recTimer.textContent = '';
+    hideRecordingUI();
 
     if (recordedChunks.length === 0) return;
     const blob = new Blob(recordedChunks, { type: mimeType });
@@ -1015,8 +1157,7 @@ recBtn.addEventListener('click', () => {
 
   mediaRecorder.start(100);
   recStartTime = performance.now();
-  recBtn.classList.add('recording');
-  recLabel.textContent = t('stop');
+  showRecordingUI();
   recTimerInterval = setInterval(() => {
     recTimer.textContent = formatTime(performance.now() - recStartTime);
   }, 500);

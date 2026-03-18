@@ -9,6 +9,8 @@ import { MediaOutlineRenderer } from './mediaOutline';
 import { GlitchFilter } from './glitchFilter';
 import { BeatProvider } from './beatProvider';
 import { MotionDetector } from './motionDetector';
+import { NowPlayingProvider } from './nowPlayingProvider';
+import type { NowPlayingTrack } from './nowPlayingProvider';
 
 const EFFECT_LAYERS: LayerType[] = ['background', 'decoration', 'text', 'overlay'];
 
@@ -39,6 +41,7 @@ export class PVEngine {
   private _effectOpacity = 1;
   private _alphaMode = false;
   private _hueShift = 0;
+  private _nowPlayingListening = false;
   private hueFilter: PIXI.ColorMatrixFilter;
   private glitchFilter: GlitchFilter;
   private bgFill!: PIXI.Graphics;
@@ -74,6 +77,15 @@ export class PVEngine {
   private _paused = false;
   private _time = 0;
   private _lastFrameTime = 0;
+
+  // Now Playing state
+  private npProvider: NowPlayingProvider | null = null;
+  private _npActive = false;
+  private _npPaused = false;
+  private _npTime = 0;
+  private _npDuration = 0;
+  private _npTrack: NowPlayingTrack | null = null;
+  private _npSavedUserText: string | null = null;
 
   constructor() {
     this.app = new PIXI.Application();
@@ -126,7 +138,13 @@ export class PVEngine {
       this._lastFrameTime = now;
 
       if (!this._paused) {
-        if (this.beat.isAudioMode) {
+        if (this._npActive) {
+          // In Now Playing mode, advance time locally when not paused
+          if (!this._npPaused) {
+            this._npTime += dt;
+          }
+          this._time = this._npTime;
+        } else if (this.beat.isAudioMode) {
           this._time = this.beat.currentTime;
         } else {
           this._time += dt;
@@ -152,7 +170,9 @@ export class PVEngine {
 
   seek(time: number) {
     this._time = Math.max(0, time);
-    if (this.beat.isAudioMode) {
+    if (this._npActive) {
+      this._npTime = this._time;
+    } else if (this.beat.isAudioMode) {
       this.beat.seek(this._time);
     }
   }
@@ -362,6 +382,105 @@ export class PVEngine {
     }
   }
   get alphaMode() { return this._alphaMode; }
+
+  // Now Playing listener toggle — connects or disconnects the WebSocket
+  set nowPlayingListening(val: boolean) {
+    if (this._nowPlayingListening === val) return;
+    this._nowPlayingListening = val;
+
+    if (val) {
+      this.startNowPlaying();
+    } else {
+      this.stopNowPlaying();
+    }
+  }
+  get nowPlayingListening() { return this._nowPlayingListening; }
+
+  /** The current Now Playing track info, or null if not listening. */
+  get nowPlayingTrack(): NowPlayingTrack | null {
+    return this._npActive ? this._npTrack : null;
+  }
+
+  private startNowPlaying(): void {
+    if (this.npProvider) return;
+
+    this._npActive = true;
+    this._npPaused = false;
+    this._npTime = 0;
+    this._npDuration = 0;
+    this._npTrack = null;
+    this._npSavedUserText = this.userText;
+
+    this.npProvider = new NowPlayingProvider({
+      onTrack: (track) => {
+        this._npTrack = track;
+        this._npDuration = track.duration;
+        // Reset progress on track change
+        this._npTime = 0;
+        this._npPaused = false;
+      },
+
+      onLyric: (lines) => {
+        if (lines && lines.length > 0) {
+          this.setLyricTimeline(lines);
+        } else {
+          this.clearLyricTimeline();
+          // Show track title as fallback text when no lyrics available
+          if (this._npTrack) {
+            this.userText = this._npTrack.title;
+            this.textSegments = [this._npTrack.title];
+          }
+        }
+      },
+
+      onPauseState: (isPaused) => {
+        this._npPaused = isPaused;
+      },
+
+      onProgress: (progressMs) => {
+        this._npTime = progressMs / 1000;
+      },
+
+      onReplay: () => {
+        this._npTime = 0;
+        this._npPaused = false;
+        this.lyricCursor = 0;
+        this.lastLyricTime = -1;
+      },
+    });
+
+    this.npProvider.connect();
+  }
+
+  private stopNowPlaying(): void {
+    if (this.npProvider) {
+      this.npProvider.destroy();
+      this.npProvider = null;
+    }
+    this._npActive = false;
+    this._npPaused = false;
+    this._npTime = 0;
+    this._npDuration = 0;
+    this._npTrack = null;
+
+    // Restore the original user text
+    this.clearLyricTimeline();
+    const saved = this._npSavedUserText;
+    this._npSavedUserText = null;
+    if (saved !== null) {
+      this.userText = saved;
+      this.textSegments = saved
+        .split('/')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+      if (this.textSegments.length === 0) {
+        this.textSegments = [''];
+      }
+    }
+    if (this.currentTemplate) {
+      this.loadTemplate(this.currentTemplate);
+    }
+  }
 
   private updateBgFill() {
     if (!this.bgFill) return;
@@ -715,7 +834,11 @@ export class PVEngine {
   }
 
   private update(time: number, deltaTime: number) {
-    const lyricClock = this.beat.isAudioMode ? this.beat.currentTime : time;
+    const lyricClock = this._npActive
+      ? this._npTime
+      : this.beat.isAudioMode
+        ? this.beat.currentTime
+        : time;
     this._playbackTime = lyricClock;
 
     if (this.motionDetector && this.mediaElement instanceof HTMLVideoElement) {
@@ -799,6 +922,11 @@ export class PVEngine {
   }
 
   get timelineDuration(): number {
+    // When Now Playing is active, use NP-provided duration
+    if (this._npActive && this._npDuration > 0) {
+      return this._npDuration;
+    }
+
     const audioDuration = this.beat.duration;
     if (Number.isFinite(audioDuration) && audioDuration > 0) {
       return audioDuration;
@@ -812,6 +940,7 @@ export class PVEngine {
   }
 
   destroy() {
+    this.stopNowPlaying();
     this.clearEffects();
     this.app.destroy(true);
   }

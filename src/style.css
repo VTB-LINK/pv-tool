@@ -38,7 +38,7 @@ body {
   border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   backdrop-filter: blur(10px);
   min-width: 220px;
   max-height: calc(100vh - 32px);
@@ -618,4 +618,80 @@ input[type='range'] {
 @keyframes pv-toast-out {
   from { opacity: 1; }
   to   { opacity: 0; }
+}
+
+/* Modal */
+.pv-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.pv-modal-box {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  min-width: 200px;
+  max-width: 500px;
+  padding: 24px;
+  color: #bbb;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.pv-modal-title {
+  color: #fff;
+  font-weight: bold;
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+
+.pv-modal-body p {
+  margin: 0 0 10px;
+}
+
+.pv-modal-body a {
+  color: #6688cc;
+  word-break: break-all;
+}
+
+.pv-modal-footer {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.pv-modal-footer .btn {
+  min-width: 72px;
+}
+
+/* Hint */
+.hide-hint {
+  padding: 0 4px;
+  font-size: 11px;
+  color: #ffffff;
+  opacity: 0.3;
+  user-select: none;
+  text-align: center;
+}
+
+.hide-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: inherit;
+  color: #ffffff;
+  background: #424242;
+  border: 1px solid #6e6d6d;
+  border-radius: 3px;
+  line-height: 1.4;
+  vertical-align: 1px;
+}
+
+body.pv-panels-hidden .panels-wrapper,
+body.pv-panels-hidden .mobile-toggle {
+  display: none;
 }
