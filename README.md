@@ -66,7 +66,7 @@ npm run build
 Open the browser and use the controls:
 
 1. **Select a template** from the dropdown, or choose "Custom" to build your own
-2. **Enter text** — use `/` to separate segments (e.g. `春を告げる/夜を越えて/踊れ踊れ`)
+2. **Enter text** — use `/` to separate segments (e.g. `/夜を越えて/踊れ踊れ`)
 3. **Load media** — drag in an image or video as background
 4. **Load audio** — add music for beat-reactive animations
 5. **Adjust parameters** — animation speed, motion intensity, segment timing, post-FX

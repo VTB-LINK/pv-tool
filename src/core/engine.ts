@@ -31,7 +31,7 @@ export class PVEngine {
 
   private _animationSpeed = 2;
   private _motionIntensity = 1;
-  private textSegments: string[] = ['春を告げる'];
+  private textSegments: string[] = [''];
   private lyricTimeline: LyricLine[] | null = null;
   private lyricOffsetSeconds = 0;
   private lyricCursor = 0;
