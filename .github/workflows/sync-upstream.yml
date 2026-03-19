@@ -1,0 +1,61 @@
+name: Sync Upstream Main
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch: 
+
+jobs:
+  sync-main:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write # 必须新增这个权限，允许机器人提 PR
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sync with upstream and force update
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git remote add upstream https://github.com/DanteAlighieri13210914/pv-tool.git
+          git fetch upstream
+          git reset --hard upstream/main
+          git push origin main --force
+
+      - name: Create or Check Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_EXISTS=$(gh pr list --base release --head main --state open --json number --jq 'length')
+
+          if [ "$PR_EXISTS" -eq "0" ]; then
+            echo "没有找到开启状态的 PR，准备尝试创建..."
+
+            if ! OUTPUT=$(gh pr create \
+              --repo ${{ github.repository }} \
+              --base release \
+              --head main \
+              --title "🚀 自动同步：上游最新代码已就绪" \
+              --body "上游代码已自动同步到 \`main\`。请审查是否有冲突，并合并到 \`release\` 以触发生产环境部署。" \
+              --assignee "oldking139" \
+              --reviewer "oldking139" 2>&1); then
+
+              if echo "$OUTPUT" | grep -iq "No commits between"; then
+                echo "✨ 当前 main 和 release 分支代码已完全同步，无需任何操作，跳过 PR 创建。"
+              else
+                echo "❌ 创建 PR 时发生意外错误："
+                echo "$OUTPUT"
+                exit 1
+              fi
+            else
+              echo "✅ 成功创建新的 PR，并已通知仓库所有者！"
+            fi
+          else
+            echo "ℹ️ PR 已存在，GitHub 会自动将其更新为包含最新的上游提交。"
+          fi

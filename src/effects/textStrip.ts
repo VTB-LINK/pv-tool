@@ -34,7 +34,7 @@ export class TextStrip extends BaseEffect {
     this.stripContainer.addChild(this.textContainer);
     this.stripContainer.rotation = rotation;
 
-    const text = this.config._userText || this.config.text || 'ヨルシカ';
+    const text = this.config._userText || this.config.text || '';
     this.buildText(text);
   }
 
@@ -64,7 +64,7 @@ export class TextStrip extends BaseEffect {
   }
 
   update(ctx: UpdateContext): void {
-    const newText = ctx.currentText || this.config.text || 'ヨルシカ';
+    const newText = ctx.currentText || this.config.text || '';
 
     if (newText !== this.displayedText && this.fadeState === 'idle') {
       this.pendingText = newText;

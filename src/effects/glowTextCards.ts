@@ -148,7 +148,7 @@ export class GlowTextCards extends BaseEffect {
   }
 
   update(ctx: UpdateContext): void {
-    const text = ctx.currentText || this.config.text || '春を告げる';
+    const text = ctx.currentText || this.config.text || '';
 
     if (text !== this.currentText) {
       this.rebuild(text, ctx);
