@@ -546,6 +546,7 @@ export class PVEngine {
       onAllLyrics: (_lines, duration) => {
         this._nwcDuration = duration;
         this._nwcTime = 0;
+        this._nwcPaused = false;
       },
 
       onLyric: (text, playTime) => {
