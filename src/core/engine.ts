@@ -557,6 +557,10 @@ export class PVEngine {
 
       onLyricClear: () => {
         this.clearLyricTimeline();
+        this._nwcTime = 0;
+        this._nwcDuration = 0;
+        this._nwcPaused = true;
+        this._nwcSongTitle = '';
         this.userText = '';
         this.textSegments = [''];
       },
@@ -568,7 +572,9 @@ export class PVEngine {
       onIdle: () => {
         this.clearLyricTimeline();
         this._nwcTime = 0;
-        this._nwcPaused = false;
+        this._nwcDuration = 0;
+        this._nwcPaused = true;
+        this._nwcSongTitle = '';
         this.userText = '';
         this.textSegments = [''];
       },
@@ -577,7 +583,9 @@ export class PVEngine {
         if (status === 'standby' || status === 'waiting_process' || status === 'waiting_song') {
           this.clearLyricTimeline();
           this._nwcTime = 0;
-          this._nwcPaused = false;
+          this._nwcDuration = 0;
+          this._nwcPaused = true;
+          this._nwcSongTitle = '';
           this.userText = '';
           this.textSegments = [''];
         }
