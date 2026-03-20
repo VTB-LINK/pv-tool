@@ -8,6 +8,7 @@ export function initCopyUrlButton(
   copyUrlBtn: HTMLButtonElement,
   templateSelect: HTMLSelectElement,
   npListenToggle: HTMLInputElement,
+  nwcListenToggle?: HTMLInputElement | null,
 ): void {
   copyUrlBtn.addEventListener('click', () => {
     const overlay = document.createElement('div');
@@ -43,6 +44,7 @@ export function initCopyUrlButton(
       if (bgCheck.checked) params.set('bg', '0');
       if (tplCheck.checked) params.set('t', templateSelect.value);
       if (npListenToggle.checked) params.set('np', '1');
+      if (nwcListenToggle?.checked) params.set('metabox-nexus-wesingcap', '1');
       const url = baseUrl + '?' + params.toString();
 
       try { await navigator.clipboard.writeText(url); } catch { /* noop */ }

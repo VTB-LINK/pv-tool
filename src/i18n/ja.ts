@@ -222,4 +222,15 @@ export const ja: Record<LocaleKey, string> = {
   'url_copied': 'URLをクリップボードにコピーしました',
   'listen_np_tip': '',
   'copy_url_tip': '',
+
+  // WesingCap
+  'listen_wesingcap': 'Nexus WesingCap を監視',
+  'listen_wesingcap_tip': '',
+  'nwc_fail_title': '接続失敗：Nexus WesingCapサービスが検出されません！',
+  'nwc_fail_body': 'Metabox Nexus WesingCapは全民K歌デスクトップアプリから歌詞を取得するツールです。詳細はこちら：',
+  'nwc_settings_title': 'Nexus WesingCap 設定',
+  'nwc_ws_addr': 'WebSocket アドレス',
+  'nwc_ws_addr_placeholder': 'デフォルト localhost:8765',
+  'nwc_save': '保存',
+  'nwc_saved': '保存しました',
 };

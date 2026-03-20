@@ -11,6 +11,7 @@ import { BeatProvider } from './beatProvider';
 import { MotionDetector } from './motionDetector';
 import { NowPlayingProvider } from './nowPlayingProvider';
 import type { NowPlayingTrack } from './nowPlayingProvider';
+import { WesingCapProvider } from './wesingCapProvider';
 
 const EFFECT_LAYERS: LayerType[] = ['background', 'decoration', 'text', 'overlay'];
 
@@ -87,6 +88,16 @@ export class PVEngine {
   private _npTrack: NowPlayingTrack | null = null;
   private _npSavedUserText: string | null = null;
 
+  // Nexus WesingCap state
+  private nwcProvider: WesingCapProvider | null = null;
+  private _nwcActive = false;
+  private _nwcPaused = false;
+  private _nwcTime = 0;
+  private _nwcDuration = 0;
+  private _nwcSongTitle = '';
+  private _nwcSavedUserText: string | null = null;
+  private _nwcWsUrl: string | undefined = undefined;
+
   constructor() {
     this.app = new PIXI.Application();
     this.hueFilter = new PIXI.ColorMatrixFilter();
@@ -144,6 +155,12 @@ export class PVEngine {
             this._npTime += dt;
           }
           this._time = this._npTime;
+        } else if (this._nwcActive) {
+          // In Nexus WesingCap mode, advance time locally when not paused
+          if (!this._nwcPaused) {
+            this._nwcTime += dt;
+          }
+          this._time = this._nwcTime;
         } else if (this.beat.isAudioMode) {
           this._time = this.beat.currentTime;
         } else {
@@ -172,6 +189,9 @@ export class PVEngine {
     this._time = Math.max(0, time);
     if (this._npActive) {
       this._npTime = this._time;
+    }
+    if (this._nwcActive) {
+      this._nwcTime = this._time;
     } else if (this.beat.isAudioMode) {
       this.beat.seek(this._time);
     }
@@ -325,6 +345,14 @@ export class PVEngine {
   }
 
   private getDisplayText(time: number): string {
+    // In NWC mode, display text is driven entirely by lyric_update pushes
+    if (this._nwcActive) {
+      const segIdx = this.textSegments.length > 1
+        ? Math.floor(time / this._segmentDuration) % this.textSegments.length
+        : 0;
+      return this.textSegments[segIdx] || '';
+    }
+
     if (this._srtTimeline) {
       const ms = time * 1000;
       const entry = this._srtTimeline.find(e => ms >= e.startMs && ms < e.endMs);
@@ -467,6 +495,112 @@ export class PVEngine {
     this.clearLyricTimeline();
     const saved = this._npSavedUserText;
     this._npSavedUserText = null;
+    if (saved !== null) {
+      this.userText = saved;
+      this.textSegments = saved
+        .split('/')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+      if (this.textSegments.length === 0) {
+        this.textSegments = [''];
+      }
+    }
+    if (this.currentTemplate) {
+      this.loadTemplate(this.currentTemplate);
+    }
+  }
+
+  // --- Nexus WesingCap integration ---
+  set wesingCapWsUrl(url: string | undefined) { this._nwcWsUrl = url; }
+  get wesingCapWsUrl(): string | undefined { return this._nwcWsUrl; }
+
+  set wesingCapListening(val: boolean) {
+    if (this._nwcActive === val) return;
+    if (val) {
+      this.startNwc();
+    } else {
+      this.stopNwc();
+    }
+  }
+  get wesingCapListening() { return this._nwcActive; }
+
+  get wesingCapSongTitle(): string {
+    return this._nwcActive ? this._nwcSongTitle : '';
+  }
+
+  private startNwc(): void {
+    if (this.nwcProvider) return;
+
+    this._nwcActive = true;
+    this._nwcPaused = false;
+    this._nwcTime = 0;
+    this._nwcDuration = 0;
+    this._nwcSongTitle = '';
+    this._nwcSavedUserText = this.userText;
+
+    this.nwcProvider = new WesingCapProvider({
+      onSongInfo: (name, _singer, title) => {
+        this._nwcSongTitle = title || name;
+      },
+
+      onAllLyrics: (_lines, duration) => {
+        this._nwcDuration = duration;
+        this._nwcTime = 0;
+      },
+
+      onLyric: (text, playTime) => {
+        this._nwcTime = playTime;
+        this._nwcPaused = false;
+        this.userText = text;
+        this.textSegments = [text];
+      },
+
+      onLyricClear: () => {
+        this.clearLyricTimeline();
+        this.userText = '';
+        this.textSegments = [''];
+      },
+
+      onPauseState: (isPaused) => {
+        this._nwcPaused = isPaused;
+      },
+
+      onIdle: () => {
+        this.clearLyricTimeline();
+        this._nwcTime = 0;
+        this._nwcPaused = false;
+        this.userText = '';
+        this.textSegments = [''];
+      },
+
+      onStatus: (status) => {
+        if (status === 'standby' || status === 'waiting_process' || status === 'waiting_song') {
+          this.clearLyricTimeline();
+          this._nwcTime = 0;
+          this._nwcPaused = false;
+          this.userText = '';
+          this.textSegments = [''];
+        }
+      },
+    }, this._nwcWsUrl);
+
+    this.nwcProvider.connect();
+  }
+
+  private stopNwc(): void {
+    if (this.nwcProvider) {
+      this.nwcProvider.destroy();
+      this.nwcProvider = null;
+    }
+    this._nwcActive = false;
+    this._nwcPaused = false;
+    this._nwcTime = 0;
+    this._nwcDuration = 0;
+    this._nwcSongTitle = '';
+
+    this.clearLyricTimeline();
+    const saved = this._nwcSavedUserText;
+    this._nwcSavedUserText = null;
     if (saved !== null) {
       this.userText = saved;
       this.textSegments = saved
@@ -926,6 +1060,10 @@ export class PVEngine {
     if (this._npActive && this._npDuration > 0) {
       return this._npDuration;
     }
+    // When WesingCap is active, use WC-provided duration
+    if (this._nwcActive && this._nwcDuration > 0) {
+      return this._nwcDuration;
+    }
 
     const audioDuration = this.beat.duration;
     if (Number.isFinite(audioDuration) && audioDuration > 0) {
@@ -941,6 +1079,7 @@ export class PVEngine {
 
   destroy() {
     this.stopNowPlaying();
+    this.stopNwc();
     this.clearEffects();
     this.app.destroy(true);
   }
