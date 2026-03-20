@@ -225,4 +225,15 @@ export const en: Record<LocaleKey, string> = {
   'url_copied': 'URL copied to clipboard',
   'listen_np_tip': '',
   'copy_url_tip': '',
+
+  // WesingCap
+  'listen_wesingcap': 'Listen Nexus WesingCap',
+  'listen_wesingcap_tip': '',
+  'nwc_fail_title': 'Listen failed: Nexus WesingCap service not detected!',
+  'nwc_fail_body': 'Metabox Nexus WesingCap reads lyrics from WeSing desktop app. Learn more:',
+  'nwc_settings_title': 'Nexus WesingCap Settings',
+  'nwc_ws_addr': 'WebSocket Address',
+  'nwc_ws_addr_placeholder': 'Default localhost:8765',
+  'nwc_save': 'Save',
+  'nwc_saved': 'Saved',
 };

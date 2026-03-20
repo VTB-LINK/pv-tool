@@ -224,6 +224,17 @@ export const zh = {
   'url_copied': 'URL 已复制到剪贴板',
   'listen_np_tip': '需要运行 Now Playing 服务，自动获取音乐软件正在播放的歌曲并同步显示歌词',
   'copy_url_tip': '生成可直接粘贴到 OBS 浏览器源的 URL，自动隐藏面板 / 透明背景 / 加载指定模板',
+
+  // WesingCap
+  'listen_wesingcap': '监听 Nexus WesingCap',
+  'listen_wesingcap_tip': '需要运行 Metabox Nexus WesingCap 服务，自动获取全民K歌正在播放的歌词',
+  'nwc_fail_title': '监听失败：未检测到 Nexus WesingCap 服务运行！',
+  'nwc_fail_body': 'Metabox Nexus WesingCap 是一款读取全民K歌桌面端正在播放歌曲歌词的工具。您可通过该链接了解详情：',
+  'nwc_settings_title': 'Nexus WesingCap 设置',
+  'nwc_ws_addr': 'WebSocket 地址',
+  'nwc_ws_addr_placeholder': '默认 localhost:8765',
+  'nwc_save': '保存',
+  'nwc_saved': '已保存',
 } as const;
 
 export type LocaleKey = keyof typeof zh;

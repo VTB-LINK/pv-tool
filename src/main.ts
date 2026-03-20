@@ -15,6 +15,7 @@ import {
   decodeShareCode,
 } from './core/templateStore';
 import { testNowPlayingConnection } from './core/nowPlayingProvider';
+import { testWesingCapConnection } from './core/wesingCapProvider';
 import { initCopyUrlButton } from './core/copyUrl';
 import { showToast, attachModalDismiss } from './core/uiHelpers';
 
@@ -245,6 +246,14 @@ app.innerHTML = `
         <summary class="panel-title">${t('listen')}</summary>
 
         <div class="control-group">
+          <label class="effect-toggle nwc-toggle-row">
+            <input type="checkbox" id="nwc-listen-toggle">
+            <span>${t('listen_wesingcap')}</span><span class="help-tip" data-tip="${t('listen_wesingcap_tip')}">?</span>
+            <button type="button" class="nwc-gear-btn" id="nwc-gear-btn" title="${t('nwc_settings_title')}">&#9881;</button>
+          </label>
+        </div>
+
+        <div class="control-group">
           <label class="effect-toggle">
             <input type="checkbox" id="np-listen-toggle">
             <span>${t('listen_now_playing')}</span><span class="help-tip" data-tip="${t('listen_np_tip')}">?</span>
@@ -375,6 +384,18 @@ engine.init(container).then(() => {
   if (npParam === '1' && npListenToggle) {
     npListenToggle.checked = true;
     npListenToggle.dispatchEvent(new Event('change'));
+  }
+
+  // URL param: metabox-nexus-wesingcap (WesingCap listener)
+  const nwcAddrParam = urlParams.get('metabox-nexus-wesingcap-addr');
+  if (nwcAddrParam && nwcAddrParam !== '0') {
+    const addr = decodeURIComponent(nwcAddrParam);
+    engine.wesingCapWsUrl = 'ws://' + addr + '/ws';
+  }
+  const nwcParam = urlParams.get('metabox-nexus-wesingcap');
+  if (nwcParam === '1' && nwcListenToggle) {
+    nwcListenToggle.checked = true;
+    nwcListenToggle.dispatchEvent(new Event('change'));
   }
 });
 
@@ -953,13 +974,91 @@ alphaToggle.addEventListener('change', () => {
   engine.alphaMode = alphaToggle.checked;
 });
 
-// --- Now Playing & Copy URL (zh only) ---
+// --- Now Playing & Nexus WesingCap & Copy URL (zh only) ---
 const npListenToggle = document.getElementById('np-listen-toggle') as HTMLInputElement | null;
+const nwcListenToggle = document.getElementById('nwc-listen-toggle') as HTMLInputElement | null;
+const nwcGearBtn = document.getElementById('nwc-gear-btn') as HTMLButtonElement | null;
 const copyUrlBtn = document.getElementById('copy-url-btn') as HTMLButtonElement | null;
 
 if (copyUrlBtn && npListenToggle) {
-  initCopyUrlButton(copyUrlBtn, templateSelect, npListenToggle);
+  initCopyUrlButton(copyUrlBtn, templateSelect, npListenToggle, nwcListenToggle);
 }
+
+// --- Nexus WesingCap gear settings popup ---
+nwcGearBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'pv-modal-overlay';
+
+  const currentAddr = engine.wesingCapWsUrl
+    ? engine.wesingCapWsUrl.replace(/^ws:\/\//, '').replace(/\/ws\/?$/, '')
+    : '';
+
+  overlay.innerHTML = `
+    <div class="pv-modal-box nwc-settings-box">
+      <div class="pv-modal-body">
+        <p class="pv-modal-title">${t('nwc_settings_title')}</p>
+        <label class="nwc-addr-label">${t('nwc_ws_addr')}</label>
+        <input type="text" class="nwc-addr-input" id="nwc-addr-input"
+               value="${currentAddr}" placeholder="${t('nwc_ws_addr_placeholder')}">
+      </div>
+      <div class="pv-modal-footer nwc-settings-footer">
+        <button class="btn pv-modal-confirm">${t('nwc_save')}</button>
+      </div>
+      <div class="nwc-settings-branding">
+        <a href="https://vtb.link/wesingcap" target="_blank" rel="noopener">VTB-TOOLS Metabox Nexus WesingCap</a>
+        <span class="nwc-powered-by">Powered by <a href="https://space.bilibili.com/40879764" target="_blank" rel="noopener">VTB-LIVE &amp; VTB-LINK</a></span>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const addrInput = overlay.querySelector('#nwc-addr-input') as HTMLInputElement;
+  const confirmBtn = overlay.querySelector('.pv-modal-confirm')!;
+  confirmBtn.addEventListener('click', () => {
+    const val = addrInput.value.trim();
+    if (val) {
+      engine.wesingCapWsUrl = 'ws://' + val + '/ws';
+    } else {
+      engine.wesingCapWsUrl = undefined;
+    }
+    overlay.remove();
+    showToast(t('nwc_saved'));
+  });
+  attachModalDismiss(overlay);
+});
+
+// --- Nexus WesingCap toggle ---
+let nwcConnecting = false;
+nwcListenToggle?.addEventListener('change', async () => {
+  if (!nwcListenToggle) return;
+  if (nwcListenToggle.checked) {
+    if (nwcConnecting) {
+      nwcListenToggle.checked = false;
+      return;
+    }
+    nwcConnecting = true;
+    const ok = await testWesingCapConnection(engine.wesingCapWsUrl);
+    nwcConnecting = false;
+
+    if (!ok) {
+      nwcListenToggle.checked = false;
+      const nwcLink = 'https://vtb.link/wesingcap';
+      showModal(
+        `<p class="pv-modal-title">${t('nwc_fail_title')}</p>
+         <p>${t('nwc_fail_body')}</p>
+         <p><a href="${nwcLink}" target="_blank" rel="noopener">${nwcLink}</a></p>`,
+        t('modal_confirm'),
+      );
+      return;
+    }
+  }
+  engine.wesingCapListening = nwcListenToggle.checked;
+});
+
+// --- Now Playing toggle ---
 
 let npConnecting = false;
 npListenToggle?.addEventListener('change', async () => {
