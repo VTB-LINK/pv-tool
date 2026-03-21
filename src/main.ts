@@ -397,6 +397,12 @@ engine.init(container).then(() => {
     nwcListenToggle.checked = true;
     nwcListenToggle.dispatchEvent(new Event('change'));
   }
+
+  // Create AGPL-3.0 License Notice Panel
+  const agplNotice = document.createElement('div');
+  agplNotice.id = 'agpl-notice';
+  agplNotice.innerHTML = `${t('agpl_notice')} <a href="https://github.com/VTB-LINK/pv-tool" target="_blank">${t('agpl_repo_link')}</a>。`;
+  document.body.appendChild(agplNotice);
 });
 
 // Mobile toggle

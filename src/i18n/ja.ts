@@ -237,4 +237,8 @@ export const ja: Record<LocaleKey, string> = {
   'nwc_ws_addr_placeholder': 'デフォルト localhost:8765',
   'nwc_save': '保存',
   'nwc_saved': '保存しました',
-};
+
+  // AGPL-3.0 License Notice
+  'agpl_notice': 'このミラーサイトは AGPL-3.0 ライセンスの下で実行されています。ソースコードおよび変更の詳細については、以下をご覧ください',
+  'agpl_repo_link': 'GitHub リポジトリ',
+} as Record<LocaleKey, string>;
