@@ -100,6 +100,40 @@ body {
     overflow-y: auto;
 }
 
+
+/* AGPL License Notice Panel */
+
+#agpl-notice {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    padding: 12px 14px;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    max-width: 320px;
+    word-wrap: break-word;
+    font-weight: normal;
+}
+
+#agpl-notice a {
+    color: #88ccff;
+    text-decoration: none;
+    cursor: pointer;
+    border-bottom: 1px dotted rgba(136, 204, 255, 0.5);
+    transition: color 0.15s, border-color 0.15s;
+}
+
+#agpl-notice a:hover {
+    color: #aaddff;
+    border-bottom-color: rgba(170, 221, 255, 0.8);
+}
+
 .sharecode-row {
     display: flex;
     align-items: center;
@@ -718,7 +752,8 @@ input[type='range'] {
 }
 
 body.pv-panels-hidden .panels-wrapper,
-body.pv-panels-hidden .mobile-toggle {
+body.pv-panels-hidden .mobile-toggle,
+body.pv-panels-hidden #agpl-notice {
     display: none;
 }
 

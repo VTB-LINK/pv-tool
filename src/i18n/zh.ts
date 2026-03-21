@@ -235,6 +235,10 @@ export const zh = {
   'nwc_ws_addr_placeholder': '默认 localhost:8765',
   'nwc_save': '保存',
   'nwc_saved': '已保存',
+
+  // AGPL-3.0 License Notice
+  'agpl_notice': '本镜像站基于 AGPL-3.0 协议运行。源代码及修改详情请见',
+  'agpl_repo_link': 'GitHub 仓库',
 } as const;
 
 export type LocaleKey = keyof typeof zh;
