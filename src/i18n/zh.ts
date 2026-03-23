@@ -235,6 +235,7 @@ export const zh = {
   'nwc_ws_addr_placeholder': '默认 localhost:8765',
   'nwc_save': '保存',
   'nwc_saved': '已保存',
+  'nwc_disconnected': 'WesingCap 连接已断开，监听已停止',
 
   // AGPL-3.0 License Notice
   'agpl_notice': '本镜像站基于 AGPL-3.0 协议运行。源代码及修改详情请见',

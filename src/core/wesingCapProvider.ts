@@ -17,6 +17,8 @@ export interface WesingCapCallbacks {
   onPauseState: (isPaused: boolean) => void;
   onIdle: () => void;
   onStatus: (status: string) => void;
+  /** Called once when the connection drops unexpectedly after having been established. */
+  onDisconnect?: () => void;
 }
 
 export class WesingCapProvider {
@@ -25,6 +27,8 @@ export class WesingCapProvider {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private _active = false;
   private _wsUrl: string;
+  /** True after at least one successful ws.onopen, reset to false after disconnect fires. */
+  private _connectedOnce = false;
 
   constructor(callbacks: WesingCapCallbacks, wsUrl?: string) {
     this.callbacks = callbacks;
@@ -76,6 +80,7 @@ export class WesingCapProvider {
     }
 
     this.ws.onopen = () => {
+      this._connectedOnce = true;
       console.log('[WesingCap] WebSocket connected to', this._wsUrl);
     };
 
@@ -95,6 +100,13 @@ export class WesingCapProvider {
     this.ws.onclose = () => {
       console.warn('[WesingCap] WebSocket closed');
       this.ws = null;
+      if (this._connectedOnce) {
+        // Connection dropped unexpectedly — notify UI, then stop reconnecting.
+        this._connectedOnce = false;
+        this.callbacks.onDisconnect?.();
+        // onDisconnect may have called disconnect() which sets _active=false;
+        // scheduleReconnect will bail in that case.
+      }
       this.scheduleReconnect();
     };
   }

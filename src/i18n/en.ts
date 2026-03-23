@@ -236,6 +236,7 @@ export const en: Record<LocaleKey, string> = {
   'nwc_ws_addr_placeholder': 'Default localhost:8765',
   'nwc_save': 'Save',
   'nwc_saved': 'Saved',
+  'nwc_disconnected': 'WesingCap connection lost',
 
   // AGPL-3.0 License Notice
   'agpl_notice': 'This mirror site runs under AGPL-3.0 license. For source code and modification details, please visit',

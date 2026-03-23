@@ -987,8 +987,27 @@ const nwcGearBtn = document.getElementById('nwc-gear-btn') as HTMLButtonElement 
 const copyUrlBtn = document.getElementById('copy-url-btn') as HTMLButtonElement | null;
 
 if (copyUrlBtn && npListenToggle) {
-  initCopyUrlButton(copyUrlBtn, templateSelect, npListenToggle, nwcListenToggle);
+  initCopyUrlButton(
+    copyUrlBtn,
+    templateSelect,
+    npListenToggle,
+    nwcListenToggle,
+    () => engine.wesingCapWsUrl?.replace(/^ws:\/\//, '').replace(/\/ws\/?$/, ''),
+  );
 }
+
+// --- Nexus WesingCap disconnect handler ---
+engine.onWesingCapDisconnect = () => {
+  if (nwcListenToggle) nwcListenToggle.checked = false;
+  engine.wesingCapListening = false;
+  const nwcLink = 'https://vtb.link/wesingcap';
+  showModal(
+    `<p class="pv-modal-title">${t('nwc_fail_title')}</p>
+     <p>${t('nwc_fail_body')}</p>
+     <p><a href="${nwcLink}" target="_blank" rel="noopener">${nwcLink}</a></p>`,
+    t('modal_confirm'),
+  );
+};
 
 // --- Nexus WesingCap gear settings popup ---
 nwcGearBtn?.addEventListener('click', (e) => {

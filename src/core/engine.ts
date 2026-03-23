@@ -511,6 +511,9 @@ export class PVEngine {
   }
 
   // --- Nexus WesingCap integration ---
+  private _onNwcDisconnect: (() => void) | undefined;
+  set onWesingCapDisconnect(cb: (() => void) | undefined) { this._onNwcDisconnect = cb; }
+
   set wesingCapWsUrl(url: string | undefined) { this._nwcWsUrl = url; }
   get wesingCapWsUrl(): string | undefined { return this._nwcWsUrl; }
 
@@ -590,6 +593,10 @@ export class PVEngine {
           this.userText = '';
           this.textSegments = [''];
         }
+      },
+
+      onDisconnect: () => {
+        this._onNwcDisconnect?.();
       },
     }, this._nwcWsUrl);
 
