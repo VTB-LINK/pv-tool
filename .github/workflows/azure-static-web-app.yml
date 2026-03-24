@@ -1,35 +1,26 @@
-name: Cloudflare Pages CI/CD
+name: Azure Static Web Apps CI/CD
 
 on:
   push:
     branches:
-      - main
+      - release
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
     branches:
       - main
 
-permissions:
-  contents: read
-  deployments: write
-  pull-requests: write
-
-env:
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-  CLOUDFLARE_PAGES_PROJECT_NAME: dev-pv-vtb-tool
-
 jobs:
   build_and_deploy_job:
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
-    runs-on:
-      - self-hosted
-      - linux
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
     environment:
-      name: Cloudflare Pages
-    name: Build and Deploy to Cloudflare Pages
+      name: 'Azure Static Web Page'
+#       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+
+    name: Build and Deploy Job
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
@@ -38,25 +29,40 @@ jobs:
         with:
           node-version: 20
           cache: npm
-
+   
       - name: Install dependencies
         run: npm ci
-
-      - name: Build app
+        
+      - name: Use npm to build
         run: npm run build
-
-      - name: Prepare dist files
+      - name: Organize dist files
         run: |
           mkdir -p dist/pv-tool
           shopt -s extglob
-          cd dist && mv !(index.html|_headers|_redirects|pv-tool) pv-tool/ || true
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+          cd dist && mv !(index.html|staticwebapp.config.json|pv-tool) pv-tool/
+      - name: Build And Deploy
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
         with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: >
-            pages deploy dist
-            --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT_NAME }}
-            --branch=${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_MUD_06E720300 }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          action: "upload"
+          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
+          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
+          app_location: "dist" # App source code path
+          api_location: "" # Api source code path - optional
+          output_location: "" # Built app content directory - optional
+          skip_app_build: true
+          ###### End of Repository/Build Configurations ######
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_MUD_06E720300 }}
+          action: "close"
