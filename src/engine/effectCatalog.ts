@@ -192,3 +192,22 @@ export const effectCatalog: EffectPreset[] = [
     } 
   },
 ];
+
+// ── Merge V2 effects (auto-discovered from meta declarations) ──
+import { v2Metas } from '../effects/v2/registry';
+import { buildDefaultConfig, resolveLocalized } from '../effects/v2/schema';
+
+for (const meta of v2Metas) {
+  // Build label matching V1 pattern: "中文名 EnglishName"
+  const localName = resolveLocalized(meta.name);
+  const enName = typeof meta.name === 'object' ? meta.name.en : undefined;
+  const label = enName && enName !== localName ? `${localName} ${enName}` : localName;
+
+  effectCatalog.push({
+    type: meta.type,
+    label,
+    category: resolveLocalized(meta.category),
+    layer: meta.layer,
+    config: buildDefaultConfig(meta),
+  });
+}

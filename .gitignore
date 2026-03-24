@@ -40,3 +40,5 @@ Thumbs.db
 *.tsbuildinfo
 .vercel/
 .azure/
+/dist
+/dist/assets

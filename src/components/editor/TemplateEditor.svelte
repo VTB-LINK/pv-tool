@@ -12,6 +12,7 @@
   import { effectCatalog, type EffectPreset } from '../../engine/effectCatalog';
   import type { EffectEntry, ColorPalette } from '../../types/engine';
   import { t } from '../../i18n';
+  import { v2Registry } from '../../effects/v2/registry';
 
   // Build a lookup: effectType → localized label
   const effectLabelMap = new Map<string, string>();
@@ -230,6 +231,7 @@
             <div class="effect-config-wrapper">
               <EffectConfigPane
                 config={effect.config}
+                schema={v2Registry.get(effect.type)?.meta?.fields}
                 onchange={(key: string, value: any) => handleConfigChange(i, key, value)}
               />
             </div>
