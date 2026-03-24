@@ -13,6 +13,12 @@
   import type { EffectEntry, ColorPalette } from '../../types/engine';
   import { t } from '../../i18n';
 
+  // Build a lookup: effectType → localized label
+  const effectLabelMap = new Map<string, string>();
+  for (const preset of effectCatalog) {
+    if (!effectLabelMap.has(preset.type)) effectLabelMap.set(preset.type, preset.label);
+  }
+
   let { visible = $bindable(false) } = $props();
 
   // ── Local editor state ──
@@ -210,6 +216,7 @@
             onclick={() => activeEffectIndex = activeEffectIndex === i ? null : i}
           >
             <span class="effect-layer">{layerIcons[effect.layer] ?? '?'}</span>
+            <span class="effect-label">{effectLabelMap.get(effect.type) ?? effect.type}</span>
             <span class="effect-type">{effect.type}</span>
             <div class="effect-actions">
               <button class="icon-btn" title="Move up" onclick={(e: MouseEvent) => { e.stopPropagation(); moveEffect(i, -1); }}>↑</button>
@@ -472,11 +479,20 @@
     text-align: center;
   }
 
-  .effect-type {
+  .effect-label {
     flex: 1;
-    font-size: 0.75rem;
+    font-size: 0.73rem;
     color: var(--pv-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .effect-type {
+    font-size: 0.6rem;
+    color: var(--pv-text-muted);
     font-family: var(--pv-font-mono);
+    flex-shrink: 0;
   }
 
   .effect-actions {
