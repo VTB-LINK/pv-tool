@@ -1,3 +1,9 @@
+## 关于本项目（VTB-LIVE Fork 版本）的声明
+
+鉴于上游项目已于 2026年3月24日 更改为非开源的专有协议（Non-Commercial License），为了保护开源社区的利益，并确保广大创作者能继续免费、自由地使用该工具，本仓库将作为一个独立的开源分支长期维护。
+
+本仓库所有的代码均基于上游最后一次合法的 AGPL-3.0 提交，并严格遵守 AGPL-3.0 协议。我们将继续开放 PR，并定期修复 Bug。我们感谢原作者与各贡献者前期的巨大贡献，也欢迎所有开源开发者加入本分支的维护。
+
 # PV Tool — Kinetic Typography & Post-Processing for Music Videos
 
 A browser-based visual effects engine for creating PV (Promotional Video) style kinetic typography and post-processing overlays, built with [PixiJS](https://pixijs.com/) and TypeScript.
