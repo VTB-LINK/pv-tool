@@ -1,0 +1,62 @@
+name: Cloudflare Pages CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+permissions:
+  contents: read
+  deployments: write
+  pull-requests: write
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_PAGES_PROJECT_NAME: dev-pv-vtb-tool
+
+jobs:
+  build_and_deploy_job:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on:
+      - self-hosted
+      - linux
+    environment:
+      name: Cloudflare Pages
+    name: Build and Deploy to Cloudflare Pages
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Prepare dist files
+        run: |
+          mkdir -p dist/pv-tool
+          shopt -s extglob
+          cd dist && mv !(index.html|_headers|_redirects|pv-tool) pv-tool/ || true
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: >
+            pages deploy dist
+            --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT_NAME }}
+            --branch=${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}

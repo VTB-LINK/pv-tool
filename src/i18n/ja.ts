@@ -1,3 +1,10 @@
+// Modified by VTB-LIVE on 2026-03-24
+// Copyright (c) 2026 VTB-LIVE (Modifications)
+//
+// Original Work:
+// PV Tool — Copyright (c) 2026 DanteAlighieri13210914
+// Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
+
 import type { LocaleKey } from './zh';
 
 export const ja: Record<LocaleKey, string> = {
@@ -6,14 +13,14 @@ export const ja: Record<LocaleKey, string> = {
 
   // Panel titles
   'postfx': 'ポスト Post FX',
+  'postfx_lock': 'FXロック（テンプレート変更時保持）',
+  'postfx_reset': 'FXリセット',
   'effects_library': 'エフェクト Effects',
 
   // Left panel
   'template': 'テンプレート Template',
   'custom': '✦ カスタム Custom',
   'canvas_color': 'キャンバス色 Canvas',
-  'font_label': 'フォント Font',
-  'load_local_fonts': 'ローカルフォントを取得',
   'follow_template': 'テンプレに従う',
   'text_label': 'テキスト Text（/で分割）',
   'expand': '展開',
@@ -34,8 +41,6 @@ export const ja: Record<LocaleKey, string> = {
   'paused': '⏹ 停止中',
   'bpm': 'BPM',
   'beat_react': 'ビート反応 Beat React',
-  'preview_fps': 'プレビューFPS制限',
-  'fps_unlimited': '無制限',
 
   // Right panel — Post FX
   'shake': 'シェイク Shake',
@@ -230,8 +235,16 @@ export const ja: Record<LocaleKey, string> = {
   'url_copied': 'URLをクリップボードにコピーしました',
   'listen_np_tip': '',
   'copy_url_tip': '',
+  'live_mode': 'ライブ MODE',
+  'copy_obs_url': 'OBSブラウザソースURLをコピー',
+  'copy_obs_url_hint': 'パネル自動非表示 / 透明背景 / テンプレート・監視状態を保存',
+  'url_opt_alpha': '透明背景',
+  'url_opt_template': '現在のテンプレートを含む',
+  'url_opt_listen': '監視状態を含む',
+  'url_opt_postfx': 'ポストFXを含む',
 
   // WesingCap
+  'listen_nowplaying': 'NowPlayingを監視',
   'listen_wesingcap': 'Nexus WesingCap を監視',
   'listen_wesingcap_tip': '',
   'nwc_fail_title': '接続失敗：Nexus WesingCapサービスが検出されません！',
@@ -241,9 +254,28 @@ export const ja: Record<LocaleKey, string> = {
   'nwc_ws_addr_placeholder': 'デフォルト localhost:8765',
   'nwc_save': '保存',
   'nwc_saved': '保存しました',
-  'nwc_disconnected': 'WesingCap 接続が切断されました',
+  'nwc_disconnected': 'Nexus WesingCap の接続が切断されました',
 
-  // AGPL-3.0 License Notice
-  'agpl_notice': 'このミラーサイトは AGPL-3.0 ライセンスの下で実行されています。ソースコードおよび変更の詳細については、以下をご覧ください',
-  'agpl_repo_link': 'GitHub リポジトリ',
-} as Record<LocaleKey, string>;
+  // Template Editor
+  'template_editor': 'テンプレートエディター',
+  'reset_template': 'リセット',
+  'palette': 'パレット',
+  'effects_list': 'エフェクト一覧',
+  'no_effects': 'エフェクトなし',
+  'add_effect': 'エフェクト追加',
+  'hide_catalog': 'カタログを閉じる',
+  'effect_catalog': 'エフェクトカタログ',
+  'search_effects': 'エフェクトを検索...',
+  'template_actions': 'テンプレート操作',
+  'save_template': 'テンプレート保存',
+  'template_name': 'テンプレート名...',
+  'save': '保存',
+  'import': 'インポート',
+  'paste_share_code': '共有コードを貼り付け...',
+  'effect_removed': 'エフェクトを削除しました',
+  'saved': '保存しました',
+  'share_code_copied': '共有コードをコピーしました',
+  'imported': 'インポートしました',
+  'no_params': '調整可能なパラメータなし',
+  'open_editor': 'テンプレート編集',
+};

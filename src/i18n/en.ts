@@ -1,3 +1,10 @@
+// Modified by VTB-LIVE on 2026-03-24
+// Copyright (c) 2026 VTB-LIVE (Modifications)
+//
+// Original Work:
+// PV Tool — Copyright (c) 2026 DanteAlighieri13210914
+// Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
+
 import type { LocaleKey } from './zh';
 
 export const en: Record<LocaleKey, string> = {
@@ -6,14 +13,14 @@ export const en: Record<LocaleKey, string> = {
 
   // Panel titles
   'postfx': 'Post FX',
+  'postfx_lock': 'Lock FX (preserve on template switch)',
+  'postfx_reset': 'Reset FX',
   'effects_library': 'Effects Library',
 
   // Left panel
   'template': 'Template',
   'custom': '✦ Custom',
   'canvas_color': 'Canvas Color',
-  'font_label': 'Font',
-  'load_local_fonts': 'Load Local Fonts',
   'follow_template': 'Follow Template',
   'text_label': 'Text (split with /)',
   'expand': 'Expand',
@@ -34,8 +41,6 @@ export const en: Record<LocaleKey, string> = {
   'paused': '⏹ Paused',
   'bpm': 'BPM',
   'beat_react': 'Beat React',
-  'preview_fps': 'Limit Preview FPS',
-  'fps_unlimited': 'Unlimited',
 
   // Right panel — Post FX
   'shake': 'Shake',
@@ -227,8 +232,16 @@ export const en: Record<LocaleKey, string> = {
   'copy_url_use_template': 'Use Current Template',
   'copy_url_copy_btn': 'Copy',
   'url_copied': 'URL copied to clipboard',
+  'listen_nowplaying': 'Listen NowPlaying',
   'listen_np_tip': '',
   'copy_url_tip': '',
+  'live_mode': 'Live MODE',
+  'copy_obs_url': 'Copy OBS Browser Source URL',
+  'copy_obs_url_hint': 'Auto-hide panels / transparent BG / save template & listen state',
+  'url_opt_alpha': 'Transparent Background',
+  'url_opt_template': 'Include Current Template',
+  'url_opt_listen': 'Include Listen State',
+  'url_opt_postfx': 'Include Post FX',
 
   // WesingCap
   'listen_wesingcap': 'Listen Nexus WesingCap',
@@ -240,9 +253,28 @@ export const en: Record<LocaleKey, string> = {
   'nwc_ws_addr_placeholder': 'Default localhost:8765',
   'nwc_save': 'Save',
   'nwc_saved': 'Saved',
-  'nwc_disconnected': 'WesingCap connection lost',
+  'nwc_disconnected': 'Nexus WesingCap disconnected',
 
-  // AGPL-3.0 License Notice
-  'agpl_notice': 'This mirror site runs under AGPL-3.0 license. For source code and modification details, please visit',
-  'agpl_repo_link': 'GitHub Repository',
-} as Record<LocaleKey, string>;
+  // Template Editor
+  'template_editor': 'Template Editor',
+  'reset_template': 'Reset',
+  'palette': 'Palette',
+  'effects_list': 'Effects',
+  'no_effects': 'No effects',
+  'add_effect': 'Add Effect',
+  'hide_catalog': 'Hide Catalog',
+  'effect_catalog': 'Effect Catalog',
+  'search_effects': 'Search effects...',
+  'template_actions': 'Template Actions',
+  'save_template': 'Save Template',
+  'template_name': 'Template name...',
+  'save': 'Save',
+  'import': 'Import',
+  'paste_share_code': 'Paste share code...',
+  'effect_removed': 'Effect removed',
+  'saved': 'Saved',
+  'share_code_copied': 'Share code copied',
+  'imported': 'Imported',
+  'no_params': 'No adjustable parameters',
+  'open_editor': 'Edit Template',
+};
