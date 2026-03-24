@@ -18,7 +18,7 @@ PV Tool takes text (lyrics, titles, poetry) and renders them with layered visual
 
 **Core capabilities:**
 
-- **16 preset templates** — curated visual styles ranging from clean typography to cyberpunk HUDs, each combining multiple effects into a cohesive look
+- **17 preset templates** — curated visual styles ranging from clean typography to cyberpunk HUDs, each combining multiple effects into a cohesive look
 - **54 configurable effects** — geometry, text layouts, overlays, textures, organic shapes, composition guides, and more
 - **Custom mode** — mix and match any effects from the catalog to build your own style
 - **Media input** — load images or videos as background layers with automatic color extraction
@@ -31,22 +31,23 @@ PV Tool takes text (lyrics, titles, poetry) and renders them with layered visual
 
 | Template | Style |
 |---|---|
-| 蓝色冲击 | Bold blue geometric impact |
-| 斩击 | Kinetic split with diagonal energy |
-| 蓝色构成 | Deconstructed blueprint with physics formulas |
-| 城市、文字、雨 | Urban rain with flowing text |
-| 夜色 | Soft nocturnal atmosphere |
-| 波普 | Pop art halftone and bold colors |
-| 青墨 | Ink wash minimalism |
-| 电脑 | Digital / cyber aesthetic |
-| 战场 | High-intensity battle theme |
-| 几何 | Pure geometric composition |
-| 全息 | Holographic glow rings |
-| 赛博监控 | Cyberpunk HUD with motion tracking |
-| 情绪电影 | Cinematic emotion overlay |
-| 剪影极简 | Silhouette clean minimalism |
-| 歇斯底里之夜 | Radial rectangles with glowing text cards |
-| 戒尺 | Ruler guides with breathing blocks |
+| 蓝色冲击 | Bold blue with big outline text |
+| 斩击 | Diagonal slash with kinetic hatch |
+| 蓝色构成 | Inverted video with structural circles |
+| 赛博废墟 | Dark halftone noise CRT grunge |
+| 几何 | Yellow geometric centered squares |
+| 黑客帝国 | Matrix green falling text rain |
+| 夜之城监控 | Cyberpunk HUD with target markers |
+| 情绪电影 | Cinematic melancholy with flowing lines |
+| 歇斯底里之夜 | Radial rectangles with flashing glow |
+| 蛛网 | Red web lines with glitch |
+| 错落文字 | Animated staggered text on blue |
+| 冷静的反派 | Controlled villain with grids and formulas |
+| 少女云朵 | Soft pink stripes with fluffy clouds |
+| 格子花边 | Pink grid with pulsing lace circles |
+| Fly Me to the Moon | Dark space with planet and shapes |
+| Kawaii像素 | Cute pastel pixel desktop aesthetic |
+| 案发现场 | Dark blood splatter crime tape |
 
 ## Effects Library
 
