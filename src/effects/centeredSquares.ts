@@ -1,10 +1,14 @@
+// Modified by VTB-LIVE on 2026-03-24
+// Copyright (c) 2026 VTB-LIVE (Modifications)
+//
+// Original Work:
 // PV Tool — Copyright (c) 2026 DanteAlighieri13210914
 // Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
 
 import * as PIXI from 'pixi.js';
 import { BaseEffect } from './base';
-import type { UpdateContext } from '../core/types';
-import { resolveColor } from '../core/types';
+import type { UpdateContext } from '../types/engine';
+import { resolveColor } from '../types/engine';
 
 interface SquareLayer {
   container: PIXI.Container;
@@ -88,13 +92,12 @@ export class CenteredSquares extends BaseEffect {
     const spacing = chars.length > 1 ? totalSpread / (chars.length - 1) : 0;
     const startX = cx - totalSpread / 2;
     const fontSize = this.config.fontSize ?? 52;
-    const fontFamily = this.config.fontFamily ?? '"Noto Serif JP", serif';
 
     for (let i = 0; i < chars.length; i++) {
       const ct = new PIXI.Text({
         text: chars[i],
         style: {
-          fontFamily,
+          fontFamily: '"Noto Serif JP", serif',
           fontSize,
           fontWeight: '900' as PIXI.TextStyleFontWeight,
           fill: '#ffffff',

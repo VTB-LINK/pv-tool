@@ -1,17 +1,24 @@
+// Modified by VTB-LIVE on 2026-03-24
+// Copyright (c) 2026 VTB-LIVE (Modifications)
+//
+// Original Work:
+// PV Tool — Copyright (c) 2026 DanteAlighieri13210914
+// Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
+
 export const zh = {
   // Page
   'page_title': 'PV Tool - 日式PV Visual生成',
 
   // Panel titles
   'postfx': '後期 Post FX',
+  'postfx_lock': '锁定后期（切换模板保留）',
+  'postfx_reset': '重置后期',
   'effects_library': '效果库 Effects',
 
   // Left panel
   'template': '模板 Template',
   'custom': '✦ Custom 自定义',
   'canvas_color': '画布色 Canvas',
-  'font_label': '字体 Font',
-  'load_local_fonts': '获取本机字体',
   'follow_template': '跟随模板',
   'text_label': '文字 Text（用 / 分段）',
   'expand': '展开',
@@ -32,8 +39,6 @@ export const zh = {
   'paused': '⏹ Paused',
   'bpm': 'BPM',
   'beat_react': '节拍反应 Beat React',
-  'preview_fps': '限制预览帧率',
-  'fps_unlimited': '无限制 Unlimited',
 
   // Right panel — Post FX
   'shake': '抖动 Shake',
@@ -226,8 +231,16 @@ export const zh = {
   'copy_url_use_template': '使用当前模板',
   'copy_url_copy_btn': '复制',
   'url_copied': 'URL 已复制到剪贴板',
+  'listen_nowplaying': '监听 NowPlaying',
   'listen_np_tip': '需要运行 Now Playing 服务，自动获取音乐软件正在播放的歌曲并同步显示歌词',
   'copy_url_tip': '生成可直接粘贴到 OBS 浏览器源的 URL，自动隐藏面板 / 透明背景 / 加载指定模板',
+  'live_mode': '直播 MODE',
+  'copy_obs_url': '复制 OBS 浏览器源 URL',
+  'copy_obs_url_hint': '自动隐藏面板 / 透明背景 / 保存当前模板与监听状态',
+  'url_opt_alpha': '透明背景',
+  'url_opt_template': '包含当前模板',
+  'url_opt_listen': '包含监听状态',
+  'url_opt_postfx': '包含后期效果',
 
   // WesingCap
   'listen_wesingcap': '监听 Nexus WesingCap',
@@ -239,11 +252,30 @@ export const zh = {
   'nwc_ws_addr_placeholder': '默认 localhost:8765',
   'nwc_save': '保存',
   'nwc_saved': '已保存',
-  'nwc_disconnected': 'WesingCap 连接已断开，监听已停止',
+  'nwc_disconnected': 'Nexus WesingCap 连接已断开',
 
-  // AGPL-3.0 License Notice
-  'agpl_notice': '本镜像站基于 AGPL-3.0 协议运行。源代码及修改详情请见',
-  'agpl_repo_link': 'GitHub 仓库',
+  // Template Editor
+  'template_editor': '模板编辑器',
+  'reset_template': '重置',
+  'palette': '调色板',
+  'effects_list': '效果列表',
+  'no_effects': '暂无效果',
+  'add_effect': '添加效果',
+  'hide_catalog': '收起目录',
+  'effect_catalog': '效果目录',
+  'search_effects': '搜索效果...',
+  'template_actions': '模板操作',
+  'save_template': '保存模板',
+  'template_name': '模板名称...',
+  'save': '保存',
+  'import': '导入',
+  'paste_share_code': '粘贴分享码...',
+  'effect_removed': '已移除效果',
+  'saved': '已保存',
+  'share_code_copied': '分享码已复制',
+  'imported': '已导入',
+  'no_params': '无可调参数',
+  'open_editor': '编辑模板',
 } as const;
 
 export type LocaleKey = keyof typeof zh;

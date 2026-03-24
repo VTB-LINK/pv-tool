@@ -1,10 +1,14 @@
+// Modified by VTB-LIVE on 2026-03-24
+// Copyright (c) 2026 VTB-LIVE (Modifications)
+//
+// Original Work:
 // PV Tool — Copyright (c) 2026 DanteAlighieri13210914
 // Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
 
 import * as PIXI from 'pixi.js';
 import { BaseEffect } from './base';
-import type { UpdateContext, MotionTargetInfo } from '../core/types';
-import { resolveColor } from '../core/types';
+import type { UpdateContext, MotionTargetInfo } from '../types/engine';
+import { resolveColor } from '../types/engine';
 
 /**
  * Draws HUD-style corner brackets around motion-detected targets,

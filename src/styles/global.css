@@ -1,0 +1,109 @@
+/* VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE */
+/* Licensed under AGPL-3.0. */
+
+/* ────────────────────────────────────────────────
+   PV Tool v2 — Design System
+   Glass-dark aesthetic with vibrant accent colors
+   ──────────────────────────────────────────────── */
+
+:root {
+  /* ── Color Tokens ── */
+  --pv-bg-base: #0a0a0f;
+  --pv-bg-surface: rgba(16, 16, 24, 0.85);
+  --pv-bg-elevated: rgba(24, 24, 36, 0.9);
+  --pv-bg-hover: rgba(40, 40, 60, 0.6);
+  --pv-bg-active: rgba(60, 60, 90, 0.4);
+
+  --pv-border: rgba(255, 255, 255, 0.06);
+  --pv-border-hover: rgba(255, 255, 255, 0.12);
+  --pv-border-focus: rgba(100, 130, 220, 0.5);
+
+  --pv-text: #e8e8f0;
+  --pv-text-secondary: rgba(255, 255, 255, 0.55);
+  --pv-text-muted: rgba(255, 255, 255, 0.3);
+
+  --pv-accent: #6b8aff;
+  --pv-accent-glow: rgba(107, 138, 255, 0.25);
+  --pv-accent-hover: #8aa4ff;
+  --pv-danger: #ff5c6c;
+  --pv-success: #4cd9a0;
+  --pv-warning: #ffbb44;
+
+  /* ── Typography ── */
+  --pv-font: 'Inter', 'Noto Sans JP', system-ui, -apple-system, sans-serif;
+  --pv-font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  --pv-font-serif: 'Noto Serif JP', 'Yu Mincho', serif;
+
+  /* ── Sizing ── */
+  --pv-radius-sm: 6px;
+  --pv-radius: 10px;
+  --pv-radius-lg: 14px;
+  --pv-radius-xl: 20px;
+
+  --pv-panel-width: 280px;
+  --pv-panel-gap: 12px;
+
+  /* ── Transitions ── */
+  --pv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --pv-duration: 0.2s;
+  --pv-duration-slow: 0.4s;
+
+  /* ── Shadows ── */
+  --pv-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.3);
+  --pv-shadow-lg: 0 8px 48px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --pv-glow: 0 0 20px var(--pv-accent-glow);
+}
+
+/* ── Reset ── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--pv-font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--pv-text);
+  background: var(--pv-bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Selection ── */
+::selection {
+  background: var(--pv-accent);
+  color: #fff;
+}
+
+/* ── Focus Visible ── */
+:focus-visible {
+  outline: 2px solid var(--pv-accent);
+  outline-offset: 2px;
+}

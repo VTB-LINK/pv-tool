@@ -1,11 +1,20 @@
-PV Tool
-Copyright (c) 2026 DanteAlighieri13210914
+VTB-LIVE PV-TOOL FORK
+Copyright (c) 2026 VTB-LIVE
+
+This project is a hard fork of "PV Tool" based on the last AGPL-3.0 commit.
+
+Original Project:
+PV Tool — Copyright (c) 2026 DanteAlighieri13210914
+
+All new contributions and modifications made by VTB-LIVE and the community
+after 2026-03-24 are licensed under the AGPL-3.0 License and copyrighted
+by their respective authors.
 
 This software is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
 A copy of the license is included in the LICENSE file.
 
 For commercial licensing (use in proprietary/closed-source products),
-see COMMERCIAL.md or contact the author.
+see COMMERCIAL.md or contact the original author.
 
 ---
 
@@ -13,11 +22,6 @@ This project uses the following open-source libraries:
 
 - PixiJS (https://pixijs.com/) — MIT License
 - Vite (https://vite.dev/) — MIT License
+- Svelte (https://svelte.dev/) — MIT License
 - TypeScript (https://www.typescriptlang.org/) — Apache License 2.0
 - GSAP (https://gsap.com/) — see GSAP license terms
-
----
-
-All original source code, visual effect implementations, templates, and
-documentation in this repository are the intellectual property of
-DanteAlighieri13210914 unless otherwise noted.
