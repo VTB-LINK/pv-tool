@@ -33,6 +33,6 @@
 - 确保使用 `Record<string, any>` (如有必要) 对所有新配置属性进行适当的类型定义，但尽可能偏好严格的类型。
 - **许可文件头：** 每个 TypeScript 文件**必须**以以下内容开头：
   ```typescript
-  // PV Tool — Copyright (c) 2026 DanteAlighieri13210914
-  // Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
+  // VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE
+  // Licensed under AGPL-3.0.
   ```
