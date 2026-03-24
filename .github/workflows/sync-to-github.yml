@@ -1,0 +1,72 @@
+name: Sync to GitHub.com
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  sync-source:
+    runs-on:
+      - self-hosted
+      - linux
+    environment: source-sync-production
+    env:
+      TARGET_REPO: VTB-LINK/pv-tool
+      TARGET_BRANCH: feat/2.0.0
+      GIT_AUTHOR_NAME: github-actions[bot]
+      GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+      GIT_COMMITTER_NAME: github-actions[bot]
+      GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync snapshot to github.com feat/2.0.0
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::Missing secret GH_DOTCOM_TOKEN"
+            exit 1
+          fi
+
+          SNAPSHOT_DIR="$(mktemp -d)"
+          TARGET_DIR="$(mktemp -d)"
+          TARGET_URL="https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git"
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          COMMIT_MSG="$(git log -1 --pretty=%s)"
+
+          echo "Exporting snapshot of HEAD..."
+          git archive --format=tar HEAD | tar -xf - -C "${SNAPSHOT_DIR}"
+
+          echo "Cloning target repository ${TARGET_BRANCH} branch..."
+          git clone --branch "${TARGET_BRANCH}" --single-branch "${TARGET_URL}" "${TARGET_DIR}"
+
+          cd "${TARGET_DIR}"
+          git config user.name "${GIT_AUTHOR_NAME}"
+          git config user.email "${GIT_AUTHOR_EMAIL}"
+
+          echo "Replacing tracked content with source snapshot..."
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R "${SNAPSHOT_DIR}/." .
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes detected; skipping."
+          else
+            git commit -m "sync: ${COMMIT_MSG} (${SHORT_SHA})"
+
+            echo "Pushing to ${TARGET_REPO}:${TARGET_BRANCH}..."
+            git push origin "${TARGET_BRANCH}"
+          fi
+
+          echo "Sync completed."
