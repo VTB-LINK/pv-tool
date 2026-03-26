@@ -1,0 +1,45 @@
+// Modified by VTB-LIVE on 2026-03-24
+// Copyright (c) 2026 VTB-LIVE (Modifications)
+//
+// Original Work:
+// PV Tool — Copyright (c) 2026 DanteAlighieri13210914
+// Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
+
+import * as PIXI from 'pixi.js';
+import { BaseEffect } from './base';
+import type { UpdateContext } from '../../types/engine';
+import { resolveColor } from '../../types/engine';
+
+export class Scanlines extends BaseEffect {
+  readonly name = 'scanlines';
+  private g!: PIXI.Graphics;
+  private drawn = false;
+  private lastW = 0;
+  private lastH = 0;
+
+  protected setup(): void {
+    this.g = new PIXI.Graphics();
+    this.container.addChild(this.g);
+  }
+
+  update(ctx: UpdateContext): void {
+    if (this.drawn && this.lastW === ctx.screenWidth && this.lastH === ctx.screenHeight) return;
+    this.drawn = true;
+    this.lastW = ctx.screenWidth;
+    this.lastH = ctx.screenHeight;
+
+    const g = this.g;
+    g.clear();
+
+    const w = ctx.screenWidth;
+    const h = ctx.screenHeight;
+    const color = resolveColor(this.config.color ?? '#003333', this.palette);
+    const alpha = this.config.alpha ?? 0.15;
+    const spacing = this.config.spacing ?? 4;
+
+    for (let y = 0; y < h; y += spacing) {
+      g.moveTo(0, y).lineTo(w, y);
+    }
+    g.stroke({ color, width: 1, alpha });
+  }
+}
