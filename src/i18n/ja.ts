@@ -111,6 +111,7 @@ export const ja: Record<LocaleKey, string> = {
   // File picker
   'choose_file': 'ファイル選択',
   'no_file': '未選択',
+  'lyrics': '歌詞 Lyrics',
 
   // Sharecode & template management
   'export_code': 'シェアコード出力',

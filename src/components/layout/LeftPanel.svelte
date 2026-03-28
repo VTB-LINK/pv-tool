@@ -7,7 +7,7 @@
     engine, selectTemplate, selectCustomTemplate, enterCustomMode,
     setText, setSegmentDuration, setAnimationSpeed, setMotionIntensity,
     setEffectOpacity, setBpm, setBeatReactivity, setCanvasColor,
-    loadMedia, loadAudio, toggleAudio,
+    loadMedia, loadAudio, toggleAudio, loadLyrics,
   } from '../../stores/engine.svelte';
   import { templates } from '../../templates';
   import { t } from '../../i18n';
@@ -19,6 +19,7 @@
   let textExpanded = $state(false);
   let mediaInput: HTMLInputElement;
   let audioInput: HTMLInputElement;
+  let lyricsInput: HTMLInputElement;
   let pendingFile: File | null = null;
 
   let selectedValue = $derived(
@@ -74,6 +75,11 @@
   async function handleAudioFile(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) await loadAudio(file);
+  }
+
+  async function handleLyricsFile(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) await loadLyrics(file);
   }
 </script>
 
@@ -226,6 +232,17 @@
         <span class="audio-status">{engine.audioPaused ? t('paused') : t('playing')}</span>
       </div>
     {/if}
+  </Section>
+
+  <!-- Lyrics -->
+  <Section label={t('lyrics')}>
+    <div class="file-row">
+      <button class="btn btn-sm" onclick={() => lyricsInput.click()}>
+        {t('choose_file')}
+      </button>
+      <span class="file-name">{engine.lyricsFileName || t('no_file')}</span>
+      <input bind:this={lyricsInput} type="file" accept=".lrc,.srt,.ass,.ssa" hidden onchange={handleLyricsFile} />
+    </div>
   </Section>
 
   <!-- BPM & Beat -->

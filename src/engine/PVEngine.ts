@@ -175,7 +175,13 @@ export class PVEngine {
         }
       }
 
-      this.update(this._time, ticker.deltaTime / 60);
+      // Clamp time to timeline duration to prevent overflow
+      const dur = this.timelineDuration;
+      if (Number.isFinite(dur) && dur > 0 && this._time > dur) {
+        this._time = dur;
+      }
+
+      this.update(this._time, this._paused ? 0 : ticker.deltaTime / 60);
     });
   }
 
@@ -193,7 +199,9 @@ export class PVEngine {
   }
 
   seek(time: number) {
-    this._time = Math.max(0, time);
+    const dur = this.timelineDuration;
+    const maxTime = Number.isFinite(dur) && dur > 0 ? dur : Infinity;
+    this._time = Math.max(0, Math.min(time, maxTime));
     if (this._npActive) {
       this._npTime = this._time;
     }
@@ -202,6 +210,18 @@ export class PVEngine {
     } else if (this.beat.isAudioMode) {
       this.beat.seek(this._time);
     }
+    // Sync video media element
+    if (this.mediaElement instanceof HTMLVideoElement) {
+      this.mediaElement.currentTime = this._time;
+    }
+    // Reset lyric cursor so lyrics re-sync from new position
+    this.lyricCursor = 0;
+    this.lastLyricTime = -1;
+  }
+
+  replay() {
+    this.seek(0);
+    this.resume();
   }
 
   loadTemplate(template: TemplateConfig) {
@@ -1079,6 +1099,31 @@ export class PVEngine {
     }
   }
 
+  private getSegmentTime(lyricClock: number): number {
+    // SRT mode: time since current SRT entry started
+    if (this._srtTimeline) {
+      const ms = lyricClock * 1000;
+      const entry = this._srtTimeline.find(e => ms >= e.startMs && ms < e.endMs);
+      if (entry) return (ms - entry.startMs) / 1000;
+      return 0;
+    }
+    // LRC mode: time since current lyric line started
+    if (this.lyricTimeline && this.lyricTimeline.length > 0) {
+      const t = Math.max(0, lyricClock + this.lyricOffsetSeconds);
+      if (t < this.lyricTimeline[0].time) return 0;
+      let cursor = 0;
+      while (cursor + 1 < this.lyricTimeline.length && this.lyricTimeline[cursor + 1].time <= t) {
+        cursor++;
+      }
+      return t - this.lyricTimeline[cursor].time;
+    }
+    // Plain segment mode: time within current text segment cycle
+    if (this.textSegments.length > 1) {
+      return lyricClock % this._segmentDuration;
+    }
+    return lyricClock;
+  }
+
   private update(time: number, deltaTime: number) {
     const lyricClock = this._npActive
       ? this._npTime
@@ -1099,6 +1144,8 @@ export class PVEngine {
     const ctx: UpdateContext = {
       time,
       deltaTime,
+      fps: this.app.ticker.FPS,
+      segmentTime: this.getSegmentTime(lyricClock),
       screenWidth: this.app.screen.width,
       screenHeight: this.app.screen.height,
       palette: this.palette,
@@ -1147,7 +1194,7 @@ export class PVEngine {
 
     const beatShake = this.beat.getIntensity(time) * this._beatReactivity;
     const totalShake = this._shake + beatShake * 0.15;
-    if (totalShake > 0) {
+    if (totalShake > 0 && !this._paused) {
       px += (Math.random() - 0.5) * totalShake * 30;
       py += (Math.random() - 0.5) * totalShake * 20;
     }

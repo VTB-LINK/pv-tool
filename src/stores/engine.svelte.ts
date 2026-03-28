@@ -9,6 +9,9 @@ import { templates } from '../templates';
 import type { TemplateConfig } from '../types/engine';
 import { effectCatalog } from '../engine/effectCatalog';
 import { CanvasRecorder } from '../services/recorder';
+import { parseLrc } from '../engine/lrc';
+import { parseSrt } from '../engine/srtParser';
+import { parseAss } from '../engine/assParser';
 import {
   loadCustomTemplates,
   saveCustomTemplates,
@@ -54,6 +57,10 @@ let _mediaScale = $state(1.0);
 let _audioLoaded = $state(false);
 let _audioFileName = $state('');
 let _audioPaused = $state(false);
+
+// Lyrics
+let _lyricsLoaded = $state(false);
+let _lyricsFileName = $state('');
 
 // Canvas color
 let _canvasColor = $state<string | null>(null);
@@ -333,6 +340,37 @@ export function toggleAudio() {
   }
 }
 
+// ── Lyrics ──
+
+export async function loadLyrics(file: File) {
+  if (!_engine) return;
+  const text = await file.text();
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+
+  if (ext === 'lrc') {
+    const lines = parseLrc(text);
+    if (lines.length > 0) {
+      _engine.setSrtTimeline(null);
+      _engine.setLyricTimeline(lines);
+    }
+  } else if (ext === 'srt') {
+    const entries = parseSrt(text);
+    if (entries.length > 0) {
+      _engine.clearLyricTimeline();
+      _engine.setSrtTimeline(entries);
+    }
+  } else if (ext === 'ass' || ext === 'ssa') {
+    const entries = parseAss(text);
+    if (entries.length > 0) {
+      _engine.clearLyricTimeline();
+      _engine.setSrtTimeline(entries);
+    }
+  }
+
+  _lyricsLoaded = true;
+  _lyricsFileName = file.name;
+}
+
 // ── Recording ──
 
 export function getCanvas(): HTMLCanvasElement | null {
@@ -432,6 +470,8 @@ export const engine = {
   get audioLoaded() { return _audioLoaded; },
   get audioFileName() { return _audioFileName; },
   get audioPaused() { return _audioPaused; },
+  get lyricsLoaded() { return _lyricsLoaded; },
+  get lyricsFileName() { return _lyricsFileName; },
   get canvasColor() { return _canvasColor; },
   get alphaMode() { return _alphaMode; },
   get isRecording() { return _isRecording; },

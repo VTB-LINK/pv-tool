@@ -11,6 +11,7 @@
   let totalTime = $state(0);
   let seekValue = $state(0);
   let isSeeking = $state(false);
+  let isPaused = $state(false);
   let raf: number;
 
   function formatClock(seconds: number): string {
@@ -24,8 +25,9 @@
     if (ready && engine.instance) {
       currentTime = engine.instance.playbackTime;
       totalTime = engine.instance.timelineDuration;
+      isPaused = engine.instance.paused;
       if (!isSeeking && totalTime > 0) {
-        seekValue = currentTime / totalTime;
+        seekValue = Math.min(currentTime / totalTime, 1);
       }
     }
     raf = requestAnimationFrame(tick);
@@ -46,10 +48,28 @@
       engine.instance.seek(v * totalTime);
     }
   }
+
+  function togglePlayPause() {
+    if (!engine.instance) return;
+    if (engine.instance.paused) {
+      engine.instance.resume();
+    } else {
+      engine.instance.pause();
+    }
+  }
+
+  function handleReplay() {
+    if (!engine.instance) return;
+    engine.instance.replay();
+  }
 </script>
 
 <div class="bottom-bar">
   <div class="timeline">
+    <button class="transport-btn" onclick={handleReplay} title="Replay">⏮</button>
+    <button class="transport-btn" onclick={togglePlayPause} title={isPaused ? 'Play' : 'Pause'}>
+      {isPaused ? '▶' : '⏸'}
+    </button>
     <span class="time-display">{formatClock(currentTime)}</span>
     <input
       type="range"
@@ -86,6 +106,24 @@
     gap: 12px;
     max-width: 600px;
     margin: 0 auto;
+  }
+
+  .transport-btn {
+    background: none;
+    border: none;
+    color: var(--pv-text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    user-select: none;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .transport-btn:hover {
+    color: var(--pv-text);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .time-display {

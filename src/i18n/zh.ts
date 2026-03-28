@@ -109,6 +109,7 @@ export const zh = {
   // File picker
   'choose_file': '选择文件',
   'no_file': '未选择文件',
+  'lyrics': '歌词 Lyrics',
 
   // Sharecode & template management
   'export_code': '导出分享码',

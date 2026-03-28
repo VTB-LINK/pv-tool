@@ -111,6 +111,7 @@ export const en: Record<LocaleKey, string> = {
   // File picker
   'choose_file': 'Choose File',
   'no_file': 'No file chosen',
+  'lyrics': 'Lyrics',
 
   // Sharecode
   'export_code': 'Export Code',
