@@ -53,6 +53,12 @@
       npActive = false;
       return;
     }
+    // Mutual exclusion: deactivate WesingCap if active
+    if (nwcActive) {
+      eng.onNwcDisconnect = undefined;
+      eng.wesingCapListening = false;
+      nwcActive = false;
+    }
     npConnecting = true;
     const ok = await testNowPlayingConnection();
     npConnecting = false;
@@ -73,6 +79,11 @@
       eng.wesingCapListening = false;
       nwcActive = false;
       return;
+    }
+    // Mutual exclusion: deactivate NowPlaying if active
+    if (npActive) {
+      eng.nowPlayingListening = false;
+      npActive = false;
     }
     nwcConnecting = true;
     eng.wesingCapWsUrl = nwcWsAddr;

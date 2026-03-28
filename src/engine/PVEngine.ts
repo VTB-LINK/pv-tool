@@ -80,6 +80,7 @@ export class PVEngine {
   private _tick = 0;
   private _playbackTime = 0;
   private _paused = false;
+  private _loopMode = true;
   private _time = 0;
   private _lastFrameTime = 0;
 
@@ -175,10 +176,17 @@ export class PVEngine {
         }
       }
 
-      // Clamp time to timeline duration to prevent overflow
+      // Clamp or loop time at timeline duration
       const dur = this.timelineDuration;
       if (Number.isFinite(dur) && dur > 0 && this._time > dur) {
-        this._time = dur;
+        if (this._loopMode) {
+          this._time = 0;
+          this.lyricCursor = 0;
+          if (this.beat.isAudioMode) this.beat.seekAudio(0);
+          if (this.mediaElement instanceof HTMLVideoElement) this.mediaElement.currentTime = 0;
+        } else {
+          this._time = dur;
+        }
       }
 
       this.update(this._time, this._paused ? 0 : ticker.deltaTime / 60);
@@ -186,6 +194,9 @@ export class PVEngine {
   }
 
   get paused() { return this._paused; }
+
+  get loopMode() { return this._loopMode; }
+  set loopMode(val: boolean) { this._loopMode = val; }
 
   pause() {
     this._paused = true;
@@ -444,6 +455,8 @@ export class PVEngine {
     this._nowPlayingListening = val;
 
     if (val) {
+      // Mutual exclusion: stop WesingCap if active
+      if (this._nwcActive) this.stopNwc();
       this.startNowPlaying();
     } else {
       this.stopNowPlaying();
@@ -544,6 +557,11 @@ export class PVEngine {
   set wesingCapListening(val: boolean) {
     if (this._nwcActive === val) return;
     if (val) {
+      // Mutual exclusion: stop NowPlaying if active
+      if (this._nowPlayingListening) {
+        this._nowPlayingListening = false;
+        this.stopNowPlaying();
+      }
       this.startNwc();
     } else {
       this.stopNwc();
@@ -740,6 +758,19 @@ export class PVEngine {
     this.hueFilter.hue(degrees, false);
   }
   get hueShift() { return this._hueShift; }
+
+  removeMedia(): void {
+    const mediaLayer = this.layers.get('media');
+    if (mediaLayer) {
+      mediaLayer.removeChildren().forEach(c => c.destroy({ children: true }));
+    }
+    this.destroyOutline();
+    if (this.mediaElement instanceof HTMLVideoElement) {
+      this.mediaElement.pause();
+      this.mediaElement.src = '';
+    }
+    this.mediaElement = null;
+  }
 
   async addMedia(file: File, mode: 'fit' | 'free' = 'fit'): Promise<void> {
     if (this._loading) return;

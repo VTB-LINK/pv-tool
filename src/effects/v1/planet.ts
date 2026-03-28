@@ -48,7 +48,7 @@ export class Planet extends BaseEffect {
 
     const color = resolveColor(this.config.color ?? '#ffffff', this.palette);
     const infStyle = new PIXI.TextStyle({
-      fontFamily: 'serif',
+      fontFamily: 'sans-serif',
       fontSize: this.config.infFontSize ?? 18,
       fill: color,
       fontStyle: 'italic',

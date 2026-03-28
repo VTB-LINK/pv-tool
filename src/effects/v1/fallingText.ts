@@ -37,7 +37,7 @@ export class FallingText extends BaseEffect {
     const pool = userText || this.config.chars || '夜を越えて踊れ';
     const count = this.config.count ?? 30;
     const color = resolveColor(this.config.color ?? '$accent', this.palette);
-    const fontFamily = this.config.fontFamily ?? '"Noto Serif JP", "Yu Mincho", serif';
+    const fontFamily = this.config.fontFamily ?? '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif';
     const minSize = this.config.minSize ?? 28;
     const maxSize = this.config.maxSize ?? 72;
 

@@ -12,7 +12,7 @@ export const zh = {
   // Panel titles
   'postfx': '後期 Post FX',
   'postfx_lock': '锁定后期（切换模板保留）',
-  'postfx_reset': '重置后期',
+  'postfx_reset': '重置',
   'effects_library': '效果库 Effects',
 
   // Left panel
@@ -110,6 +110,9 @@ export const zh = {
   'choose_file': '选择文件',
   'no_file': '未选择文件',
   'lyrics': '歌词 Lyrics',
+  'embedded_lyrics_found': '检测到内嵌歌词',
+  'use_embedded': '使用内嵌',
+  'use_file': '使用文件',
 
   // Sharecode & template management
   'export_code': '导出分享码',

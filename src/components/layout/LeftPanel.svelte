@@ -7,7 +7,8 @@
     engine, selectTemplate, selectCustomTemplate, enterCustomMode,
     setText, setSegmentDuration, setAnimationSpeed, setMotionIntensity,
     setEffectOpacity, setBpm, setBeatReactivity, setCanvasColor,
-    loadMedia, loadAudio, toggleAudio, loadLyrics,
+    loadMedia, loadAudio, loadLyrics, selectLyricsSource,
+    clearMedia, clearAudio, clearLyrics,
   } from '../../stores/engine.svelte';
   import { templates } from '../../templates';
   import { t } from '../../i18n';
@@ -210,7 +211,11 @@
       <button class="btn btn-sm" onclick={() => mediaInput.click()}>
         {t('choose_file')}
       </button>
-      <span class="file-name">{engine.mediaFileName || t('no_file')}</span>
+      <span class="file-name" title={engine.mediaFileName || ''}>{engine.mediaFileName || t('no_file')}</span>
+      <span class="format-hint" title="PNG, JPG, GIF, WebP, MP4, WebM">?</span>
+      {#if engine.mediaLoaded}
+        <button class="btn-clear" onclick={clearMedia} title="Clear">×</button>
+      {/if}
       <input bind:this={mediaInput} type="file" accept="image/*,video/mp4,video/webm" hidden onchange={handleMediaFile} />
     </div>
   </Section>
@@ -221,17 +226,13 @@
       <button class="btn btn-sm" onclick={() => audioInput.click()}>
         {t('choose_file')}
       </button>
-      <span class="file-name">{engine.audioFileName || t('no_file')}</span>
+      <span class="file-name" title={engine.audioFileName || ''}>{engine.audioFileName || t('no_file')}</span>
+      <span class="format-hint" title="MP3, WAV, OGG, FLAC, AAC, M4A">?</span>
+      {#if engine.audioLoaded}
+        <button class="btn-clear" onclick={clearAudio} title="Clear">×</button>
+      {/if}
       <input bind:this={audioInput} type="file" accept="audio/*" hidden onchange={handleAudioFile} />
     </div>
-    {#if engine.audioLoaded}
-      <div class="audio-row">
-        <button class="btn btn-sm" onclick={toggleAudio}>
-          {engine.audioPaused ? t('play') : t('pause')}
-        </button>
-        <span class="audio-status">{engine.audioPaused ? t('paused') : t('playing')}</span>
-      </div>
-    {/if}
   </Section>
 
   <!-- Lyrics -->
@@ -240,9 +241,36 @@
       <button class="btn btn-sm" onclick={() => lyricsInput.click()}>
         {t('choose_file')}
       </button>
-      <span class="file-name">{engine.lyricsFileName || t('no_file')}</span>
+      <span class="file-name" title={engine.lyricsFileName || ''}>{engine.lyricsFileName || t('no_file')}</span>
+      <span class="format-hint" title="LRC, SRT, ASS, SSA">?</span>
+      {#if engine.lyricsLoaded && engine.embeddedLyricsSource !== 'embedded'}
+        <button class="btn-clear" onclick={clearLyrics} title="Clear">×</button>
+      {/if}
       <input bind:this={lyricsInput} type="file" accept=".lrc,.srt,.ass,.ssa" hidden onchange={handleLyricsFile} />
     </div>
+    {#if engine.embeddedLyricsRaw}
+      <div class="embedded-lyrics-bar">
+        <span class="embedded-label">{t('embedded_lyrics_found')}</span>
+        <div class="embedded-btns">
+          <button
+            class="btn btn-xs"
+            class:active={engine.embeddedLyricsSource === 'embedded'}
+            onclick={() => selectLyricsSource('embedded')}
+          >{t('use_embedded')}</button>
+          <button
+            class="btn btn-xs"
+            class:active={engine.embeddedLyricsSource === 'file'}
+            onclick={() => {
+              if (engine.hasFileLyrics) {
+                selectLyricsSource('file');
+              } else {
+                lyricsInput.click();
+              }
+            }}
+          >{t('use_file')}</button>
+        </div>
+      </div>
+    {/if}
   </Section>
 
   <!-- BPM & Beat -->
@@ -468,18 +496,6 @@
     max-width: 120px;
   }
 
-  .audio-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-  }
-
-  .audio-status {
-    font-size: 0.72rem;
-    color: var(--pv-text-muted);
-  }
-
   /* Buttons */
   .btn {
     padding: 6px 14px;
@@ -502,6 +518,102 @@
   .btn-sm {
     padding: 4px 10px;
     font-size: 0.72rem;
+  }
+
+  .btn-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--pv-text-muted);
+    font-size: 0.78rem;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .btn-clear:hover {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.12);
+  }
+
+  /* Format hint tooltip badge */
+  .format-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--pv-border);
+    background: var(--pv-bg-elevated);
+    color: var(--pv-text-muted);
+    font-size: 0.58rem;
+    font-weight: 700;
+    cursor: help;
+    flex-shrink: 0;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .format-hint:hover {
+    color: var(--pv-text);
+    border-color: var(--pv-border-hover);
+  }
+
+  /* Embedded lyrics chooser */
+  .embedded-lyrics-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+    padding: 6px 8px;
+    border-radius: var(--pv-radius-sm);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--pv-border);
+  }
+
+  .embedded-label {
+    font-size: 0.68rem;
+    color: var(--pv-accent);
+  }
+
+  .embedded-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .embedded-btns :global(.btn-xs),
+  .embedded-btns .btn-xs {
+    flex: 1;
+    text-align: center;
+  }
+
+  .btn-xs {
+    padding: 2px 8px;
+    font-size: 0.66rem;
+    border-radius: var(--pv-radius-sm);
+    border: 1px solid var(--pv-border);
+    background: var(--pv-bg-elevated);
+    color: var(--pv-text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .btn-xs:hover {
+    color: var(--pv-text);
+    border-color: var(--pv-border-hover);
+  }
+
+  .btn-xs.active {
+    background: var(--pv-accent);
+    color: #fff;
+    border-color: var(--pv-accent);
   }
 
   @media (max-width: 768px) {

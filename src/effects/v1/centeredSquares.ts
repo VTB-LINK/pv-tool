@@ -97,7 +97,7 @@ export class CenteredSquares extends BaseEffect {
       const ct = new PIXI.Text({
         text: chars[i],
         style: {
-          fontFamily: '"Noto Serif JP", serif',
+          fontFamily: '"Noto Sans JP", sans-serif',
           fontSize,
           fontWeight: '900' as PIXI.TextStyleFontWeight,
           fill: '#ffffff',

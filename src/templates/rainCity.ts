@@ -37,7 +37,7 @@ export const rainCityTemplate: TemplateConfig = {
         count: 35,
         minSize: 24,
         maxSize: 68,
-        fontFamily: '"Noto Serif JP", "Yu Mincho", serif',
+        fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
       },
     },
     {

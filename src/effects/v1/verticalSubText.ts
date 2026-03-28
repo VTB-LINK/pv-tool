@@ -53,7 +53,7 @@ export class VerticalSubText extends BaseEffect {
     if (!this.prevSegment) return;
 
     const color = resolveColor(this.config.color ?? '#ffffff', this.palette);
-    const fontFamily = this.config.fontFamily ?? '"Noto Serif JP", "Yu Mincho", serif';
+    const fontFamily = this.config.fontFamily ?? '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif';
     const fontSize = this.config.fontSize ?? 14;
     const x = ctx.screenWidth * (this.config.x ?? 0.62);
     const y = ctx.screenHeight * (this.config.y ?? 0.35);

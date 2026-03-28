@@ -55,7 +55,7 @@ export class TextStrip extends BaseEffect {
 
     for (let i = 0; i < chars.length; i++) {
       const style = new PIXI.TextStyle({
-        fontFamily: '"Noto Serif JP", "Yu Mincho", serif',
+        fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
         fontSize,
         fontWeight: 'bold',
         fill: textColor,

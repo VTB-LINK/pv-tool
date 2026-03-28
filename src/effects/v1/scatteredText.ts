@@ -35,7 +35,7 @@ export class ScatteredText extends BaseEffect {
     const chars = userText || this.config.chars || defaultChars;
     const count = this.config.count ?? 15;
     const color = resolveColor(this.config.color ?? '$secondary', this.palette);
-    const fontFamily = this.config.fontFamily ?? '"Noto Serif JP", "Yu Mincho", serif';
+    const fontFamily = this.config.fontFamily ?? '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif';
     const minSize = this.config.minSize ?? 20;
     const maxSize = this.config.maxSize ?? 60;
 
