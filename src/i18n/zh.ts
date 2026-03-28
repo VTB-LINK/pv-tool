@@ -280,6 +280,9 @@ export const zh = {
   'imported': '已导入',
   'no_params': '无可调参数',
   'open_editor': '编辑模板',
+
+  // Footer
+  'agpl_footer': '本镜像站基于 AGPL-3.0 协议运行。源代码及修改详情请见 <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub 仓库</a>。',
 } as const;
 
 export type LocaleKey = keyof typeof zh;

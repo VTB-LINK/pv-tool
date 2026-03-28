@@ -282,4 +282,7 @@ export const ja: Record<LocaleKey, string> = {
   'imported': 'インポートしました',
   'no_params': '調整可能なパラメータなし',
   'open_editor': 'テンプレート編集',
+
+  // Footer
+  'agpl_footer': '本ミラーサイトは AGPL-3.0 ライセンスに基づいて運営されています。ソースコードと変更内容は <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub リポジトリ</a>をご覧ください。',
 };

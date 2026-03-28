@@ -281,4 +281,7 @@ export const en: Record<LocaleKey, string> = {
   'imported': 'Imported',
   'no_params': 'No adjustable parameters',
   'open_editor': 'Edit Template',
+
+  // Footer
+  'agpl_footer': 'This mirror runs under the AGPL-3.0 license. Source code and modifications are available on <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub</a>.',
 };

@@ -40,7 +40,7 @@
   <div class="postfx-actions">
     <label class="toggle-row">
       <input type="checkbox" checked={engine.postFxLocked} onchange={(e: Event) => setPostFxLocked((e.target as HTMLInputElement).checked)} />
-      <span>🔒 {t('postfx_lock')}</span>
+      <span title={t('postfx_lock')}>🔒 {t('postfx_lock')}</span>
     </label>
     <button class="btn btn-sm reset-btn" onclick={resetPostFx}>↺ {t('postfx_reset')}</button>
   </div>
@@ -78,7 +78,7 @@
     </button>
   </Section>
   <!-- Footer -->
-  <p class="agpl-footer">本镜像站基于 AGPL-3.0 协议运行。源代码及修改详情请见 <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub 仓库</a>。</p>
+  <p class="agpl-footer">{@html t('agpl_footer')}</p>
 </div>
 
 
@@ -162,10 +162,25 @@
   .postfx-actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     padding: 0 2px;
     margin-bottom: 4px;
+    flex-wrap: nowrap;
+  }
+
+  .postfx-actions .toggle-row {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .postfx-actions .toggle-row span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .postfx-actions .reset-btn {
+    flex-shrink: 0;
   }
 
   .reset-btn {
@@ -173,6 +188,7 @@
     padding: 3px 8px !important;
     opacity: 0.7;
     transition: opacity 0.15s;
+    white-space: nowrap;
   }
 
   .reset-btn:hover { opacity: 1; }

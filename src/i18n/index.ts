@@ -14,9 +14,18 @@ export type Locale = 'zh' | 'ja' | 'en';
 const locales: Record<Locale, Record<LocaleKey, string>> = { zh, ja, en };
 
 function detectLocale(): Locale {
+  // 1. URL path takes priority (explicit language route)
   const path = window.location.pathname;
   if (path.includes('/ja/') || path.endsWith('/ja')) return 'ja';
   if (path.includes('/en/') || path.endsWith('/en')) return 'en';
+  if (path.includes('/zh/') || path.endsWith('/zh')) return 'zh';
+
+  // 2. Fall back to browser language preference
+  const nav = navigator.language?.toLowerCase() ?? '';
+  if (nav.startsWith('ja')) return 'ja';
+  if (nav.startsWith('en')) return 'en';
+
+  // 3. Default to Chinese
   return 'zh';
 }
 
