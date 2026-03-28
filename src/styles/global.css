@@ -31,8 +31,7 @@
 
   /* ── Typography ── */
   --pv-font: 'Inter', 'Noto Sans JP', system-ui, -apple-system, sans-serif;
-  --pv-font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-  --pv-font-serif: 'Noto Serif JP', 'Yu Mincho', serif;
+  --pv-font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Mono', 'Consolas', 'Menlo', monospace;
 
   /* ── Sizing ── */
   --pv-radius-sm: 6px;

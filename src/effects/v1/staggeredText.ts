@@ -169,7 +169,7 @@ export class StaggeredText extends BaseEffect {
     const h = ctx.screenHeight;
     const modeDuration = this.config.modeDuration ?? 3;
     const color = resolveColor(this.config.color ?? '#ffffff', this.palette);
-    const fontFamily = this.config.fontFamily ?? '"Noto Serif JP", "Yu Mincho", serif';
+    const fontFamily = this.config.fontFamily ?? '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif';
     const transitionDuration = this.config.transition ?? 0.4;
 
     // Cycle through modes

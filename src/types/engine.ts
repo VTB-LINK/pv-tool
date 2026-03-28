@@ -57,6 +57,8 @@ export interface MotionTargetInfo {
 export interface UpdateContext {
   time: number;
   deltaTime: number;
+  fps: number;
+  segmentTime: number;
   screenWidth: number;
   screenHeight: number;
   palette: ColorPalette;

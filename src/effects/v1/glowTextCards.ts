@@ -45,7 +45,7 @@ export class GlowTextCards extends BaseEffect {
     const cardColor = this.config.cardColor ?? '#ffffff';
     const textColor = resolveColor(this.config.textColor ?? '#1a1a1a', this.palette);
     const glowAlpha = this.config.glowAlpha ?? 0.6;
-    const fontFamily = this.config.fontFamily ?? '"Noto Serif JP", "Yu Mincho", serif';
+    const fontFamily = this.config.fontFamily ?? '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif';
     const baseFontSize = this.config.fontSize ?? 70;
     const charsPerRow = this.config.charsPerRow ?? 5;
     const sizeVariance = this.config.sizeVariance ?? 0.3;

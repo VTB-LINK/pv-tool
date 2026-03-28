@@ -68,7 +68,7 @@ export class TextCards extends BaseEffect {
 
       // Text
       const style = new PIXI.TextStyle({
-        fontFamily: this.config.fontFamily ?? '"Noto Serif JP", "Yu Mincho", serif',
+        fontFamily: this.config.fontFamily ?? '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
         fontSize,
         fontWeight: '900',
         fill: textColor,

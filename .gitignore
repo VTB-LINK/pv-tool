@@ -42,3 +42,4 @@ Thumbs.db
 .azure/
 /dist
 /dist/assets
+*.code-workspace

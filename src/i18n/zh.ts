@@ -12,7 +12,7 @@ export const zh = {
   // Panel titles
   'postfx': '後期 Post FX',
   'postfx_lock': '锁定后期（切换模板保留）',
-  'postfx_reset': '重置后期',
+  'postfx_reset': '重置',
   'effects_library': '效果库 Effects',
 
   // Left panel
@@ -109,6 +109,10 @@ export const zh = {
   // File picker
   'choose_file': '选择文件',
   'no_file': '未选择文件',
+  'lyrics': '歌词 Lyrics',
+  'embedded_lyrics_found': '检测到内嵌歌词',
+  'use_embedded': '使用内嵌',
+  'use_file': '使用文件',
 
   // Sharecode & template management
   'export_code': '导出分享码',
@@ -276,6 +280,9 @@ export const zh = {
   'imported': '已导入',
   'no_params': '无可调参数',
   'open_editor': '编辑模板',
+
+  // Footer
+  'agpl_footer': '本镜像站基于 AGPL-3.0 协议运行。源代码及修改详情请见 <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub 仓库</a>。',
 } as const;
 
 export type LocaleKey = keyof typeof zh;

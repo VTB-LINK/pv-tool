@@ -7,8 +7,10 @@
 
 import App from './App.svelte';
 import { mount } from 'svelte';
+import { t } from './i18n';
 
 console.log('%cPV Tool%c v2.0 · solaris:0914', 'color:#6688cc;font-weight:bold', 'color:#888');
+document.title = t('page_title');
 
 const app = mount(App, {
   target: document.getElementById('app')!,

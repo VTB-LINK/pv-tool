@@ -53,7 +53,7 @@ export const rulerTemplate: TemplateConfig = {
       config: {
         fontSize: 50, x: 0.5, y: 0.5,
         color: '$text', fontWeight: 'bold',
-        fontFamily: '"Noto Serif JP", "Yu Mincho", serif',
+        fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
         animation: 'breathe', animationSpeed: 0.2, animationAmount: 0.01,
       },
     },

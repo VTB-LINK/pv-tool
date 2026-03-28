@@ -53,6 +53,12 @@
       npActive = false;
       return;
     }
+    // Mutual exclusion: deactivate WesingCap if active
+    if (nwcActive) {
+      eng.onNwcDisconnect = undefined;
+      eng.wesingCapListening = false;
+      nwcActive = false;
+    }
     npConnecting = true;
     const ok = await testNowPlayingConnection();
     npConnecting = false;
@@ -73,6 +79,11 @@
       eng.wesingCapListening = false;
       nwcActive = false;
       return;
+    }
+    // Mutual exclusion: deactivate NowPlaying if active
+    if (npActive) {
+      eng.nowPlayingListening = false;
+      npActive = false;
     }
     nwcConnecting = true;
     eng.wesingCapWsUrl = nwcWsAddr;
@@ -102,7 +113,7 @@
   let urlOptAlpha = $state(true);
   let urlOptTemplate = $state(true);
   let urlOptListen = $state(true);
-  let urlOptPostFx = $state(false);
+  let urlOptPostFx = $state(true);
 
   /** Build a URL that restores the current state for OBS browser source */
   async function copyObsUrl() {
@@ -151,7 +162,6 @@
     try {
       await navigator.clipboard.writeText(url);
       showToast(t('url_copied'));
-      urlOptionsOpen = false;
     } catch {
       prompt('Copy URL:', url);
     }

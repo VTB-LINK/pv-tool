@@ -14,7 +14,7 @@ export const ja: Record<LocaleKey, string> = {
   // Panel titles
   'postfx': 'ポスト Post FX',
   'postfx_lock': 'FXロック（テンプレート変更時保持）',
-  'postfx_reset': 'FXリセット',
+  'postfx_reset': 'リセット',
   'effects_library': 'エフェクト Effects',
 
   // Left panel
@@ -111,6 +111,10 @@ export const ja: Record<LocaleKey, string> = {
   // File picker
   'choose_file': 'ファイル選択',
   'no_file': '未選択',
+  'lyrics': '歌詞 Lyrics',
+  'embedded_lyrics_found': '埋め込み歌詞を検出',
+  'use_embedded': '埋め込み使用',
+  'use_file': 'ファイル使用',
 
   // Sharecode & template management
   'export_code': 'シェアコード出力',
@@ -278,4 +282,7 @@ export const ja: Record<LocaleKey, string> = {
   'imported': 'インポートしました',
   'no_params': '調整可能なパラメータなし',
   'open_editor': 'テンプレート編集',
+
+  // Footer
+  'agpl_footer': '本ミラーサイトは AGPL-3.0 ライセンスに基づいて運営されています。ソースコードと変更内容は <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub リポジトリ</a>をご覧ください。',
 };

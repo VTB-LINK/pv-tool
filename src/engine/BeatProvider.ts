@@ -12,6 +12,7 @@
 export class BeatProvider {
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
+  private gainNode: GainNode | null = null;
   private source: MediaElementAudioSourceNode | null = null;
   private audioEl: HTMLAudioElement | null = null;
   private freqData: Uint8Array<ArrayBuffer> | null = null;
@@ -43,8 +44,10 @@ export class BeatProvider {
     this.audioEl.loop = true;
 
     this.source = this.audioCtx.createMediaElementSource(this.audioEl);
+    this.gainNode = this.audioCtx.createGain();
     this.source.connect(this.analyser);
-    this.analyser.connect(this.audioCtx.destination);
+    this.analyser.connect(this.gainNode);
+    this.gainNode.connect(this.audioCtx.destination);
 
     this.freqData = new Uint8Array(this.analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
     this._useAudio = true;
@@ -126,6 +129,16 @@ export class BeatProvider {
   get audioContext(): AudioContext | null { return this.audioCtx; }
   get sourceNode(): MediaElementAudioSourceNode | null { return this.source; }
 
+  get volume(): number {
+    return this.gainNode?.gain.value ?? 1;
+  }
+
+  set volume(val: number) {
+    if (this.gainNode) {
+      this.gainNode.gain.value = Math.max(0, Math.min(1, val));
+    }
+  }
+
   get paused(): boolean {
     return this.audioEl?.paused ?? true;
   }
@@ -148,10 +161,12 @@ export class BeatProvider {
     this.audioEl?.pause();
     this.source?.disconnect();
     this.analyser?.disconnect();
+    this.gainNode?.disconnect();
     this.audioCtx?.close();
     this.audioEl = null;
     this.source = null;
     this.analyser = null;
+    this.gainNode = null;
     this.audioCtx = null;
     this.freqData = null;
     this._useAudio = false;

@@ -60,7 +60,7 @@ export const emotionCinemaTemplate: TemplateConfig = {
         fontSize: 60, x: 0.5, y: 0.5,
         color: '$text',
         animation: 'breathe', animationSpeed: 0.15, animationAmount: 0.02,
-        fontFamily: '"Noto Serif JP", "Source Han Serif", serif',
+        fontFamily: '"Noto Sans JP", "Source Han Sans", sans-serif',
       },
     },
     {

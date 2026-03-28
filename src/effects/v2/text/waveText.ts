@@ -35,7 +35,7 @@ export class WaveTextV2 extends BaseEffectV2 {
     fields: [
       { key: 'color',        label: i18n.color,      type: { kind: 'color', default: '#ffffff', paletteRef: true } },
       { key: 'fontSize',     label: i18n.fontSize,   type: { kind: 'number', min: 16, max: 200, step: 2, default: 48 } },
-      { key: 'fontFamily',   label: i18n.font,       type: { kind: 'string', default: '"Noto Serif JP", serif' } },
+      { key: 'fontFamily',   label: i18n.font,       type: { kind: 'string', default: '"Noto Sans JP", sans-serif' } },
       { key: 'fontWeight',   label: i18n.fontWeight,  type: { kind: 'string', default: '900', options: ['400', '600', '700', '800', '900'] } },
       { key: 'spreadFrac',   label: i18n.spread,     type: { kind: 'number', min: 0.1, max: 1, step: 0.05, default: 0.45 } },
       { key: 'staggerY',     label: i18n.vertOffset,  type: { kind: 'number', min: 0, max: 80, step: 1, default: 14 } },
@@ -73,7 +73,7 @@ export class WaveTextV2 extends BaseEffectV2 {
 
     const fillColor = resolveColor(this.config.color ?? '#ffffff', this.palette);
     const size = this.config.fontSize ?? 48;
-    const family = this.config.fontFamily ?? '"Noto Serif JP", serif';
+    const family = this.config.fontFamily ?? '"Noto Sans JP", sans-serif';
     const weight = (this.config.fontWeight ?? '900') as PIXI.TextStyleFontWeight;
     const stagger = this.config.staggerY ?? 14;
     const fraction = this.config.spreadFrac ?? 0.45;

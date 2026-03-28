@@ -55,11 +55,11 @@ export const calmVillainTemplate: TemplateConfig = {
         sizeVariance: 0.18, staggerX: 8, staggerY: 5,
         cardPadding: 16, staggerDelay: 0.06,
         x: 0.47, y: 0.48,
-        fontFamily: '"Noto Serif JP", "Yu Mincho", serif',
+        fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
       } },
     { type: 'verticalSubText', layer: 'text',
       config: { color: '$line', fontSize: 12, x: 0.7, y: 0.3,
-        fontFamily: '"Noto Serif JP", "Yu Mincho", serif' } },
+        fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif' } },
 
     // ── Overlay ─────────────────────────────────
     { type: 'lightSpot', layer: 'overlay',

@@ -71,7 +71,7 @@ export const hystericNightTemplate: TemplateConfig = {
         cardPadding: 16,
         staggerDelay: 0.07,
         x: 0.47, y: 0.48,
-        fontFamily: '"Noto Serif JP", "Yu Mincho", serif',
+        fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
       },
     },
     // Previous line text: small vertical white columns
@@ -83,7 +83,7 @@ export const hystericNightTemplate: TemplateConfig = {
         fontSize: 13,
         x: 0.65, y: 0.33,
         charsPerCol: 5,
-        fontFamily: '"Noto Serif JP", "Yu Mincho", serif',
+        fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
       },
     },
     // Subtle vignette to darken edges further

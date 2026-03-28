@@ -9,6 +9,10 @@ import { templates } from '../templates';
 import type { TemplateConfig } from '../types/engine';
 import { effectCatalog } from '../engine/effectCatalog';
 import { CanvasRecorder } from '../services/recorder';
+import { parseLrc } from '../engine/lrc';
+import { parseSrt } from '../engine/srtParser';
+import { parseAss } from '../engine/assParser';
+import { extractEmbeddedLyrics } from '../engine/embeddedLyrics';
 import {
   loadCustomTemplates,
   saveCustomTemplates,
@@ -54,6 +58,19 @@ let _mediaScale = $state(1.0);
 let _audioLoaded = $state(false);
 let _audioFileName = $state('');
 let _audioPaused = $state(false);
+
+// Lyrics
+let _lyricsLoaded = $state(false);
+let _lyricsFileName = $state('');
+
+// Embedded lyrics
+let _embeddedLyricsRaw = $state<string | null>(null);
+let _embeddedLyricsSource = $state<'none' | 'embedded' | 'file'>('none');
+
+// External file lyrics storage (persists across source switches)
+let _fileLyricsText = $state<string | null>(null);
+let _fileLyricsFileName = $state('');
+let _fileLyricsExt = $state('');
 
 // Canvas color
 let _canvasColor = $state<string | null>(null);
@@ -301,6 +318,18 @@ export async function loadMedia(file: File, mode: 'fit' | 'free' = 'fit') {
   _mediaScale = 1.0;
 }
 
+export function clearMedia() {
+  if (!_engine) return;
+  _engine.removeMedia();
+  _mediaLoaded = false;
+  _mediaFileName = '';
+  _effectOpacity = 1.0;
+  _engine.effectOpacity = 1.0;
+  _mediaOffsetX = 0;
+  _mediaOffsetY = 0;
+  _mediaScale = 1.0;
+}
+
 export function setMediaOffset(x: number, y: number) {
   _mediaOffsetX = x;
   _mediaOffsetY = y;
@@ -320,6 +349,36 @@ export async function loadAudio(file: File) {
   _audioLoaded = true;
   _audioFileName = file.name;
   _audioPaused = false;
+
+  // Try extracting embedded lyrics
+  try {
+    const raw = await extractEmbeddedLyrics(file);
+    _embeddedLyricsRaw = raw;
+    // Auto-apply embedded lyrics only if no external lyrics file is loaded
+    if (raw && !_lyricsLoaded) {
+      applyEmbeddedLyrics(raw);
+      _embeddedLyricsSource = 'embedded';
+    }
+  } catch {
+    _embeddedLyricsRaw = null;
+  }
+}
+
+export function clearAudio() {
+  if (!_engine) return;
+  _engine.beat.dispose();
+  _audioLoaded = false;
+  _audioFileName = '';
+  _audioPaused = false;
+  _embeddedLyricsRaw = null;
+  // If lyrics came from embedded, clear them too
+  if (_embeddedLyricsSource === 'embedded') {
+    _engine.clearLyricTimeline();
+    _engine.setSrtTimeline(null);
+    _lyricsLoaded = false;
+    _lyricsFileName = '';
+    _embeddedLyricsSource = 'none';
+  }
 }
 
 export function toggleAudio() {
@@ -331,6 +390,102 @@ export function toggleAudio() {
     _engine.beat.pause();
     _audioPaused = true;
   }
+}
+
+// ── Lyrics ──
+
+function applyEmbeddedLyrics(raw: string) {
+  if (!_engine) return;
+  // Try parsing as LRC first (timestamped)
+  const lrcLines = parseLrc(raw);
+  if (lrcLines.length > 0) {
+    _engine.setSrtTimeline(null);
+    _engine.setLyricTimeline(lrcLines);
+    _lyricsLoaded = true;
+    _lyricsFileName = '(embedded)';
+    return;
+  }
+  // Fallback: treat as plain text segments (one line = one segment)
+  const plainLines = raw.split(/\r?\n/).filter(l => l.trim());
+  if (plainLines.length > 0) {
+    _engine.setText(plainLines.join('/'));
+    _lyricsLoaded = true;
+    _lyricsFileName = '(embedded)';
+  }
+}
+
+/** Apply external file lyrics to the engine. */
+function applyFileLyrics(text: string, ext: string) {
+  if (!_engine) return;
+  if (ext === 'lrc') {
+    const lines = parseLrc(text);
+    if (lines.length > 0) {
+      _engine.setSrtTimeline(null);
+      _engine.setLyricTimeline(lines);
+    }
+  } else if (ext === 'srt') {
+    const entries = parseSrt(text);
+    if (entries.length > 0) {
+      _engine.clearLyricTimeline();
+      _engine.setSrtTimeline(entries);
+    }
+  } else if (ext === 'ass' || ext === 'ssa') {
+    const entries = parseAss(text);
+    if (entries.length > 0) {
+      _engine.clearLyricTimeline();
+      _engine.setSrtTimeline(entries);
+    }
+  }
+}
+
+export function selectLyricsSource(source: 'embedded' | 'file') {
+  if (!_engine) return;
+  _embeddedLyricsSource = source;
+  if (source === 'embedded' && _embeddedLyricsRaw) {
+    applyEmbeddedLyrics(_embeddedLyricsRaw);
+  } else if (source === 'file' && _fileLyricsText) {
+    applyFileLyrics(_fileLyricsText, _fileLyricsExt);
+    _lyricsLoaded = true;
+    _lyricsFileName = _fileLyricsFileName;
+  }
+}
+
+export function clearLyrics() {
+  if (!_engine) return;
+  _engine.clearLyricTimeline();
+  _engine.setSrtTimeline(null);
+
+  // Clear stored file lyrics
+  _fileLyricsText = null;
+  _fileLyricsFileName = '';
+  _fileLyricsExt = '';
+
+  // If embedded lyrics exist, revert to them instead of clearing completely
+  if (_embeddedLyricsRaw) {
+    applyEmbeddedLyrics(_embeddedLyricsRaw);
+    _embeddedLyricsSource = 'embedded';
+  } else {
+    _lyricsLoaded = false;
+    _lyricsFileName = '';
+    _embeddedLyricsSource = 'none';
+  }
+}
+
+export async function loadLyrics(file: File) {
+  if (!_engine) return;
+  const text = await file.text();
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+
+  // Store for later source switching
+  _fileLyricsText = text;
+  _fileLyricsFileName = file.name;
+  _fileLyricsExt = ext;
+
+  applyFileLyrics(text, ext);
+
+  _lyricsLoaded = true;
+  _lyricsFileName = file.name;
+  _embeddedLyricsSource = 'file';
 }
 
 // ── Recording ──
@@ -432,6 +587,11 @@ export const engine = {
   get audioLoaded() { return _audioLoaded; },
   get audioFileName() { return _audioFileName; },
   get audioPaused() { return _audioPaused; },
+  get lyricsLoaded() { return _lyricsLoaded; },
+  get lyricsFileName() { return _lyricsFileName; },
+  get embeddedLyricsRaw() { return _embeddedLyricsRaw; },
+  get embeddedLyricsSource() { return _embeddedLyricsSource; },
+  get hasFileLyrics() { return _fileLyricsText !== null; },
   get canvasColor() { return _canvasColor; },
   get alphaMode() { return _alphaMode; },
   get isRecording() { return _isRecording; },

@@ -16,8 +16,8 @@ interface TextBlock {
   lines: string[];
   fontSize: number;
   alpha: number;
-  lifetime: number;
-  age: number;
+  lifetimeSec: number;
+  birthTime: number;
   hasBackground: boolean;
   inverted: boolean;
 }
@@ -40,7 +40,7 @@ export class NoiseText extends BaseEffect {
   override readonly heavy = true;
   private g!: PIXI.Graphics;
   private blocks: TextBlock[] = [];
-  private tick = 0;
+  private lastCorruptTime = 0;
 
   protected setup(): void {
     this.g = new PIXI.Graphics();
@@ -75,15 +75,14 @@ export class NoiseText extends BaseEffect {
       lines,
       fontSize: 10 + Math.floor(Math.random() * 14),
       alpha: 0.5 + Math.random() * 0.5,
-      lifetime: 30 + Math.floor(Math.random() * 120),
-      age: 0,
+      lifetimeSec: (30 + Math.floor(Math.random() * 120)) / 60,
+      birthTime: -1,
       hasBackground: Math.random() < 0.6,
       inverted: Math.random() < 0.3,
     };
   }
 
   update(ctx: UpdateContext): void {
-    this.tick++;
     const g = this.g;
     g.clear();
 
@@ -92,6 +91,7 @@ export class NoiseText extends BaseEffect {
     const count = this.config.count ?? 12;
     const color = resolveColor(this.config.color ?? '#ffffff', this.palette);
     const bgColor = resolveColor(this.config.bgColor ?? '#000000', this.palette);
+    const corruptIntervalSec = 5 / (ctx.fps || 60);
 
     // Spawn new blocks to maintain count
     while (this.blocks.length < count) {
@@ -99,12 +99,17 @@ export class NoiseText extends BaseEffect {
     }
 
     // Update and render
+    const doCorrupt = ctx.time - this.lastCorruptTime >= corruptIntervalSec;
+    if (doCorrupt) this.lastCorruptTime = ctx.time;
+
     for (let i = this.blocks.length - 1; i >= 0; i--) {
       const block = this.blocks[i];
-      block.age++;
+      if (block.birthTime < 0) block.birthTime = ctx.time;
+      const age = ctx.time - block.birthTime;
 
-      if (block.age > block.lifetime) {
+      if (age > block.lifetimeSec) {
         this.blocks[i] = this.spawnBlock(w, h);
+        this.blocks[i].birthTime = ctx.time;
         continue;
       }
 
@@ -112,7 +117,7 @@ export class NoiseText extends BaseEffect {
       if (Math.random() < 0.08) continue;
 
       // Occasionally corrupt a character
-      if (this.tick % 5 === 0 && Math.random() < 0.3) {
+      if (doCorrupt && Math.random() < 0.3) {
         const lineIdx = Math.floor(Math.random() * block.lines.length);
         const line = block.lines[lineIdx];
         const charIdx = Math.floor(Math.random() * line.length);
@@ -122,8 +127,10 @@ export class NoiseText extends BaseEffect {
           line.substring(charIdx + 1);
       }
 
-      const fadeIn = Math.min(1, block.age / 5);
-      const fadeOut = Math.min(1, (block.lifetime - block.age) / 8);
+      const fadeInSec = 5 / 60;
+      const fadeOutSec = 8 / 60;
+      const fadeIn = Math.min(1, age / fadeInSec);
+      const fadeOut = Math.min(1, (block.lifetimeSec - age) / fadeOutSec);
       const a = block.alpha * fadeIn * fadeOut;
 
       const textCol = block.inverted ? bgColor : color;

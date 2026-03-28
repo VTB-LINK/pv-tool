@@ -14,7 +14,7 @@ export const en: Record<LocaleKey, string> = {
   // Panel titles
   'postfx': 'Post FX',
   'postfx_lock': 'Lock FX (preserve on template switch)',
-  'postfx_reset': 'Reset FX',
+  'postfx_reset': 'Reset',
   'effects_library': 'Effects Library',
 
   // Left panel
@@ -111,6 +111,10 @@ export const en: Record<LocaleKey, string> = {
   // File picker
   'choose_file': 'Choose File',
   'no_file': 'No file chosen',
+  'lyrics': 'Lyrics',
+  'embedded_lyrics_found': 'Embedded lyrics detected',
+  'use_embedded': 'Use Embedded',
+  'use_file': 'Use File',
 
   // Sharecode
   'export_code': 'Export Code',
@@ -277,4 +281,7 @@ export const en: Record<LocaleKey, string> = {
   'imported': 'Imported',
   'no_params': 'No adjustable parameters',
   'open_editor': 'Edit Template',
+
+  // Footer
+  'agpl_footer': 'This mirror runs under the AGPL-3.0 license. Source code and modifications are available on <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub</a>.',
 };

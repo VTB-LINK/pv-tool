@@ -23,7 +23,7 @@ export const staggeredTextTplTemplate: TemplateConfig = {
     { type: 'staggeredText', layer: 'text', config: {
       color: '#ffffff', fontSize: 68, modeDuration: 3.5,
       transition: 0.5, colChars: 5,
-      fontFamily: '"Noto Serif JP", "Yu Mincho", serif',
+      fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
       frameColor: '#ffffff', frameAlpha: 0.5, framePadding: 35,
     }},
 
