@@ -9,7 +9,8 @@
   import TemplateEditor from './components/editor/TemplateEditor.svelte';
   import MobileNav from './components/mobile/MobileNav.svelte';
   import MobileSheet from './components/mobile/MobileSheet.svelte';
-  import { engine, initEngine, selectTemplate, toggleRecording, resetPostFx, toggleAudio, setAlphaMode, setShake, setZoom, setTilt, setGlitch, setHueShift } from './stores/engine.svelte';
+  import { engine, initEngine, selectTemplate, toggleRecording, resetPostFx, toggleAudio, setAlphaMode, setShake, setZoom, setTilt, setGlitch, setHueShift, loadShareCodeTemplate } from './stores/engine.svelte';
+  import { decodeShareCode } from './services/templateStore';
   import { t } from './i18n';
   import { templates } from './templates';
   import { onMount, onDestroy } from 'svelte';
@@ -21,6 +22,18 @@
   let panelsVisible = $state(true);
   let ready = $state(false);
   let editorOpen = $state(false);
+
+  // Flash the edit button when editor closes while in custom mode
+  let flashEditBtn = $state(false);
+  let editorWasOpen = false;
+
+  $effect(() => {
+    if (editorWasOpen && !editorOpen && engine.isCustomMode) {
+      flashEditBtn = true;
+      setTimeout(() => { flashEditBtn = false; }, 2000);
+    }
+    editorWasOpen = editorOpen;
+  });
 
   // Mobile state
   let mobileTab = $state<string>('canvas');
@@ -48,9 +61,22 @@
     // Restore template
     const tpl = params.get('t');
     if (tpl !== null) {
-      const idx = parseInt(tpl);
-      if (!isNaN(idx) && idx >= 0 && idx < templates.length) {
-        selectTemplate(idx);
+      if (tpl === 'custom') {
+        // Custom template via sharecode
+        const sharecode = params.get('sharecode');
+        if (sharecode) {
+          try {
+            const decoded = await decodeShareCode(sharecode);
+            loadShareCodeTemplate(decoded);
+          } catch (err) {
+            console.warn('[PV] Failed to decode sharecode from URL:', err);
+          }
+        }
+      } else {
+        const idx = parseInt(tpl);
+        if (!isNaN(idx) && idx >= 0 && idx < templates.length) {
+          selectTemplate(idx);
+        }
       }
     }
 
@@ -183,7 +209,7 @@
   {#if !isMobile}
     <!-- Desktop layout -->
     <div class="panels-desktop" class:hidden={!panelsVisible}>
-      <LeftPanel {ready} onOpenEditor={() => editorOpen = true} />
+      <LeftPanel {ready} onOpenEditor={() => editorOpen = true} {flashEditBtn} />
       <RightPanel {ready} {autoStartNp} {autoStartNwc} {autoNwcWsAddr} />
     </div>
 

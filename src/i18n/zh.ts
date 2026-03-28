@@ -259,16 +259,18 @@ export const zh = {
   'nwc_disconnected': 'Nexus WesingCap 连接已断开',
 
   // Template Editor
-  'template_editor': '模板编辑器',
+  'template_editor': '模板编辑器 Template Editor',
   'reset_template': '重置',
-  'palette': '调色板',
-  'effects_list': '效果列表',
+  'palette': '调色板 Palette',
+  'reset_palette': '重置调色板',
+  'effects_list': '效果列表 Effects',
+  'reset_effects': '重置效果',
   'no_effects': '暂无效果',
   'add_effect': '添加效果',
   'hide_catalog': '收起目录',
-  'effect_catalog': '效果目录',
+  'effect_catalog': '效果目录 Catalog',
   'search_effects': '搜索效果...',
-  'template_actions': '模板操作',
+  'template_actions': '模板操作 Actions',
   'save_template': '保存模板',
   'template_name': '模板名称...',
   'save': '保存',
@@ -280,6 +282,40 @@ export const zh = {
   'imported': '已导入',
   'no_params': '无可调参数',
   'open_editor': '编辑模板',
+
+  // Share & Custom mode
+  'share': '分享',
+  'copy_sharecode': '复制分享码',
+  'copy_full_url': '复制完整 URL',
+  'copy_effects_list': '复制效果清单',
+  'copied': '已复制',
+  'load_template': '载入模板',
+  'loaded': '已载入',
+  'based_on': '基于',
+  'custom_from_scratch': '从零创建',
+  'custom_mode_hint': '已进入自定义模式，请在编辑器中添加效果',
+
+  // Save advanced options
+  'save_advanced': '高级选项',
+  'save_include_animation': '包含动画参数 (BPM / 速度 / 背景透明度)',
+  'save_include_postfx': '包含後期效果 (Shake / Zoom / Tilt / Glitch / Hue)',
+  'save_include_features': '包含功能开关 (描边 / 运动检测 / 反色 / 阈值)',
+
+  // Diff dialog
+  'diff_title': '导入模板预览',
+  'diff_params': '参数变更',
+  'diff_current': '当前',
+  'diff_after': '导入后',
+  'diff_not_included': '未包含',
+  'diff_missing_hint': '以下参数未包含在分享码中：',
+  'diff_keep_current': '保留当前值',
+  'diff_reset_default': '重置为默认值',
+  'diff_confirm_load': '确认导入',
+  'diff_confirm_reset': '确认重置',
+
+  // Unsaved changes
+  'unsaved_changes_hint': '当前自定义模板有未保存的修改，切换将丢失这些更改。',
+  'discard_and_switch': '放弃并切换',
 
   // Footer
   'agpl_footer': '本镜像站基于 AGPL-3.0 协议运行。源代码及修改详情请见 <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub 仓库</a>。',

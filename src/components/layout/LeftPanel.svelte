@@ -8,12 +8,15 @@
     setText, setSegmentDuration, setAnimationSpeed, setMotionIntensity,
     setEffectOpacity, setBpm, setBeatReactivity, setCanvasColor,
     loadMedia, loadAudio, loadLyrics, selectLyricsSource,
-    clearMedia, clearAudio, clearLyrics,
+    clearMedia, clearAudio, clearLyrics, showToast,
+    getCurrentTemplateConfig, loadTemplateWithOptions,
   } from '../../stores/engine.svelte';
   import { templates } from '../../templates';
   import { t } from '../../i18n';
+  import type { TemplateConfig } from '../../types/engine';
+  import TemplateDiffDialog from '../editor/TemplateDiffDialog.svelte';
 
-  let { ready = false, onOpenEditor = () => {} } = $props();
+  let { ready = false, onOpenEditor = () => {}, flashEditBtn = false } = $props();
 
   let textInput = $state(engine.text);
   let textTimer: ReturnType<typeof setTimeout>;
@@ -23,8 +26,67 @@
   let lyricsInput: HTMLInputElement;
   let pendingFile: File | null = null;
 
+  // Edit button flash animation
+  let editBtnFlashing = $state(false);
+
+  // Diff dialog for user template selection
+  let diffVisible = $state(false);
+  let diffIncoming = $state<TemplateConfig | null>(null);
+  let pendingUserIndex = $state(-1);
+
+  // Unsaved changes confirmation
+  let confirmVisible = $state(false);
+  let pendingAction = $state<(() => void) | null>(null);
+
+  function guardSwitch(action: () => void) {
+    if (engine.customDirty) {
+      pendingAction = action;
+      confirmVisible = true;
+    } else {
+      action();
+    }
+  }
+
+  function handleConfirmDiscard() {
+    confirmVisible = false;
+    pendingAction?.();
+    pendingAction = null;
+  }
+
+  function handleConfirmCancel() {
+    confirmVisible = false;
+    pendingAction = null;
+  }
+
+  function showUserTemplateDiff(index: number) {
+    const tpl = engine.customTemplates[index];
+    if (!tpl) { selectCustomTemplate(index); return; }
+    diffIncoming = tpl;
+    pendingUserIndex = index;
+    diffVisible = true;
+  }
+
+  function handleUserDiffConfirm(opts: { resetMissing: boolean }) {
+    if (pendingUserIndex >= 0 && diffIncoming) {
+      loadTemplateWithOptions(diffIncoming, { ...opts, customIndex: pendingUserIndex });
+    }
+    diffIncoming = null;
+    pendingUserIndex = -1;
+  }
+
+  function triggerFlash() {
+    editBtnFlashing = true;
+  }
+
+  // Watch external flashEditBtn prop
+  $effect(() => {
+    if (flashEditBtn) triggerFlash();
+  });
+
   let selectedValue = $derived(
-    engine.isCustomMode ? 'custom' : String(engine.currentTemplateIndex)
+    engine.isCustomMode ? 'custom'
+    : engine.loadedCustomIndex >= 0 ? `user-${engine.loadedCustomIndex}`
+    : String(engine.currentTemplateIndex)
   );
 
   // OBS browser detection (CEF doesn't support native <select> popups)
@@ -49,10 +111,13 @@
     const val = (e.target as HTMLSelectElement).value;
     if (val === 'custom') {
       enterCustomMode();
+      showToast(t('custom_mode_hint'));
+      triggerFlash();
+      onOpenEditor();
     } else if (val.startsWith('user-')) {
-      selectCustomTemplate(parseInt(val.split('-')[1]));
+      guardSwitch(() => showUserTemplateDiff(parseInt(val.split('-')[1])));
     } else {
-      selectTemplate(parseInt(val));
+      guardSwitch(() => selectTemplate(parseInt(val)));
     }
   }
 
@@ -107,20 +172,20 @@
                 <button
                   class="obs-option"
                   class:active={selectedValue === String(i)}
-                  onclick={() => { selectTemplate(i); obsDropdownOpen = false; }}
+                  onclick={() => { guardSwitch(() => { selectTemplate(i); }); obsDropdownOpen = false; }}
                 >{tplName(tpl)}</button>
               {/each}
               {#each engine.customTemplates as tpl, i}
                 <button
                   class="obs-option"
                   class:active={selectedValue === `user-${i}`}
-                  onclick={() => { selectCustomTemplate(i); obsDropdownOpen = false; }}
+                  onclick={() => { guardSwitch(() => showUserTemplateDiff(i)); obsDropdownOpen = false; }}
                 >⭐ {tpl.name}</button>
               {/each}
               <button
                 class="obs-option"
                 class:active={selectedValue === 'custom'}
-                onclick={() => { enterCustomMode(); obsDropdownOpen = false; }}
+                onclick={() => { enterCustomMode(); showToast(t('custom_mode_hint')); triggerFlash(); onOpenEditor(); obsDropdownOpen = false; }}
               >{t('custom')}</button>
             </div>
           {/if}
@@ -136,7 +201,7 @@
           <option value="custom">{t('custom')}</option>
         </select>
       {/if}
-      <button class="btn btn-sm edit-btn" onclick={onOpenEditor} title={t('open_editor')}>🎨</button>
+      <button class="btn btn-sm edit-btn" class:flashing={editBtnFlashing} onclick={onOpenEditor} onanimationend={() => editBtnFlashing = false} title={t('open_editor')}>🎨</button>
     </div>
   </Section>
 
@@ -292,6 +357,24 @@
   </Section>
 </div>
 
+<TemplateDiffDialog
+  bind:visible={diffVisible}
+  currentConfig={getCurrentTemplateConfig()}
+  incomingConfig={diffIncoming}
+  onConfirm={handleUserDiffConfirm}
+/>
+
+{#if confirmVisible}
+  <div class="confirm-overlay" onclick={handleConfirmCancel} role="none"></div>
+  <div class="confirm-dialog">
+    <p class="confirm-text">{t('unsaved_changes_hint')}</p>
+    <div class="confirm-actions">
+      <button class="btn accent" onclick={handleConfirmDiscard}>{t('discard_and_switch')}</button>
+      <button class="btn" onclick={handleConfirmCancel}>{t('cancel')}</button>
+    </div>
+  </div>
+{/if}
+
 <style>
   .panel {
     background: var(--pv-bg-surface);
@@ -339,6 +422,14 @@
     flex-shrink: 0;
     font-size: 0.85rem !important;
     padding: 4px 8px !important;
+  }
+  .edit-btn.flashing {
+    animation: flash-glow 0.5s ease 3;
+  }
+
+  @keyframes flash-glow {
+    0%, 100% { box-shadow: none; transform: scale(1); }
+    50% { box-shadow: 0 0 10px 3px var(--pv-accent); transform: scale(1.15); }
   }
 
   .select option {
@@ -570,12 +661,12 @@
   .embedded-lyrics-bar {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-top: 6px;
-    padding: 6px 8px;
-    border-radius: var(--pv-radius-sm);
-    background: rgba(255, 255, 255, 0.04);
+    gap: 6px;
+    margin-top: 4px;
+    padding: 8px;
+    background: var(--pv-bg-elevated);
     border: 1px solid var(--pv-border);
+    border-radius: var(--pv-radius-sm);
   }
 
   .embedded-label {
@@ -623,5 +714,41 @@
       max-height: none;
     }
     .btn { padding: 8px 16px; font-size: 0.85rem; min-height: 36px; }
+  }
+
+  /* Unsaved changes confirm dialog */
+  .confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 200;
+  }
+  .confirm-dialog {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 201;
+    width: 320px;
+    background: var(--pv-bg-surface);
+    border: 1px solid var(--pv-border);
+    border-radius: var(--pv-radius-lg);
+    box-shadow: var(--pv-shadow-lg);
+    padding: 20px;
+    animation: fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  .confirm-text {
+    font-size: 0.8rem;
+    color: var(--pv-text);
+    margin: 0 0 16px;
+    line-height: 1.5;
+  }
+  .confirm-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
   }
 </style>

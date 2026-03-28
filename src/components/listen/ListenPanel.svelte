@@ -3,6 +3,8 @@
 <script lang="ts">
   import Section from '../common/Section.svelte';
   import { engine, showToast } from '../../stores/engine.svelte';
+  import { getCurrentTemplateConfig } from '../../stores/engine.svelte';
+  import { encodeShareCode } from '../../services/templateStore';
   import { t } from '../../i18n';
   import {
     testNowPlayingConnection,
@@ -129,7 +131,21 @@
     // Optional: current template
     if (urlOptTemplate) {
       const tplIdx = engine.currentTemplateIndex;
-      if (tplIdx >= 0) params.set('t', String(tplIdx));
+      if (tplIdx >= 0 && !engine.customDirty) {
+        params.set('t', String(tplIdx));
+      } else {
+        // Custom, user-saved, or modified builtin template: encode current state as sharecode
+        const config = getCurrentTemplateConfig();
+        if (config) {
+          try {
+            const code = await encodeShareCode(config);
+            params.set('t', 'custom');
+            params.set('sharecode', code);
+          } catch {
+            // fallback: omit template
+          }
+        }
+      }
     }
 
     // Optional: listen state
@@ -359,11 +375,12 @@
   .settings-form {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    padding: 6px;
+    gap: 6px;
+    padding: 8px;
     background: var(--pv-bg-elevated);
-    border-radius: var(--pv-radius-sm);
     border: 1px solid var(--pv-border);
+    border-radius: var(--pv-radius-sm);
+    margin-top: 4px;
   }
 
   .form-label {

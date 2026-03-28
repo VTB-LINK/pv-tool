@@ -25,7 +25,7 @@ export const effectCatalog: EffectPreset[] = [
   { type: 'checkerboard', label: '棋盘格 Checker', category: '背景', layer: 'background', config: { cellSize: 40, color1: '#000000', color2: '#ffffff', alpha: 0.08 } },
 
   // 几何装饰 Geometry
-  { type: 'concentricCircles', label: '同心圆 Circles', category: '几何装饰', layer: 'decoration', config: { color: '$secondary', count: 5 } },
+  { type: 'concentricCircles', label: '同心圆 Circles', category: '几何装饰', layer: 'decoration', config: { color: '$secondary', count: 5, maxRadius: 500, x: 0.5, y: 0.5, strokeWidth: 1, alpha: 0.4, animation: 'none' } },
   { type: 'diamondShapes', label: '菱形 Diamonds', category: '几何装饰', layer: 'decoration', config: { color: '$secondary' } },
   { type: 'crossPattern', label: '十字图案 Cross', category: '几何装饰', layer: 'decoration', config: { color: '$secondary' } },
   { type: 'scatteredShapes', label: '散布形状 Shapes', category: '几何装饰', layer: 'decoration', config: { color: '$secondary' } },
