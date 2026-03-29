@@ -29,6 +29,15 @@ let _currentTemplateIndex = $state(0);
 let _isCustomMode = $state(false);
 let _customEffects = $state<boolean[]>(new Array(effectCatalog.length).fill(false));
 let _customTemplates = $state<TemplateConfig[]>(loadCustomTemplates());
+let _customDirty = $state(false);
+
+// Track which custom template is currently loaded (-1 = none)
+let _loadedCustomIndex = $state(-1);
+
+// Track the base template for origin detection
+let _baseTemplateName = $state<string | null>(null);
+let _baseTemplateEffects = $state<import('../types/engine').EffectEntry[]>([]);
+let _baseTemplatePalette = $state<import('../types/engine').ColorPalette | null>(null);
 
 let _text = $state('深夜東京/の6畳半夢/を見てた/灯りの灯らない蛍光灯/明日には消えてる電脳城/に/開幕戦/打ち上げて/いなくなんないよね/ここには誰もいない/ここには誰もいないから');
 let _segmentDuration = $state(3.0);
@@ -99,7 +108,11 @@ export async function initEngine(container: HTMLElement) {
   _engine = new PVEngine();
   await _engine.init(container);
   _engine.setText(_text);
-  _engine.loadTemplate(cloneTemplate(templates[0]));
+  const tpl0 = templates[0];
+  _baseTemplateName = tpl0.nameKey ?? tpl0.name;
+  _baseTemplateEffects = tpl0.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _baseTemplatePalette = tpl0.palette ? { ...tpl0.palette } : null;
+  _engine.loadTemplate(cloneTemplate(tpl0));
   _ready = true;
   syncFromEngine();
 }
@@ -141,7 +154,13 @@ export function selectTemplate(index: number) {
   if (!_engine) return;
   _currentTemplateIndex = index;
   _isCustomMode = false;
-  _engine.loadTemplate(cloneTemplate(templates[index]));
+  _customDirty = false;
+  _loadedCustomIndex = -1;
+  const tpl = templates[index];
+  _baseTemplateName = tpl.nameKey ?? tpl.name;
+  _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
+  _engine.loadTemplate(cloneTemplate(tpl));
   syncFromEngine();
 }
 
@@ -157,17 +176,65 @@ export function reloadCurrentTemplate() {
   syncFromEngine();
 }
 
+/** Helper: get the TemplateConfig that was loaded as the base for the current editing session. */
+function getBaseTemplateConfig(): TemplateConfig | null {
+  if (_currentTemplateIndex >= 0 && _currentTemplateIndex < templates.length) {
+    return templates[_currentTemplateIndex];
+  }
+  if (_loadedCustomIndex >= 0 && _loadedCustomIndex < _customTemplates.length) {
+    return _customTemplates[_loadedCustomIndex];
+  }
+  return null;
+}
+
+/** Reset only the palette to the base template, keeping current effects. */
+export function resetPalette() {
+  if (!_engine) return;
+  const base = getBaseTemplateConfig();
+  if (!base?.palette) return;
+  // Apply base palette key-by-key; updatePalette rebuilds effects internally
+  // so just mutate the engine palette and reload to avoid N redundant rebuilds.
+  const cur = getCurrentTemplateConfig();
+  if (!cur) return;
+  _engine.loadTemplate({ ...cur, palette: { ...base.palette } });
+  syncFromEngine();
+}
+
+/** Reset only the effects list to the base template, keeping current palette. */
+export function resetEffects() {
+  if (!_engine) return;
+  const base = getBaseTemplateConfig();
+  if (!base) return;
+  const cur = getCurrentTemplateConfig();
+  if (!cur) return;
+  const baseEffects = base.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _engine.loadTemplate({ ...cur, effects: baseEffects });
+  _baseTemplateEffects = base.effects.map(e => ({ ...e, config: { ...e.config } }));
+  syncFromEngine();
+}
+
 export function selectCustomTemplate(index: number) {
   if (!_engine) return;
   _currentTemplateIndex = -1;
   _isCustomMode = false;
-  _engine.loadTemplate(cloneTemplate(_customTemplates[index]));
+  _customDirty = false;
+  _loadedCustomIndex = index;
+  const ct = _customTemplates[index];
+  _baseTemplateName = ct.baseTemplateName ?? ct.name;
+  _baseTemplateEffects = ct.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _baseTemplatePalette = ct.palette ? { ...ct.palette } : null;
+  _engine.loadTemplate(cloneTemplate(ct));
   syncFromEngine();
 }
 
 export function enterCustomMode() {
   _isCustomMode = true;
   _currentTemplateIndex = -1;
+  _customDirty = false;
+  _loadedCustomIndex = -1;
+  _baseTemplateName = null;
+  _baseTemplateEffects = [];
+  _baseTemplatePalette = null;
   applyCustomTemplate();
 }
 
@@ -203,11 +270,27 @@ function applyCustomTemplate() {
 
 export function toggleCustomEffect(index: number, checked: boolean) {
   _customEffects[index] = checked;
+  _customDirty = true;
   applyCustomTemplate();
 }
 
-export function saveCurrentAsTemplate(name: string) {
+/** Mark that unsaved changes exist in the current editing session. */
+export function markEditorDirty() {
+  _customDirty = true;
+}
+
+export interface SaveTemplateOptions {
+  animation?: boolean;
+  postfx?: boolean;
+  features?: boolean;
+}
+
+export function saveCurrentAsTemplate(name: string, options?: SaveTemplateOptions) {
   if (!name.trim() || !_engine) return;
+  const includeAnimation = options?.animation ?? true;
+  const includePostfx = options?.postfx ?? true;
+  const includeFeatures = options?.features ?? true;
+
   // Snapshot the current engine state (effects + palette) directly
   const effects = (_engine.currentEffects ?? []).map((e: any) => ({
     type: e.type,
@@ -217,16 +300,74 @@ export function saveCurrentAsTemplate(name: string) {
   const palette = _engine.currentPalette
     ? { ..._engine.currentPalette }
     : { background: '#000', primary: '#fff', secondary: '#888', accent: '#f36', text: '#fff' };
-  const tpl = { name: name.trim(), palette, effects };
+  const tpl: TemplateConfig = { name: name.trim(), palette, effects };
+
+  // Metadata
+  tpl.baseTemplateName = _baseTemplateName ?? undefined;
+  tpl.lastModified = Date.now();
+
+  if (includeAnimation) {
+    tpl.bpm = _bpm;
+    tpl.animationSpeed = _animationSpeed;
+    tpl.bgOpacity = _effectOpacity;
+  }
+
+  if (includePostfx) {
+    tpl.postfx = {
+      shake: _shake,
+      zoom: _zoom,
+      tilt: _tilt,
+      glitch: _glitch,
+      hueShift: _hueShift,
+    };
+  }
+
+  if (includeFeatures && _engine) {
+    tpl.features = {
+      mediaOutline: (_engine as any)._outlineEnabled ?? false,
+      motionDetection: (_engine as any)._motionDetectionEnabled ?? false,
+      invertMedia: (_engine as any)._invertMediaEnabled ?? false,
+      thresholdMedia: (_engine as any)._thresholdMediaEnabled ?? false,
+      autoExtractColors: false,
+    };
+  }
+
   _customTemplates = [..._customTemplates, tpl];
   saveCustomTemplates(_customTemplates);
+  _customDirty = false;
   // Don't call loadTemplate — current state is already correct
 }
 
 export function deleteCustomTemplate(index: number) {
   _customTemplates = _customTemplates.filter((_, i) => i !== index);
   saveCustomTemplates(_customTemplates);
+  _loadedCustomIndex = -1;
   selectTemplate(0);
+}
+
+/** Load a saved custom template into the live editor (no re-save). */
+export function loadCustomTemplateIntoEditor(index: number) {
+  if (!_engine) return;
+  const ct = _customTemplates[index];
+  if (!ct) return;
+  _currentTemplateIndex = -1;
+  _isCustomMode = false;
+  _customDirty = false;
+  _loadedCustomIndex = index;
+  _baseTemplateName = ct.baseTemplateName ?? ct.name;
+  _baseTemplateEffects = ct.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _baseTemplatePalette = ct.palette ? { ...ct.palette } : null;
+  _engine.loadTemplate(cloneTemplate(ct));
+  syncFromEngine();
+}
+
+/** Update an existing custom template in-place (overwrite). */
+export function updateCustomTemplate(index: number, tpl: TemplateConfig) {
+  if (index < 0 || index >= _customTemplates.length) return;
+  _customTemplates[index] = cloneTemplate(tpl);
+  _customTemplates[index].lastModified = Date.now();
+  _customTemplates = [..._customTemplates]; // trigger reactivity
+  saveCustomTemplates(_customTemplates);
 }
 
 export async function exportShareCode(index: number): Promise<string> {
@@ -239,6 +380,75 @@ export async function importShareCode(code: string) {
   saveCustomTemplates(_customTemplates);
   if (_engine) _engine.loadTemplate(cloneTemplate(tpl));
   _isCustomMode = false;
+  syncFromEngine();
+}
+
+/** Add a decoded TemplateConfig to custom templates without loading it. */
+export function addCustomTemplate(tpl: TemplateConfig) {
+  _customTemplates = [..._customTemplates, cloneTemplate(tpl)];
+  saveCustomTemplates(_customTemplates);
+}
+
+/** Build a full TemplateConfig snapshot of the current engine state. */
+export function getCurrentTemplateConfig(): TemplateConfig | null {
+  if (!_engine) return null;
+  const effects = (_engine.currentEffects ?? []).map((e: any) => ({
+    type: e.type,
+    layer: e.layer,
+    config: { ...e.config },
+  }));
+  const palette = _engine.currentPalette
+    ? { ..._engine.currentPalette }
+    : { background: '#000', primary: '#fff', secondary: '#888', accent: '#f36', text: '#fff' };
+  const tpl: TemplateConfig = { name: 'Current', palette, effects };
+  tpl.bpm = _bpm;
+  tpl.animationSpeed = _animationSpeed;
+  tpl.bgOpacity = _effectOpacity;
+  tpl.postfx = { shake: _shake, zoom: _zoom, tilt: _tilt, glitch: _glitch, hueShift: _hueShift };
+  return tpl;
+}
+
+/** Load a template from sharecode URL param — enters custom mode without saving to localStorage. */
+export function loadShareCodeTemplate(tpl: TemplateConfig) {
+  if (!_engine) return;
+  _currentTemplateIndex = -1;
+  _isCustomMode = false;
+  _customDirty = false;
+  _loadedCustomIndex = -1;
+  // Treat the share-code template itself as the base (so reset buttons work after a share-URL load)
+  _baseTemplateName = tpl.baseTemplateName ?? tpl.name;
+  _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
+  _engine.loadTemplate(cloneTemplate(tpl));
+  syncFromEngine();
+}
+
+/** Load a template with diff options — handles missing groups. */
+export function loadTemplateWithOptions(tpl: TemplateConfig, opts: { resetMissing: boolean; customIndex?: number }) {
+  if (!_engine) return;
+
+  // If resetMissing is false, fill in missing fields from current state
+  const merged = cloneTemplate(tpl);
+  if (!opts.resetMissing) {
+    if (merged.bpm === undefined) merged.bpm = _bpm;
+    if (merged.animationSpeed === undefined) merged.animationSpeed = _animationSpeed;
+    if (merged.bgOpacity === undefined) merged.bgOpacity = _effectOpacity;
+    if (!merged.postfx) {
+      merged.postfx = { shake: _shake, zoom: _zoom, tilt: _tilt, glitch: _glitch, hueShift: _hueShift };
+    }
+  }
+
+  _currentTemplateIndex = -1;
+  _isCustomMode = false;
+  _loadedCustomIndex = opts.customIndex ?? -1;
+  // Update base tracking so reset buttons have the correct reference
+  if (opts.customIndex !== undefined && opts.customIndex >= 0 && opts.customIndex < _customTemplates.length) {
+    const ct = _customTemplates[opts.customIndex];
+    _baseTemplateName = ct.baseTemplateName ?? ct.name;
+    _baseTemplateEffects = ct.effects.map(e => ({ ...e, config: { ...e.config } }));
+    _baseTemplatePalette = ct.palette ? { ...ct.palette } : null;
+  }
+  _engine.loadTemplate(merged);
   syncFromEngine();
 }
 
@@ -563,8 +773,14 @@ export const engine = {
   get ready() { return _ready; },
   get currentTemplateIndex() { return _currentTemplateIndex; },
   get isCustomMode() { return _isCustomMode; },
+  get customDirty() { return _customDirty; },
+  get loadedCustomIndex() { return _loadedCustomIndex; },
   get customEffects() { return _customEffects; },
   get customTemplates() { return _customTemplates; },
+  get baseTemplateName() { return _baseTemplateName; },
+  get baseTemplateEffects() { return _baseTemplateEffects; },
+  get basePalette() { return _baseTemplatePalette; },
+  get hasBaseTemplate() { return _currentTemplateIndex >= 0 || _loadedCustomIndex >= 0; },
   get text() { return _text; },
   get segmentDuration() { return _segmentDuration; },
   get animationSpeed() { return _animationSpeed; },

@@ -1,17 +1,28 @@
-<!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
-<!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
+
   let {
     label = '',
     open = $bindable(true),
     children,
+    action,
+  }: {
+    label?: string;
+    open?: boolean;
+    children?: Snippet;
+    action?: Snippet;
   } = $props();
 </script>
 
 <details class="panel-section" bind:open>
   <summary class="section-title">
     <span class="arrow">{open ? '▾' : '▸'}</span>
-    {label}
+    <span class="section-label">{label}</span>
+    {#if action}
+      <span class="section-action" onclick={(e: MouseEvent) => e.stopPropagation()}>
+        {@render action()}
+      </span>
+    {/if}
   </summary>
   <div class="section-body">
     {@render children?.()}
@@ -53,6 +64,15 @@
     font-size: 0.6em;
     color: var(--pv-text-muted);
     transition: color var(--pv-duration);
+  }
+
+  .section-label {
+    flex: 1;
+  }
+
+  .section-action {
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
   .section-body {

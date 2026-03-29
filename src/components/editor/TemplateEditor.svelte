@@ -7,12 +7,19 @@
     engine, showToast,
     saveCurrentAsTemplate, deleteCustomTemplate,
     exportShareCode, importShareCode,
-    reloadCurrentTemplate,
+    reloadCurrentTemplate, getCurrentTemplateConfig,
+    loadTemplateWithOptions, addCustomTemplate,
+    loadCustomTemplateIntoEditor,
+    markEditorDirty,
+    resetPalette, resetEffects,
   } from '../../stores/engine.svelte';
+  import type { SaveTemplateOptions } from '../../stores/engine.svelte';
+  import { encodeShareCode, decodeShareCode } from '../../services/templateStore';
   import { effectCatalog, type EffectPreset } from '../../engine/effectCatalog';
-  import type { EffectEntry, ColorPalette } from '../../types/engine';
+  import type { EffectEntry, ColorPalette, TemplateConfig } from '../../types/engine';
   import { t } from '../../i18n';
   import { v2Registry } from '../../effects/v2/registry';
+  import TemplateDiffDialog from './TemplateDiffDialog.svelte';
 
   // Build a lookup: effectType → localized label
   const effectLabelMap = new Map<string, string>();
@@ -31,9 +38,93 @@
   let shareCodeInput = $state('');
   let shareDialogOpen = $state(false);
 
+  // Save advanced options
+  let saveAdvanced = $state(false);
+  let saveIncludeAnimation = $state(true);
+  let saveIncludePostfx = $state(true);
+  let saveIncludeFeatures = $state(true);
+
+  // Share dropdown
+  let shareMenuIndex = $state<number | null>(null);
+
+  // Delete confirmation
+  let deleteConfirmIndex = $state<number | null>(null);
+
+  // Diff dialog
+  let diffVisible = $state(false);
+  let diffIncoming = $state<TemplateConfig | null>(null);
+
+  // Reset confirmation dialog
+  let resetMode = $state<'palette' | 'effects' | null>(null);
+  let resetDialogVisible = $state(false);
+  let resetDialogIncoming = $state<TemplateConfig | null>(null);
+
   // Reactivity trigger: bump this to force re-render of effects list
   // (engine arrays are mutated in-place, Svelte 5 can't track that)
   let effectsVersion = $state(0);
+
+  /** Precomputed per-effect origin array, re-derived whenever effectsVersion or base effects change. */
+  let effectOrigins = $derived(computeEffectOrigins());
+
+  /**
+   * Compute origin for ALL current effects at once using bipartite matching.
+   * Simple per-index lookup breaks when effects are reordered — a moved original
+   * would no longer sit at its original index and would be misclassified as 'new'.
+   *
+   * Algorithm (3-pass greedy):
+   *   Pass 1 — exact type+config match → 'original'  (unmodified originals, any order)
+   *   Pass 2 — type-only match among still-unmatched → 'modified'  (edited originals)
+   *   Pass 3 — remaining current effects with no base counterpart → 'new'
+   *
+   * Reading effectsVersion makes Svelte re-run this whenever configs mutate.
+   */
+  function computeEffectOrigins(): ('original' | 'modified' | 'new')[] {
+    void effectsVersion;
+    const currentEffects = getCurrentEffects();
+    const baseEffects = engine.baseTemplateEffects;
+
+    if (!baseEffects || baseEffects.length === 0) {
+      return currentEffects.map(() => 'new');
+    }
+
+    const results: ('original' | 'modified' | 'new')[] = currentEffects.map(() => 'new');
+    const baseUsed = new Set<number>();
+    const curMatched = new Set<number>();
+
+    // Pass 1: exact type + config → 'original'
+    const baseJsons = baseEffects.map(b => JSON.stringify(b.config));
+    for (let ci = 0; ci < currentEffects.length; ci++) {
+      const cur = currentEffects[ci];
+      const curJson = JSON.stringify(cur.config);
+      for (let bi = 0; bi < baseEffects.length; bi++) {
+        if (baseUsed.has(bi)) continue;
+        if (baseEffects[bi].type === cur.type && baseJsons[bi] === curJson) {
+          results[ci] = 'original';
+          baseUsed.add(bi);
+          curMatched.add(ci);
+          break;
+        }
+      }
+    }
+
+    // Pass 2: same type, different config → 'modified'
+    for (let ci = 0; ci < currentEffects.length; ci++) {
+      if (curMatched.has(ci)) continue;
+      const cur = currentEffects[ci];
+      for (let bi = 0; bi < baseEffects.length; bi++) {
+        if (baseUsed.has(bi)) continue;
+        if (baseEffects[bi].type === cur.type) {
+          results[ci] = 'modified';
+          baseUsed.add(bi);
+          curMatched.add(ci);
+          break;
+        }
+      }
+      // still not matched → remains 'new'
+    }
+
+    return results;
+  }
 
   // ── Current template data (reactive from engine) ──
   function getCurrentEffects(): EffectEntry[] {
@@ -77,6 +168,7 @@
       };
       eng.addEffect(entry);
       effectsVersion++;
+      markEditorDirty();
       showToast(`+ ${preset.label}`);
       showCatalog = false;
       // Select the newly added effect
@@ -93,6 +185,7 @@
     try {
       eng.removeEffect(index);
       effectsVersion++;
+      markEditorDirty();
       if (activeEffectIndex === index) activeEffectIndex = null;
       else if (activeEffectIndex !== null && activeEffectIndex > index) activeEffectIndex--;
       showToast(t('effect_removed'));
@@ -110,6 +203,7 @@
     try {
       eng.swapEffects(index, newIndex);
       effectsVersion++;
+      markEditorDirty();
       activeEffectIndex = newIndex;
     } catch (err) {
       console.warn('[TemplateEditor] moveEffect failed:', err);
@@ -122,6 +216,7 @@
     try {
       eng.updateEffectConfig(effectIndex, key, value);
       effectsVersion++;
+      markEditorDirty();
     } catch (err) {
       console.warn('[TemplateEditor] updateConfig failed:', err);
     }
@@ -133,6 +228,7 @@
     try {
       eng.updatePalette(key, color);
       effectsVersion++;
+      markEditorDirty();
     } catch (err) {
       console.warn('[TemplateEditor] updatePalette failed:', err);
     }
@@ -140,9 +236,15 @@
 
   function handleSave() {
     if (!saveName.trim()) return;
-    saveCurrentAsTemplate(saveName.trim());
+    const opts: SaveTemplateOptions = {
+      animation: saveIncludeAnimation,
+      postfx: saveIncludePostfx,
+      features: saveIncludeFeatures,
+    };
+    saveCurrentAsTemplate(saveName.trim(), opts);
     saveDialogOpen = false;
     saveName = '';
+    saveAdvanced = false;
     showToast(t('saved'));
   }
 
@@ -156,16 +258,93 @@
     }
   }
 
+  async function handleCopyFullUrl(index: number) {
+    try {
+      const code = await exportShareCode(index);
+      const base = window.location.origin + window.location.pathname;
+      const url = base + '?t=custom&sharecode=' + encodeURIComponent(code);
+      await navigator.clipboard.writeText(url);
+      showToast(t('url_copied'));
+    } catch {
+      showToast('Copy URL failed');
+    }
+  }
+
+  function handleCopyEffectsList(index: number) {
+    const tpl = engine.customTemplates[index];
+    if (!tpl) return;
+    const lines = tpl.effects.map(e => '- ' + (effectLabelMap.get(e.type) ?? e.type));
+    const text = `${tpl.name}:\n${lines.join('\n')}`;
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(t('copied'));
+    }).catch(() => {
+      showToast('Copy failed');
+    });
+  }
+
+  function toggleShareMenu(index: number) {
+    shareMenuIndex = shareMenuIndex === index ? null : index;
+  }
+
   async function handleImport() {
     if (!shareCodeInput.trim()) return;
     try {
-      await importShareCode(shareCodeInput.trim());
+      const tpl = await decodeShareCode(shareCodeInput.trim());
+      diffIncoming = tpl;
+      diffVisible = true;
       shareDialogOpen = false;
       shareCodeInput = '';
-      showToast(t('imported'));
     } catch {
       showToast('Import failed');
     }
+  }
+
+  function handleResetPaletteClick() {
+    if (!engine.hasBaseTemplate) return;
+    const cur = getCurrentTemplateConfig();
+    if (!cur) return;
+    const basePalette = engine.basePalette;
+    if (!basePalette) return;
+    resetDialogIncoming = { ...cur, name: engine.baseTemplateName ?? cur.name, palette: { ...basePalette } };
+    resetMode = 'palette';
+    resetDialogVisible = true;
+  }
+
+  function handleResetEffectsClick() {
+    if (!engine.hasBaseTemplate) return;
+    const cur = getCurrentTemplateConfig();
+    if (!cur) return;
+    resetDialogIncoming = {
+      ...cur,
+      name: engine.baseTemplateName ?? cur.name,
+      effects: engine.baseTemplateEffects.map((e: EffectEntry) => ({ ...e, config: { ...e.config } })),
+    };
+    resetMode = 'effects';
+    resetDialogVisible = true;
+  }
+
+  function handleResetConfirm(_opts: { resetMissing: boolean }) {
+    if (resetMode === 'palette') {
+      resetPalette();
+      effectsVersion++;
+      showToast(t('reset_palette'));
+    } else if (resetMode === 'effects') {
+      resetEffects();
+      effectsVersion++;
+      showToast(t('reset_effects'));
+    }
+    resetDialogVisible = false;
+    resetMode = null;
+  }
+
+  function handleDiffConfirm(opts: { resetMissing: boolean }) {
+    if (!diffIncoming) return;
+    loadTemplateWithOptions(diffIncoming, opts);
+    // Also persist to custom templates
+    addCustomTemplate(diffIncoming);
+    effectsVersion++;
+    showToast(t('imported'));
+    diffIncoming = null;
   }
 
   const layerIcons: Record<string, string> = {
@@ -176,6 +355,19 @@
   };
 
   const paletteKeys: (keyof ColorPalette)[] = ['background', 'primary', 'secondary', 'accent', 'text'];
+
+  function formatDate(ts: number): string {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function getBaseDisplayName(ct: TemplateConfig): string {
+    if (!ct.baseTemplateName) return t('custom');
+    // If it's a nameKey, try to localize it
+    const localized = t(ct.baseTemplateName as any);
+    if (localized !== ct.baseTemplateName) return localized;
+    return ct.baseTemplateName;
+  }
 </script>
 
 {#if visible}
@@ -191,6 +383,9 @@
 
     <!-- Palette Section -->
     <Section label={t('palette')}>
+      {#snippet action()}
+        <button class="section-reset-btn" disabled={!engine.hasBaseTemplate} onclick={handleResetPaletteClick}>↺ {t('reset_palette')}</button>
+      {/snippet}
       <div class="palette-row">
         {#each paletteKeys as key}
           {@const palette = getCurrentPalette()}
@@ -209,10 +404,14 @@
 
     <!-- Effects List -->
     <Section label={t('effects_list')}>
+      {#snippet action()}
+        <button class="section-reset-btn" disabled={!engine.hasBaseTemplate} onclick={handleResetEffectsClick}>↺ {t('reset_effects')}</button>
+      {/snippet}
       <div class="effects-list">
         {#each getCurrentEffects() as effect, i}
+          {@const origin = effectOrigins[i] ?? 'new'}
           <div
-            class="effect-item"
+            class="effect-item effect-origin-{origin}"
             class:active={activeEffectIndex === i}
             onclick={() => activeEffectIndex = activeEffectIndex === i ? null : i}
           >
@@ -296,6 +495,27 @@
           <button class="btn accent" onclick={handleSave}>{t('save')}</button>
           <button class="btn" onclick={() => saveDialogOpen = false}>{t('cancel')}</button>
         </div>
+        <div class="save-advanced-toggle">
+          <button class="btn-link" onclick={() => saveAdvanced = !saveAdvanced}>
+            {saveAdvanced ? '▾' : '▸'} {t('save_advanced')}
+          </button>
+        </div>
+        {#if saveAdvanced}
+          <div class="save-advanced-options">
+            <label class="option-check">
+              <input type="checkbox" bind:checked={saveIncludeAnimation} />
+              <span>{t('save_include_animation')}</span>
+            </label>
+            <label class="option-check">
+              <input type="checkbox" bind:checked={saveIncludePostfx} />
+              <span>{t('save_include_postfx')}</span>
+            </label>
+            <label class="option-check">
+              <input type="checkbox" bind:checked={saveIncludeFeatures} />
+              <span>{t('save_include_features')}</span>
+            </label>
+          </div>
+        {/if}
       {/if}
 
       {#if shareDialogOpen}
@@ -315,12 +535,43 @@
       {#if engine.customTemplates.length > 0}
         <div class="custom-list">
           {#each engine.customTemplates as ct, i}
-            <div class="custom-item">
-              <span class="custom-name">⭐ {ct.name}</span>
-              <div class="custom-actions">
-                <button class="icon-btn" title="Export" onclick={() => handleExport(i)}>📋</button>
-                <button class="icon-btn danger" title="Delete" onclick={() => deleteCustomTemplate(i)}>✕</button>
+            <div class="custom-item-card">
+              <div class="custom-item-row">
+                <span class="custom-name">⭐ {ct.name}</span>
+                <div class="custom-actions">
+                  <button class="icon-btn" title={t('load_template')} onclick={() => { loadCustomTemplateIntoEditor(i); effectsVersion++; showToast(t('loaded')); }}>▶</button>
+                  <button class="icon-btn" title={t('share')} onclick={() => toggleShareMenu(i)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                  </button>
+                  <button class="icon-btn danger" title={t('delete_tpl')} onclick={() => deleteConfirmIndex = i}>✕</button>
+                </div>
               </div>
+              <div class="custom-item-meta">
+                <span class="custom-base">{ct.baseTemplateName ? t('based_on') + ' ' + getBaseDisplayName(ct) : t('custom_from_scratch')}</span>
+                {#if ct.lastModified}
+                  <span class="custom-date">{formatDate(ct.lastModified)}</span>
+                {/if}
+              </div>
+              {#if shareMenuIndex === i}
+                <div class="share-panel">
+                  <button class="share-panel-option" onclick={() => { handleExport(i); shareMenuIndex = null; }}>
+                    🔗 {t('copy_sharecode')}
+                  </button>
+                  <button class="share-panel-option" onclick={() => { handleCopyFullUrl(i); shareMenuIndex = null; }}>
+                    🌐 {t('copy_full_url')}
+                  </button>
+                  <button class="share-panel-option" onclick={() => { handleCopyEffectsList(i); shareMenuIndex = null; }}>
+                    📝 {t('copy_effects_list')}
+                  </button>
+                </div>
+              {/if}
+              {#if deleteConfirmIndex === i}
+                <div class="delete-confirm-bar">
+                  <span class="delete-confirm-text">{t('confirm_delete')}?</span>
+                  <button class="btn-sm danger" onclick={() => { deleteCustomTemplate(i); deleteConfirmIndex = null; }}>{t('confirm')}</button>
+                  <button class="btn-sm" onclick={() => deleteConfirmIndex = null}>{t('cancel')}</button>
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -328,6 +579,23 @@
     </Section>
   </div>
 {/if}
+
+<TemplateDiffDialog
+  bind:visible={diffVisible}
+  currentConfig={getCurrentTemplateConfig()}
+  incomingConfig={diffIncoming}
+  onConfirm={handleDiffConfirm}
+/>
+
+<TemplateDiffDialog
+  bind:visible={resetDialogVisible}
+  currentConfig={getCurrentTemplateConfig()}
+  incomingConfig={resetDialogIncoming}
+  title={resetMode === 'palette' ? t('reset_palette') : t('reset_effects')}
+  confirmLabel={t('diff_confirm_reset')}
+  showUnchangedEffects={false}
+  onConfirm={handleResetConfirm}
+/>
 
 <style>
   .editor-overlay {
@@ -414,6 +682,28 @@
     background: var(--pv-bg-hover);
     color: var(--pv-text);
     border-color: var(--pv-border-hover);
+  }
+
+  .section-reset-btn {
+    padding: 2px 8px;
+    border-radius: var(--pv-radius-sm);
+    border: 1px solid var(--pv-border);
+    background: transparent;
+    color: var(--pv-text-muted);
+    font-size: 0.65rem;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--pv-duration);
+  }
+  .section-reset-btn:hover:not(:disabled) {
+    background: var(--pv-bg-hover);
+    color: var(--pv-text);
+    border-color: var(--pv-border-hover);
+  }
+  .section-reset-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
   }
 
   /* Palette */
@@ -504,6 +794,16 @@
     transition: opacity 0.15s;
   }
   .effect-item:hover .effect-actions { opacity: 1; }
+
+  /* Effects origin coloring */
+  .effect-origin-modified {
+    border-left: 2px solid #e0a030;
+  }
+  .effect-origin-modified .effect-label { color: #e0a030; }
+  .effect-origin-new {
+    border-left: 2px solid #4caf50;
+  }
+  .effect-origin-new .effect-label { color: #4caf50; }
 
   .icon-btn {
     width: 22px;
@@ -662,21 +962,30 @@
   .custom-list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
     margin-top: 8px;
   }
-  .custom-item {
+  .custom-item-card {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 8px;
+    border-radius: var(--pv-radius-sm);
+    border: 1px solid transparent;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .custom-item-card:hover {
+    background: var(--pv-bg-hover);
+    border-color: var(--pv-border);
+  }
+  .custom-item-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 5px 8px;
-    border-radius: var(--pv-radius-sm);
-    transition: background 0.1s;
   }
-  .custom-item:hover { background: var(--pv-bg-hover); }
   .custom-name {
     font-size: 0.75rem;
     color: var(--pv-text);
+    font-weight: 500;
   }
   .custom-actions {
     display: flex;
@@ -684,7 +993,140 @@
     opacity: 0;
     transition: opacity 0.15s;
   }
-  .custom-item:hover .custom-actions { opacity: 1; }
+  .custom-item-card:hover .custom-actions { opacity: 1; }
+  .custom-item-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
+  }
+  .custom-base {
+    font-size: 0.6rem;
+    color: var(--pv-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .custom-date {
+    font-size: 0.6rem;
+    color: var(--pv-text-muted);
+    flex-shrink: 0;
+    margin-left: 6px;
+  }
+
+  /* Share panel (OBS-like expand) */
+  .share-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 8px;
+    background: var(--pv-bg-elevated);
+    border: 1px solid var(--pv-border);
+    border-radius: var(--pv-radius-sm);
+    animation: fadeIn 0.12s ease;
+  }
+
+  .share-panel-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 5px 8px;
+    border: none;
+    border-radius: var(--pv-radius-sm);
+    background: transparent;
+    color: var(--pv-text-secondary);
+    font-size: 0.72rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    transition: all 0.1s;
+  }
+  .share-panel-option:hover {
+    background: var(--pv-bg-hover);
+    color: var(--pv-text);
+  }
+
+  /* Delete confirm bar */
+  .delete-confirm-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 4px 6px;
+    background: rgba(255, 50, 50, 0.08);
+    border: 1px solid rgba(255, 50, 50, 0.2);
+    border-radius: var(--pv-radius-sm);
+    animation: fadeIn 0.12s ease;
+  }
+  .delete-confirm-text {
+    font-size: 0.68rem;
+    color: var(--pv-danger, #f44);
+    flex: 1;
+  }
+  .btn-sm {
+    padding: 2px 8px;
+    border-radius: var(--pv-radius-sm);
+    border: 1px solid var(--pv-border);
+    background: var(--pv-bg-elevated);
+    color: var(--pv-text-secondary);
+    font-size: 0.65rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .btn-sm:hover { background: var(--pv-bg-hover); color: var(--pv-text); }
+  .btn-sm.danger {
+    border-color: rgba(255, 50, 50, 0.4);
+    color: var(--pv-danger, #f44);
+  }
+  .btn-sm.danger:hover {
+    background: rgba(255, 50, 50, 0.15);
+  }
+
+  /* Save advanced */
+  .save-advanced-toggle {
+    margin-top: 4px;
+  }
+
+  .btn-link {
+    background: none;
+    border: none;
+    color: var(--pv-text-muted);
+    font-size: 0.68rem;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 2px 0;
+    transition: color 0.15s;
+  }
+  .btn-link:hover { color: var(--pv-text); }
+
+  .save-advanced-options {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 8px;
+    margin-top: 2px;
+    background: var(--pv-bg-elevated);
+    border-radius: var(--pv-radius-sm);
+    border: 1px solid var(--pv-border);
+    animation: fadeIn 0.12s ease;
+  }
+
+  .option-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--pv-text-secondary);
+    cursor: pointer;
+  }
+  .option-check input[type="checkbox"] {
+    accent-color: var(--pv-accent);
+  }
+  .option-check span { user-select: none; }
 
   @media (max-width: 768px) {
     .editor-panel {

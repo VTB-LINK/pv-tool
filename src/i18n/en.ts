@@ -263,7 +263,9 @@ export const en: Record<LocaleKey, string> = {
   'template_editor': 'Template Editor',
   'reset_template': 'Reset',
   'palette': 'Palette',
+  'reset_palette': 'Reset Palette',
   'effects_list': 'Effects',
+  'reset_effects': 'Reset Effects',
   'no_effects': 'No effects',
   'add_effect': 'Add Effect',
   'hide_catalog': 'Hide Catalog',
@@ -281,6 +283,40 @@ export const en: Record<LocaleKey, string> = {
   'imported': 'Imported',
   'no_params': 'No adjustable parameters',
   'open_editor': 'Edit Template',
+
+  // Share & Custom mode
+  'share': 'Share',
+  'copy_sharecode': 'Copy Share Code',
+  'copy_full_url': 'Copy Full URL',
+  'copy_effects_list': 'Copy Effects List',
+  'copied': 'Copied',
+  'load_template': 'Load Template',
+  'loaded': 'Loaded',
+  'based_on': 'Based on',
+  'custom_from_scratch': 'Created from scratch',
+  'custom_mode_hint': 'Entered custom mode — add effects in the editor',
+
+  // Save advanced options
+  'save_advanced': 'Advanced',
+  'save_include_animation': 'Include Animation (BPM / Speed / BG Opacity)',
+  'save_include_postfx': 'Include Post FX (Shake / Zoom / Tilt / Glitch / Hue)',
+  'save_include_features': 'Include Features (Outline / Motion / Invert / Threshold)',
+
+  // Diff dialog
+  'diff_title': 'Import Preview',
+  'diff_params': 'Parameter Changes',
+  'diff_current': 'Current',
+  'diff_after': 'After Import',
+  'diff_not_included': 'Not included',
+  'diff_missing_hint': 'The following parameters are not included in this share code:',
+  'diff_keep_current': 'Keep current values',
+  'diff_reset_default': 'Reset to defaults',
+  'diff_confirm_load': 'Confirm Import',
+  'diff_confirm_reset': 'Confirm Reset',
+
+  // Unsaved changes
+  'unsaved_changes_hint': 'You have unsaved changes to the current custom template. Switching will discard them.',
+  'discard_and_switch': 'Discard & Switch',
 
   // Footer
   'agpl_footer': 'This mirror runs under the AGPL-3.0 license. Source code and modifications are available on <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub</a>.',

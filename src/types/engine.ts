@@ -43,6 +43,10 @@ export interface TemplateConfig {
     invertMedia?: boolean;
     thresholdMedia?: boolean;
   };
+  /** Name (or nameKey) of the builtin template this was based on, if any */
+  baseTemplateName?: string;
+  /** Timestamp (ms) of last modification */
+  lastModified?: number;
 }
 
 export interface MotionTargetInfo {

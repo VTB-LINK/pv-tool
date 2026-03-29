@@ -261,16 +261,18 @@ export const ja: Record<LocaleKey, string> = {
   'nwc_disconnected': 'Nexus WesingCap の接続が切断されました',
 
   // Template Editor
-  'template_editor': 'テンプレートエディター',
+  'template_editor': 'テンプレートエディター Template Editor',
   'reset_template': 'リセット',
-  'palette': 'パレット',
-  'effects_list': 'エフェクト一覧',
+  'palette': 'パレット Palette',
+  'reset_palette': 'パレットリセット',
+  'effects_list': 'エフェクト一覧 Effects',
+  'reset_effects': 'エフェクトリセット',
   'no_effects': 'エフェクトなし',
   'add_effect': 'エフェクト追加',
   'hide_catalog': 'カタログを閉じる',
-  'effect_catalog': 'エフェクトカタログ',
+  'effect_catalog': 'エフェクトカタログ Catalog',
   'search_effects': 'エフェクトを検索...',
-  'template_actions': 'テンプレート操作',
+  'template_actions': 'テンプレート操作 Actions',
   'save_template': 'テンプレート保存',
   'template_name': 'テンプレート名...',
   'save': '保存',
@@ -282,6 +284,40 @@ export const ja: Record<LocaleKey, string> = {
   'imported': 'インポートしました',
   'no_params': '調整可能なパラメータなし',
   'open_editor': 'テンプレート編集',
+
+  // Share & Custom mode
+  'share': 'シェア',
+  'copy_sharecode': 'シェアコードをコピー',
+  'copy_full_url': '完全URLをコピー',
+  'copy_effects_list': 'エフェクト一覧をコピー',
+  'copied': 'コピーしました',
+  'load_template': 'テンプレート読み込み',
+  'loaded': '読み込みました',
+  'based_on': 'ベース：',
+  'custom_from_scratch': 'ゼロから作成',
+  'custom_mode_hint': 'カスタムモードに入りました — エディターでエフェクトを追加してください',
+
+  // Save advanced options
+  'save_advanced': '詳細オプション',
+  'save_include_animation': 'アニメーション含む (BPM / 速度 / 背景不透明度)',
+  'save_include_postfx': 'ポストFX含む (Shake / Zoom / Tilt / Glitch / Hue)',
+  'save_include_features': '機能含む (アウトライン / モーション / 反転 / 閾値)',
+
+  // Diff dialog
+  'diff_title': 'インポートプレビュー',
+  'diff_params': 'パラメータ変更',
+  'diff_current': '現在',
+  'diff_after': 'インポート後',
+  'diff_not_included': '未含',
+  'diff_missing_hint': '以下のパラメータはシェアコードに含まれていません：',
+  'diff_keep_current': '現在の値を保持',
+  'diff_reset_default': 'デフォルトにリセット',
+  'diff_confirm_load': 'インポート確認',
+  'diff_confirm_reset': 'リセット確認',
+
+  // Unsaved changes
+  'unsaved_changes_hint': '現在のカスタムテンプレートに未保存の変更があります。切り替えると失われます。',
+  'discard_and_switch': '破棄して切替',
 
   // Footer
   'agpl_footer': '本ミラーサイトは AGPL-3.0 ライセンスに基づいて運営されています。ソースコードと変更内容は <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub リポジトリ</a>をご覧ください。',
