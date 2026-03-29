@@ -240,11 +240,11 @@ export const zh = {
   'copy_url_tip': '生成可直接粘贴到 OBS 浏览器源的 URL，自动隐藏面板 / 透明背景 / 加载指定模板',
   'live_mode': '直播 MODE',
   'copy_obs_url': '复制 OBS 浏览器源 URL',
-  'copy_obs_url_hint': '自动隐藏面板 / 透明背景 / 保存当前模板与监听状态',
+  'copy_obs_url_hint': '自动隐藏面板 / 透明背景 / 保存当前模板、监听状态与运行参数',
   'url_opt_alpha': '透明背景',
   'url_opt_template': '包含当前模板',
   'url_opt_listen': '包含监听状态',
-  'url_opt_postfx': '包含后期效果',
+  'url_opt_postfx': '包含后期与节奏参数',
 
   // WesingCap
   'listen_wesingcap': '监听 Nexus WesingCap',

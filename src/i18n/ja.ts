@@ -241,11 +241,11 @@ export const ja: Record<LocaleKey, string> = {
   'copy_url_tip': '',
   'live_mode': 'ライブ MODE',
   'copy_obs_url': 'OBSブラウザソースURLをコピー',
-  'copy_obs_url_hint': 'パネル自動非表示 / 透明背景 / テンプレート・監視状態を保存',
+  'copy_obs_url_hint': 'パネル自動非表示 / 透明背景 / テンプレート・監視状態・実行パラメータを保存',
   'url_opt_alpha': '透明背景',
   'url_opt_template': '現在のテンプレートを含む',
   'url_opt_listen': '監視状態を含む',
-  'url_opt_postfx': 'ポストFXを含む',
+  'url_opt_postfx': 'FX・リズムパラメータを含む',
 
   // WesingCap
   'listen_nowplaying': 'NowPlayingを監視',
