@@ -241,11 +241,11 @@ export const en: Record<LocaleKey, string> = {
   'copy_url_tip': '',
   'live_mode': 'Live MODE',
   'copy_obs_url': 'Copy OBS Browser Source URL',
-  'copy_obs_url_hint': 'Auto-hide panels / transparent BG / save template & listen state',
+  'copy_obs_url_hint': 'Auto-hide panels / transparent BG / save template, listen state, and runtime params',
   'url_opt_alpha': 'Transparent Background',
   'url_opt_template': 'Include Current Template',
   'url_opt_listen': 'Include Listen State',
-  'url_opt_postfx': 'Include Post FX',
+  'url_opt_postfx': 'Include FX & Rhythm Params',
 
   // WesingCap
   'listen_wesingcap': 'Listen Nexus WesingCap',

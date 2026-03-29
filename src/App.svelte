@@ -9,7 +9,12 @@
   import TemplateEditor from './components/editor/TemplateEditor.svelte';
   import MobileNav from './components/mobile/MobileNav.svelte';
   import MobileSheet from './components/mobile/MobileSheet.svelte';
-  import { engine, initEngine, selectTemplate, toggleRecording, resetPostFx, toggleAudio, setAlphaMode, setShake, setZoom, setTilt, setGlitch, setHueShift, loadShareCodeTemplate } from './stores/engine.svelte';
+  import {
+    engine, initEngine, selectTemplate, toggleRecording, resetPostFx, toggleAudio,
+    setAlphaMode, setShake, setZoom, setTilt, setGlitch, setHueShift,
+    setSegmentDuration, setAnimationSpeed, setMotionIntensity, setEffectOpacity,
+    setBpm, setBeatReactivity, loadShareCodeTemplate,
+  } from './stores/engine.svelte';
   import { decodeShareCode } from './services/templateStore';
   import { t } from './i18n';
   import { templates } from './templates';
@@ -58,31 +63,57 @@
     // ── URL Params (OBS mode restore) — must run AFTER engine init ──
     const params = new URLSearchParams(window.location.search);
 
+    // Hide panels for OBS (apply before any async restore work)
+    if (params.get('panel') === '0') {
+      panelsVisible = false;
+    }
+
+    // URL restore priority:
+    // 1. Apply explicit non-template flags early (panel/bg/listen bootstrap).
+    // 2. Restore builtin template immediately when `t=<index>`.
+    // 3. Defer `t=custom&sharecode=...` until the end because loadTemplate()
+    //    rehydrates template-level animation/postfx state.
+    // 4. Re-apply explicit URL runtime params last so OBS copy URL always wins
+    //    over builtin defaults and values embedded inside sharecode.
+    function applyRuntimeOverrides() {
+      const seg = params.get('seg');
+      if (seg !== null) setSegmentDuration(parseFloat(seg));
+      const speed = params.get('speed');
+      if (speed !== null) setAnimationSpeed(parseFloat(speed));
+      const motion = params.get('motion');
+      if (motion !== null) setMotionIntensity(parseFloat(motion));
+      const opacity = params.get('opacity');
+      if (opacity !== null) setEffectOpacity(parseFloat(opacity));
+      const bpm = params.get('bpm');
+      if (bpm !== null) setBpm(parseFloat(bpm));
+      const beatreact = params.get('beatreact');
+      if (beatreact !== null) setBeatReactivity(parseFloat(beatreact));
+
+      const shake = params.get('shake');
+      if (shake !== null) setShake(parseFloat(shake));
+      const zoom = params.get('zoom');
+      if (zoom !== null) setZoom(parseFloat(zoom));
+      const tilt = params.get('tilt');
+      if (tilt !== null) setTilt(parseFloat(tilt));
+      const glitch = params.get('glitch');
+      if (glitch !== null) setGlitch(parseFloat(glitch));
+      const hue = params.get('hue');
+      if (hue !== null) setHueShift(parseFloat(hue));
+    }
+
     // Restore template
     const tpl = params.get('t');
+    let pendingSharecode: string | null = null;
     if (tpl !== null) {
       if (tpl === 'custom') {
-        // Custom template via sharecode
-        const sharecode = params.get('sharecode');
-        if (sharecode) {
-          try {
-            const decoded = await decodeShareCode(sharecode);
-            loadShareCodeTemplate(decoded);
-          } catch (err) {
-            console.warn('[PV] Failed to decode sharecode from URL:', err);
-          }
-        }
+        // Defer sharecode restore until the end so URL overrides can apply deterministically.
+        pendingSharecode = params.get('sharecode');
       } else {
         const idx = parseInt(tpl);
         if (!isNaN(idx) && idx >= 0 && idx < templates.length) {
           selectTemplate(idx);
         }
       }
-    }
-
-    // Hide panels for OBS
-    if (params.get('panel') === '0') {
-      panelsVisible = false;
     }
 
     // Transparent background
@@ -108,17 +139,19 @@
       }
     }
 
-    // Restore Post FX from URL
-    const shake = params.get('shake');
-    if (shake !== null) setShake(parseFloat(shake));
-    const zoom = params.get('zoom');
-    if (zoom !== null) setZoom(parseFloat(zoom));
-    const tilt = params.get('tilt');
-    if (tilt !== null) setTilt(parseFloat(tilt));
-    const glitch = params.get('glitch');
-    if (glitch !== null) setGlitch(parseFloat(glitch));
-    const hue = params.get('hue');
-    if (hue !== null) setHueShift(parseFloat(hue));
+    // Apply explicit URL runtime params first.
+    applyRuntimeOverrides();
+
+    // Sharecode restore comes last, then URL params are re-applied as final overrides.
+    if (pendingSharecode) {
+      try {
+        const decoded = await decodeShareCode(pendingSharecode);
+        loadShareCodeTemplate(decoded);
+      } catch (err) {
+        console.warn('[PV] Failed to decode sharecode from URL:', err);
+      }
+      applyRuntimeOverrides();
+    }
 
     // Start performance auto-scaling on mobile or low-end
     if (isMobile || recommendedDpr() < window.devicePixelRatio) {

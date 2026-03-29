@@ -167,11 +167,18 @@
 
     // Optional: Post FX values
     if (urlOptPostFx) {
-      if (engine.shake !== 0) params.set('shake', engine.shake.toFixed(2));
-      if (engine.zoom !== 0) params.set('zoom', engine.zoom.toFixed(2));
-      if (engine.tilt !== 0) params.set('tilt', engine.tilt.toFixed(2));
-      if (engine.glitch !== 0) params.set('glitch', engine.glitch.toFixed(2));
-      if (engine.hueShift !== 0) params.set('hue', String(engine.hueShift));
+      // Always include explicit values so sharecode/defaults cannot override them.
+      params.set('shake', engine.shake.toFixed(2));
+      params.set('zoom', engine.zoom.toFixed(2));
+      params.set('tilt', engine.tilt.toFixed(2));
+      params.set('glitch', engine.glitch.toFixed(2));
+      params.set('hue', String(engine.hueShift));
+      params.set('seg', engine.segmentDuration.toFixed(2));
+      params.set('speed', engine.animationSpeed.toFixed(2));
+      params.set('motion', engine.motionIntensity.toFixed(2));
+      params.set('opacity', engine.effectOpacity.toFixed(2));
+      params.set('bpm', String(Math.round(engine.bpm)));
+      params.set('beatreact', engine.beatReactivity.toFixed(2));
     }
 
     const url = base + '?' + params.toString();
