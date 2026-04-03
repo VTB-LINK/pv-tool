@@ -14,6 +14,7 @@
     setAlphaMode, setShake, setZoom, setTilt, setGlitch, setHueShift,
     setSegmentDuration, setAnimationSpeed, setMotionIntensity, setEffectOpacity,
     setBpm, setBeatReactivity, loadShareCodeTemplate,
+    setMediaOutline, setAutoExtractColors, setMotionDetection, setInvertMedia, setThresholdMedia,
   } from './stores/engine.svelte';
   import { decodeShareCode } from './services/templateStore';
   import { t } from './i18n';
@@ -27,6 +28,13 @@
   let panelsVisible = $state(true);
   let ready = $state(false);
   let editorOpen = $state(false);
+  type EditorGuideTarget = 'template-actions';
+  type EditorGuideRequest = {
+    token: number;
+    target: EditorGuideTarget;
+  };
+  let editorGuideToken = 0;
+  let editorGuideRequest = $state<EditorGuideRequest | null>(null);
 
   // Flash the edit button when editor closes while in custom mode
   let flashEditBtn = $state(false);
@@ -76,6 +84,17 @@
     // 4. Re-apply explicit URL runtime params last so OBS copy URL always wins
     //    over builtin defaults and values embedded inside sharecode.
     function applyRuntimeOverrides() {
+      const outline = params.get('outline');
+      if (outline !== null) setMediaOutline(outline === '1');
+      const autoColors = params.get('autocolors');
+      if (autoColors !== null) setAutoExtractColors(autoColors === '1');
+      const motionDetect = params.get('motiondetect');
+      if (motionDetect !== null) setMotionDetection(motionDetect === '1');
+      const invertMedia = params.get('invertmedia');
+      if (invertMedia !== null) setInvertMedia(invertMedia === '1');
+      const thresholdMedia = params.get('thresholdmedia');
+      if (thresholdMedia !== null) setThresholdMedia(thresholdMedia === '1');
+
       const seg = params.get('seg');
       if (seg !== null) setSegmentDuration(parseFloat(seg));
       const speed = params.get('speed');
@@ -232,6 +251,14 @@
   $effect(() => {
     mobileSheetVisible = mobileTab !== 'canvas';
   });
+
+  function requestTemplateActionsGuide(openEditor: boolean) {
+    editorGuideToken += 1;
+    editorGuideRequest = { token: editorGuideToken, target: 'template-actions' };
+    if (openEditor) {
+      editorOpen = true;
+    }
+  }
 </script>
 
 
@@ -242,7 +269,12 @@
   {#if !isMobile}
     <!-- Desktop layout -->
     <div class="panels-desktop" class:hidden={!panelsVisible}>
-      <LeftPanel {ready} onOpenEditor={() => editorOpen = true} {flashEditBtn} />
+      <LeftPanel
+        {ready}
+        onOpenEditor={() => editorOpen = true}
+        onRequestTemplateGuide={() => requestTemplateActionsGuide(true)}
+        {flashEditBtn}
+      />
       <RightPanel {ready} {autoStartNp} {autoStartNwc} {autoNwcWsAddr} />
     </div>
 
@@ -266,7 +298,11 @@
   {/if}
 
   <Toast />
-  <TemplateEditor bind:visible={editorOpen} />
+  <TemplateEditor
+    bind:visible={editorOpen}
+    guideRequest={editorGuideRequest}
+    onRequestTemplateGuide={() => requestTemplateActionsGuide(false)}
+  />
 </div>
 
 <style>

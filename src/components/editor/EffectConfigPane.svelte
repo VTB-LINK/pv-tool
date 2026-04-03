@@ -118,7 +118,7 @@
               <div class="color-input-wrap">
                 {#if ft.paletteRef && (val as string).startsWith('$')}
                   <select
-                    class="mini-select"
+                    class="pv-select pv-select-compact pv-select-mono"
                     value={val}
                     onchange={(e: Event) => handleChange(field.key, (e.target as HTMLSelectElement).value)}
                   >
@@ -146,7 +146,7 @@
             <div class="field-row">
               <span class="field-label">{resolveLocalized(field.label)}</span>
               <select
-                class="mini-select"
+                class="pv-select pv-select-compact pv-select-mono"
                 value={val}
                 onchange={(e: Event) => handleChange(field.key, (e.target as HTMLSelectElement).value)}
               >
@@ -161,20 +161,20 @@
               <span class="field-label">{resolveLocalized(field.label)}</span>
               <input
                 type="text"
-                class="text-field"
+                class="pv-input pv-input-compact pv-control-grow"
                 value={val}
                 oninput={(e: Event) => handleChange(field.key, (e.target as HTMLInputElement).value)}
               />
             </div>
 
           {:else if ft.kind === 'boolean'}
-            <label class="toggle-field">
+            <label class="pv-check-row toggle-field">
               <input
                 type="checkbox"
                 checked={val}
                 onchange={(e: Event) => handleChange(field.key, (e.target as HTMLInputElement).checked)}
               />
-              <span>{resolveLocalized(field.label)}</span>
+              <span class="pv-check-text">{resolveLocalized(field.label)}</span>
             </label>
 
           {:else if ft.kind === 'vec2'}
@@ -223,7 +223,7 @@
           <div class="field-row">
             <span class="field-label">{label(key)}</span>
             <select
-              class="mini-select"
+              class="pv-select pv-select-compact pv-select-mono"
               value={value}
               onchange={(e: Event) => handleChange(key, (e.target as HTMLSelectElement).value)}
             >
@@ -257,13 +257,13 @@
           />
 
         {:else if kind === 'boolean'}
-          <label class="toggle-field">
+          <label class="pv-check-row toggle-field">
             <input
               type="checkbox"
               checked={value}
               onchange={(e: Event) => handleChange(key, (e.target as HTMLInputElement).checked)}
             />
-            <span>{label(key)}</span>
+            <span class="pv-check-text">{label(key)}</span>
           </label>
 
         {:else if kind === 'string'}
@@ -271,7 +271,7 @@
             <span class="field-label">{label(key)}</span>
             <input
               type="text"
-              class="text-field"
+              class="pv-input pv-input-compact pv-control-grow"
               value={value}
               oninput={(e: Event) => handleChange(key, (e.target as HTMLInputElement).value)}
             />
@@ -376,52 +376,9 @@
   }
   .palette-switch:hover { opacity: 1; }
 
-  /* Select */
-  .mini-select {
-    padding: 3px 6px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-elevated);
-    color: var(--pv-text);
-    font-size: 0.72rem;
-    font-family: var(--pv-font-mono);
-    cursor: pointer;
-    outline: none;
-  }
-
-  .mini-select option {
-    background: #1a1a2e;
-  }
-
-  /* Text */
-  .text-field {
-    flex: 1;
-    min-width: 0;
-    padding: 3px 8px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-elevated);
-    color: var(--pv-text);
-    font-size: 0.72rem;
-    font-family: inherit;
-    outline: none;
-    transition: border-color var(--pv-duration);
-  }
-  .text-field:focus { border-color: var(--pv-border-focus); }
-
   /* Toggle */
   .toggle-field {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.72rem;
-    color: var(--pv-text-secondary);
-    cursor: pointer;
     text-transform: capitalize;
-  }
-  .toggle-field input[type="checkbox"] {
-    accent-color: var(--pv-accent);
-    cursor: pointer;
   }
 
   .empty-hint {

@@ -106,3 +106,254 @@ html, body {
   outline: 2px solid var(--pv-accent);
   outline-offset: 2px;
 }
+
+/* ── Shared Form Controls ── */
+.pv-input,
+.pv-select {
+  border-radius: var(--pv-radius-sm);
+  border: 1px solid var(--pv-border);
+  background: var(--pv-bg-elevated);
+  color: var(--pv-text);
+  outline: none;
+  transition: border-color var(--pv-duration), background var(--pv-duration);
+}
+
+.pv-input {
+  padding: 5px 8px;
+  font-size: 0.75rem;
+  font-family: inherit;
+}
+
+.pv-input-lg {
+  padding: 10px 12px;
+  border-radius: var(--pv-radius);
+  font-size: 0.85rem;
+}
+
+.pv-input::placeholder {
+  color: var(--pv-text-muted);
+}
+
+.pv-select {
+  padding: 5px 8px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pv-select option {
+  background: #1a1a2e;
+  color: var(--pv-text);
+}
+
+.pv-input:focus,
+.pv-select:focus {
+  border-color: var(--pv-border-focus);
+}
+
+.pv-input-compact,
+.pv-select-compact {
+  padding: 3px 6px;
+  font-size: 0.72rem;
+}
+
+.pv-input-mono,
+.pv-select-mono {
+  font-family: var(--pv-font-mono);
+}
+
+.pv-input-surface,
+.pv-select-surface {
+  background: var(--pv-bg-surface);
+}
+
+.pv-control-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.pv-control-full {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pv-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--pv-text-secondary);
+  cursor: pointer;
+  min-width: 0;
+  transition: color 0.15s;
+}
+
+.pv-check-row:hover {
+  color: var(--pv-text);
+}
+
+.pv-check-row-md {
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.pv-check-row input[type="checkbox"],
+.pv-check-row input[type="radio"] {
+  flex-shrink: 0;
+  accent-color: var(--pv-accent);
+  cursor: pointer;
+}
+
+.pv-check-text {
+  user-select: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Shared Buttons ── */
+.pv-btn {
+  padding: 6px 14px;
+  border-radius: var(--pv-radius-sm);
+  border: 1px solid var(--pv-border);
+  background: var(--pv-bg-elevated);
+  color: var(--pv-text);
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--pv-duration), border-color var(--pv-duration), color var(--pv-duration), box-shadow var(--pv-duration);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pv-btn:hover {
+  background: var(--pv-bg-hover);
+  border-color: var(--pv-border-hover);
+}
+
+.pv-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pv-btn-sm {
+  padding: 3px 10px;
+  font-size: 0.72rem;
+}
+
+.pv-btn-xs {
+  padding: 2px 8px;
+  font-size: 0.65rem;
+}
+
+.pv-btn-lg {
+  padding: 10px 18px;
+  border-radius: var(--pv-radius);
+  font-size: 0.85rem;
+}
+
+.pv-btn-accent {
+  background: var(--pv-accent);
+  border-color: var(--pv-accent);
+  color: #fff;
+}
+
+.pv-btn-accent:hover {
+  background: var(--pv-accent-hover);
+  border-color: var(--pv-accent-hover);
+}
+
+.pv-btn-outline-accent {
+  background: transparent;
+  border-color: var(--pv-accent);
+  color: var(--pv-accent);
+}
+
+.pv-btn-outline-accent:hover {
+  background: var(--pv-accent);
+  border-color: var(--pv-accent);
+  color: #000;
+}
+
+.pv-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--pv-text-muted);
+}
+
+.pv-btn-ghost:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--pv-text);
+}
+
+.pv-btn-link {
+  background: none;
+  border: none;
+  color: var(--pv-text-muted);
+  font-size: 0.68rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.pv-btn-link:hover {
+  color: var(--pv-text);
+}
+
+.pv-btn-block {
+  width: 100%;
+}
+
+.pv-btn-grow {
+  flex: 1;
+}
+
+.pv-btn-cta {
+  border-color: var(--pv-accent);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+  color: var(--pv-accent);
+  font-weight: 600;
+}
+
+.pv-btn-cta:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.25));
+  border-color: var(--pv-accent-glow);
+  box-shadow: 0 0 12px var(--pv-accent-glow);
+}
+
+.pv-btn-icon {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--pv-text-secondary);
+  font-size: 0.65rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+
+.pv-btn-icon:hover {
+  background: var(--pv-bg-hover);
+  color: var(--pv-text);
+}
+
+.pv-btn-icon-danger:hover {
+  background: rgba(255, 50, 50, 0.2);
+  color: var(--pv-danger);
+}

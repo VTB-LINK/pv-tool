@@ -38,11 +38,11 @@
 
   <!-- Post FX actions -->
   <div class="postfx-actions">
-    <label class="toggle-row">
+    <label class="pv-check-row pv-check-row-md toggle-row">
       <input type="checkbox" checked={engine.postFxLocked} onchange={(e: Event) => setPostFxLocked((e.target as HTMLInputElement).checked)} />
-      <span title={t('postfx_lock')}>🔒 {t('postfx_lock')}</span>
+      <span class="pv-check-text" title={t('postfx_lock')}>🔒 {t('postfx_lock')}</span>
     </label>
-    <button class="btn btn-sm reset-btn" onclick={resetPostFx}>↺ {t('postfx_reset')}</button>
+    <button class="pv-btn pv-btn-sm btn btn-sm reset-btn" onclick={resetPostFx}>↺ {t('postfx_reset')}</button>
   </div>
 
   <!-- Media position (only when media loaded) -->
@@ -68,11 +68,11 @@
 
   <!-- Export -->
   <Section label={t('export')}>
-    <label class="toggle-row">
+    <label class="pv-check-row pv-check-row-md toggle-row">
       <input type="checkbox" checked={engine.alphaMode} onchange={(e: Event) => setAlphaMode((e.target as HTMLInputElement).checked)} />
-      <span>{t('alpha_export')}</span>
+      <span class="pv-check-text">{t('alpha_export')}</span>
     </label>
-    <button class="btn rec-btn" class:recording={engine.isRecording} onclick={toggleRecording}>
+    <button class="pv-btn btn rec-btn" class:recording={engine.isRecording} onclick={toggleRecording}>
       <span class="rec-dot"></span>
       <span>{engine.isRecording ? `${t('stop')} ${formatRecTime(engine.recordingTime)}` : t('rec')}</span>
     </button>
@@ -98,43 +98,9 @@
     box-shadow: var(--pv-shadow);
   }
 
-  .toggle-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.78rem;
-    color: var(--pv-text-secondary);
-    cursor: pointer;
-    transition: color var(--pv-duration);
-  }
-
-  .toggle-row:hover { color: var(--pv-text); }
-
   .toggle-row input[type="checkbox"] {
-    accent-color: var(--pv-accent);
-    cursor: pointer;
     width: 14px;
     height: 14px;
-  }
-
-  .btn {
-    padding: 6px 14px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-elevated);
-    color: var(--pv-text);
-    font-size: 0.78rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background var(--pv-duration), border-color var(--pv-duration);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .btn:hover {
-    background: var(--pv-bg-hover);
-    border-color: var(--pv-border-hover);
   }
 
   .rec-btn {
@@ -193,18 +159,12 @@
 
   .reset-btn:hover { opacity: 1; }
 
-  .btn-sm {
-    font-size: 0.72rem;
-    padding: 3px 10px;
-  }
-
   @media (max-width: 768px) {
     .panel {
       width: 100%;
       border-radius: 0;
       max-height: none;
     }
-    .btn { padding: 8px 16px; font-size: 0.85rem; min-height: 36px; }
   }
   .agpl-footer {
     margin-top: 12px;

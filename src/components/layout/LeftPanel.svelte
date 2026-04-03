@@ -1,8 +1,12 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
+  import SegmentedControl, { type SegmentedControlOption } from '../common/SegmentedControl.svelte';
   import Section from '../common/Section.svelte';
+  import SelectMenu, { type SelectMenuOption } from '../common/SelectMenu.svelte';
   import Slider from '../common/Slider.svelte';
+  import UnsavedChangesDialog from '../common/UnsavedChangesDialog.svelte';
+  import TemplateDiffDialog from '../editor/TemplateDiffDialog.svelte';
   import {
     engine, selectTemplate, selectCustomTemplate, enterCustomMode,
     setText, setSegmentDuration, setAnimationSpeed, setMotionIntensity,
@@ -11,12 +15,17 @@
     clearMedia, clearAudio, clearLyrics, showToast,
     getCurrentTemplateConfig, loadTemplateWithOptions,
   } from '../../stores/engine.svelte';
+  import type { MissingMode } from '../../stores/engine.svelte';
   import { templates } from '../../templates';
   import { t } from '../../i18n';
   import type { TemplateConfig } from '../../types/engine';
-  import TemplateDiffDialog from '../editor/TemplateDiffDialog.svelte';
 
-  let { ready = false, onOpenEditor = () => {}, flashEditBtn = false } = $props();
+  let {
+    ready = false,
+    onOpenEditor = () => {},
+    onRequestTemplateGuide = () => {},
+    flashEditBtn = false,
+  } = $props();
 
   let textInput = $state(engine.text);
   let textTimer: ReturnType<typeof setTimeout>;
@@ -29,10 +38,13 @@
   // Edit button flash animation
   let editBtnFlashing = $state(false);
 
-  // Diff dialog for user template selection
+  // Diff dialog for template selection (builtin & custom)
   let diffVisible = $state(false);
   let diffIncoming = $state<TemplateConfig | null>(null);
-  let pendingUserIndex = $state(-1);
+  let pendingDiffType = $state<'builtin' | 'custom' | null>(null);
+  let pendingDiffIndex = $state(-1);
+  let previousTemplateIndex = $state(-1);
+  let previousLoadedCustomIndex = $state(-1);
 
   // Unsaved changes confirmation
   let confirmVisible = $state(false);
@@ -58,20 +70,60 @@
     pendingAction = null;
   }
 
-  function showUserTemplateDiff(index: number) {
-    const tpl = engine.customTemplates[index];
-    if (!tpl) { selectCustomTemplate(index); return; }
+  function handleConfirmSave() {
+    confirmVisible = false;
+    if (pendingAction) onRequestTemplateGuide();
+    pendingAction = null;
+  }
+
+  function showTemplateDiff(type: 'builtin' | 'custom', index: number) {
+    const tpl = type === 'builtin' ? templates[index] : engine.customTemplates[index];
+    if (!tpl) {
+      if (type === 'builtin') selectTemplate(index);
+      else selectCustomTemplate(index);
+      return;
+    }
+    // Save current template state before showing diff
+    previousTemplateIndex = engine.currentTemplateIndex;
+    previousLoadedCustomIndex = engine.loadedCustomIndex;
     diffIncoming = tpl;
-    pendingUserIndex = index;
+    diffMissingMode = tpl.baseTemplateName ? 'builtin' : 'reset';
+    pendingDiffType = type;
+    pendingDiffIndex = index;
     diffVisible = true;
   }
 
-  function handleUserDiffConfirm(opts: { resetMissing: boolean }) {
-    if (pendingUserIndex >= 0 && diffIncoming) {
-      loadTemplateWithOptions(diffIncoming, { ...opts, customIndex: pendingUserIndex });
+  // ── Diff dialog logic ──
+  let diffMissingMode = $state<MissingMode>('reset');
+
+  function closeDiff() {
+    // Restore previous template state when user cancels
+    if (previousLoadedCustomIndex >= 0) {
+      selectCustomTemplate(previousLoadedCustomIndex);
+    } else if (previousTemplateIndex >= 0) {
+      selectTemplate(previousTemplateIndex);
+    }
+    diffVisible = false;
+    diffIncoming = null;
+    pendingDiffType = null;
+    pendingDiffIndex = -1;
+    previousTemplateIndex = -1;
+    previousLoadedCustomIndex = -1;
+  }
+
+  function confirmDiff() {
+    if (!diffIncoming || pendingDiffIndex < 0) return;
+    if (pendingDiffType === 'builtin') {
+      loadTemplateWithOptions(diffIncoming, { missingMode: diffMissingMode, builtinIndex: pendingDiffIndex });
+    } else {
+      loadTemplateWithOptions(diffIncoming, { missingMode: diffMissingMode, customIndex: pendingDiffIndex });
     }
     diffIncoming = null;
-    pendingUserIndex = -1;
+    pendingDiffType = null;
+    pendingDiffIndex = -1;
+    diffVisible = false;
+    previousTemplateIndex = -1;
+    previousLoadedCustomIndex = -1;
   }
 
   function triggerFlash() {
@@ -89,13 +141,16 @@
     : String(engine.currentTemplateIndex)
   );
 
-  // OBS browser detection (CEF doesn't support native <select> popups)
-  const isObs = typeof window !== 'undefined' && (
-    'obsstudio' in window ||
-    navigator.userAgent.includes('OBS') ||
-    new URLSearchParams(window.location.search).has('panel')
-  );
-  let obsDropdownOpen = $state(false);
+  let templateDropdownOpen = $state(false);
+  let templateOptions = $derived<SelectMenuOption[]>([
+    ...templates.map((tpl, i) => ({ value: String(i), label: tplName(tpl) })),
+    ...engine.customTemplates.map((tpl, i) => ({ value: `user-${i}`, label: `⭐ ${tpl.name}` })),
+    { value: 'custom', label: t('custom') },
+  ]);
+  let lyricsSourceOptions = $derived<SegmentedControlOption[]>([
+    { value: 'embedded', label: t('use_embedded') },
+    { value: 'file', label: t('use_file') },
+  ]);
 
   const canvasColors = [
     { color: null, label: 'A', title: t('follow_template') },
@@ -107,18 +162,26 @@
     { color: '#f5c6d0', title: t('pink') },
   ];
 
-  function handleTemplateChange(e: Event) {
-    const val = (e.target as HTMLSelectElement).value;
+  function getSelectedTemplateLabel(): string {
+    if (engine.isCustomMode) return t('custom');
+    if (engine.loadedCustomIndex >= 0) {
+      return engine.customTemplates[engine.loadedCustomIndex]?.name ?? t('custom');
+    }
+    return tplName(templates[engine.currentTemplateIndex]);
+  }
+
+  function handleTemplatePick(val: string) {
     if (val === 'custom') {
       enterCustomMode();
       showToast(t('custom_mode_hint'));
       triggerFlash();
       onOpenEditor();
     } else if (val.startsWith('user-')) {
-      guardSwitch(() => showUserTemplateDiff(parseInt(val.split('-')[1])));
+      guardSwitch(() => showTemplateDiff('custom', parseInt(val.split('-')[1])));
     } else {
-      guardSwitch(() => selectTemplate(parseInt(val)));
+      guardSwitch(() => showTemplateDiff('builtin', parseInt(val)));
     }
+    templateDropdownOpen = false;
   }
 
   function handleTextInput() {
@@ -132,20 +195,26 @@
   }
 
   async function handleMediaFile(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (file) {
       await loadMedia(file, 'fit');
     }
+    input.value = '';
   }
 
   async function handleAudioFile(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (file) await loadAudio(file);
+    input.value = '';
   }
 
   async function handleLyricsFile(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (file) await loadLyrics(file);
+    input.value = '';
   }
 </script>
 
@@ -153,55 +222,17 @@
   <!-- Template -->
   <Section label={t('template')}>
     <div class="template-row">
-      {#if isObs}
-        <!-- Custom dropdown for OBS browser (CEF can't do native <select>) -->
-        <div class="obs-select-wrapper">
-          <button class="obs-select-trigger" onclick={() => obsDropdownOpen = !obsDropdownOpen}>
-            <span class="obs-select-label">
-              {#if engine.isCustomMode}
-                {t('custom')}
-              {:else}
-                {tplName(templates[engine.currentTemplateIndex])}
-              {/if}
-            </span>
-            <span class="obs-select-arrow" class:open={obsDropdownOpen}>▾</span>
-          </button>
-          {#if obsDropdownOpen}
-            <div class="obs-dropdown">
-              {#each templates as tpl, i}
-                <button
-                  class="obs-option"
-                  class:active={selectedValue === String(i)}
-                  onclick={() => { guardSwitch(() => { selectTemplate(i); }); obsDropdownOpen = false; }}
-                >{tplName(tpl)}</button>
-              {/each}
-              {#each engine.customTemplates as tpl, i}
-                <button
-                  class="obs-option"
-                  class:active={selectedValue === `user-${i}`}
-                  onclick={() => { guardSwitch(() => showUserTemplateDiff(i)); obsDropdownOpen = false; }}
-                >⭐ {tpl.name}</button>
-              {/each}
-              <button
-                class="obs-option"
-                class:active={selectedValue === 'custom'}
-                onclick={() => { enterCustomMode(); showToast(t('custom_mode_hint')); triggerFlash(); onOpenEditor(); obsDropdownOpen = false; }}
-              >{t('custom')}</button>
-            </div>
-          {/if}
-        </div>
-      {:else}
-        <select class="select" value={selectedValue} onchange={handleTemplateChange}>
-          {#each templates as tpl, i}
-            <option value={String(i)}>{tplName(tpl)}</option>
-          {/each}
-          {#each engine.customTemplates as tpl, i}
-            <option value="user-{i}">⭐ {tpl.name}</option>
-          {/each}
-          <option value="custom">{t('custom')}</option>
-        </select>
-      {/if}
-      <button class="btn btn-sm edit-btn" class:flashing={editBtnFlashing} onclick={onOpenEditor} onanimationend={() => editBtnFlashing = false} title={t('open_editor')}>🎨</button>
+      <div class="template-select">
+        <SelectMenu
+          items={templateOptions}
+          selectedLabel={getSelectedTemplateLabel()}
+          {selectedValue}
+          bind:open={templateDropdownOpen}
+          ariaLabel={t('template')}
+          onSelect={handleTemplatePick}
+        />
+      </div>
+      <button class="pv-btn pv-btn-sm btn btn-sm edit-btn" class:flashing={editBtnFlashing} onclick={onOpenEditor} onanimationend={() => editBtnFlashing = false} title={t('open_editor')}>🎨</button>
     </div>
   </Section>
 
@@ -227,7 +258,7 @@
   <!-- Text -->
   <Section label={t('text_label')}>
     <textarea
-      class="text-input"
+      class="pv-input pv-control-full text-input"
       class:expanded={textExpanded}
       rows={textExpanded ? 6 : 1}
       placeholder="深夜東京/の6畳半夢"
@@ -273,13 +304,13 @@
   <!-- Media -->
   <Section label={t('media')}>
     <div class="file-row">
-      <button class="btn btn-sm" onclick={() => mediaInput.click()}>
+      <button class="pv-btn pv-btn-sm btn btn-sm" onclick={() => mediaInput.click()}>
         {t('choose_file')}
       </button>
       <span class="file-name" title={engine.mediaFileName || ''}>{engine.mediaFileName || t('no_file')}</span>
       <span class="format-hint" title="PNG, JPG, GIF, WebP, MP4, WebM">?</span>
       {#if engine.mediaLoaded}
-        <button class="btn-clear" onclick={clearMedia} title="Clear">×</button>
+        <button class="btn-clear" onclick={() => { clearMedia(); if (mediaInput) mediaInput.value = ''; }} title="Clear">×</button>
       {/if}
       <input bind:this={mediaInput} type="file" accept="image/*,video/mp4,video/webm" hidden onchange={handleMediaFile} />
     </div>
@@ -288,13 +319,13 @@
   <!-- Audio -->
   <Section label={t('audio')}>
     <div class="file-row">
-      <button class="btn btn-sm" onclick={() => audioInput.click()}>
+      <button class="pv-btn pv-btn-sm btn btn-sm" onclick={() => audioInput.click()}>
         {t('choose_file')}
       </button>
       <span class="file-name" title={engine.audioFileName || ''}>{engine.audioFileName || t('no_file')}</span>
       <span class="format-hint" title="MP3, WAV, OGG, FLAC, AAC, M4A">?</span>
       {#if engine.audioLoaded}
-        <button class="btn-clear" onclick={clearAudio} title="Clear">×</button>
+        <button class="btn-clear" onclick={() => { clearAudio(); if (audioInput) audioInput.value = ''; }} title="Clear">×</button>
       {/if}
       <input bind:this={audioInput} type="file" accept="audio/*" hidden onchange={handleAudioFile} />
     </div>
@@ -303,37 +334,32 @@
   <!-- Lyrics -->
   <Section label={t('lyrics')}>
     <div class="file-row">
-      <button class="btn btn-sm" onclick={() => lyricsInput.click()}>
+      <button class="pv-btn pv-btn-sm btn btn-sm" onclick={() => lyricsInput.click()}>
         {t('choose_file')}
       </button>
       <span class="file-name" title={engine.lyricsFileName || ''}>{engine.lyricsFileName || t('no_file')}</span>
       <span class="format-hint" title="LRC, SRT, ASS, SSA">?</span>
       {#if engine.lyricsLoaded && engine.embeddedLyricsSource !== 'embedded'}
-        <button class="btn-clear" onclick={clearLyrics} title="Clear">×</button>
+        <button class="btn-clear" onclick={() => { clearLyrics(); if (lyricsInput) lyricsInput.value = ''; }} title="Clear">×</button>
       {/if}
       <input bind:this={lyricsInput} type="file" accept=".lrc,.srt,.ass,.ssa" hidden onchange={handleLyricsFile} />
     </div>
     {#if engine.embeddedLyricsRaw}
       <div class="embedded-lyrics-bar">
         <span class="embedded-label">{t('embedded_lyrics_found')}</span>
-        <div class="embedded-btns">
-          <button
-            class="btn btn-xs"
-            class:active={engine.embeddedLyricsSource === 'embedded'}
-            onclick={() => selectLyricsSource('embedded')}
-          >{t('use_embedded')}</button>
-          <button
-            class="btn btn-xs"
-            class:active={engine.embeddedLyricsSource === 'file'}
-            onclick={() => {
-              if (engine.hasFileLyrics) {
-                selectLyricsSource('file');
-              } else {
-                lyricsInput.click();
-              }
-            }}
-          >{t('use_file')}</button>
-        </div>
+        <SegmentedControl
+          items={lyricsSourceOptions}
+          selectedValue={engine.embeddedLyricsSource === 'embedded' ? 'embedded' : 'file'}
+          onSelect={(value: string) => {
+            if (value === 'embedded') {
+              selectLyricsSource('embedded');
+            } else if (engine.hasFileLyrics) {
+              selectLyricsSource('file');
+            } else {
+              lyricsInput.click();
+            }
+          }}
+        />
       </div>
     {/if}
   </Section>
@@ -358,22 +384,21 @@
 </div>
 
 <TemplateDiffDialog
-  bind:visible={diffVisible}
-  currentConfig={getCurrentTemplateConfig()}
+  visible={diffVisible}
+  currentConfig={diffVisible ? getCurrentTemplateConfig() : null}
   incomingConfig={diffIncoming}
-  onConfirm={handleUserDiffConfirm}
+  missingMode={diffMissingMode}
+  onMissingModeChange={(mode: MissingMode) => diffMissingMode = mode}
+  onClose={closeDiff}
+  onConfirm={confirmDiff}
 />
 
-{#if confirmVisible}
-  <div class="confirm-overlay" onclick={handleConfirmCancel} role="none"></div>
-  <div class="confirm-dialog">
-    <p class="confirm-text">{t('unsaved_changes_hint')}</p>
-    <div class="confirm-actions">
-      <button class="btn accent" onclick={handleConfirmDiscard}>{t('discard_and_switch')}</button>
-      <button class="btn" onclick={handleConfirmCancel}>{t('cancel')}</button>
-    </div>
-  </div>
-{/if}
+<UnsavedChangesDialog
+  visible={confirmVisible}
+  onSave={handleConfirmSave}
+  onConfirm={handleConfirmDiscard}
+  onCancel={handleConfirmCancel}
+/>
 
 <style>
   .panel {
@@ -392,29 +417,12 @@
     transition: opacity var(--pv-duration-slow) var(--pv-ease);
   }
 
-  .select {
-    width: 100%;
-    padding: 7px 10px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-elevated);
-    color: var(--pv-text);
-    font-size: 0.82rem;
-    font-family: inherit;
-    outline: none;
-    cursor: pointer;
-    transition: border-color var(--pv-duration);
-  }
-
-  .select:hover { border-color: var(--pv-border-hover); }
-  .select:focus { border-color: var(--pv-border-focus); }
-
   .template-row {
     display: flex;
     gap: 6px;
     align-items: center;
   }
-  .template-row .select {
+  .template-select {
     flex: 1;
     min-width: 0;
   }
@@ -431,102 +439,12 @@
     0%, 100% { box-shadow: none; transform: scale(1); }
     50% { box-shadow: 0 0 10px 3px var(--pv-accent); transform: scale(1.15); }
   }
-
-  .select option {
-    background: #1a1a2e;
-    color: var(--pv-text);
-  }
-
-  /* OBS custom dropdown */
-  .obs-select-wrapper {
-    flex: 1;
-    position: relative;
-  }
-
-  .obs-select-trigger {
-    width: 100%;
-    padding: 6px 10px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-elevated);
-    color: var(--pv-text);
-    font-size: 0.78rem;
-    font-family: inherit;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 6px;
-    transition: border-color var(--pv-duration);
-  }
-
-  .obs-select-trigger:hover { border-color: var(--pv-border-hover); }
-
-  .obs-select-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .obs-select-arrow {
-    font-size: 0.7rem;
-    transition: transform 0.2s;
-  }
-
-  .obs-select-arrow.open {
-    transform: rotate(180deg);
-  }
-
-  .obs-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    max-height: 240px;
-    overflow-y: auto;
-    background: var(--pv-bg-surface);
-    border: 1px solid var(--pv-border);
-    border-radius: var(--pv-radius-sm);
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(12px);
-  }
-
-  .obs-option {
-    padding: 7px 10px;
-    border: none;
-    background: transparent;
-    color: var(--pv-text-muted);
-    font-size: 0.75rem;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.15s;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  }
-
-  .obs-option:last-child { border-bottom: none; }
-  .obs-option:hover { background: var(--pv-bg-hover); color: var(--pv-text); }
-  .obs-option.active { color: var(--pv-accent); font-weight: 600; }
-
   .text-input {
-    width: 100%;
-    padding: 7px 10px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-elevated);
-    color: var(--pv-text);
-    font-size: 0.82rem;
-    font-family: inherit;
-    outline: none;
     resize: none;
     overflow: hidden;
-    transition: border-color var(--pv-duration), height 0.2s var(--pv-ease);
+    transition: height 0.2s var(--pv-ease);
   }
 
-  .text-input:focus { border-color: var(--pv-border-focus); }
   .text-input.expanded { overflow-y: auto; }
 
   /* Color swatches */
@@ -585,30 +503,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 120px;
-  }
-
-  /* Buttons */
-  .btn {
-    padding: 6px 14px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-elevated);
-    color: var(--pv-text);
-    font-size: 0.78rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background var(--pv-duration), border-color var(--pv-duration);
-    white-space: nowrap;
-  }
-
-  .btn:hover {
-    background: var(--pv-bg-hover);
-    border-color: var(--pv-border-hover);
-  }
-
-  .btn-sm {
-    padding: 4px 10px;
-    font-size: 0.72rem;
   }
 
   .btn-clear {
@@ -674,81 +568,11 @@
     color: var(--pv-accent);
   }
 
-  .embedded-btns {
-    display: flex;
-    gap: 6px;
-  }
-
-  .embedded-btns :global(.btn-xs),
-  .embedded-btns .btn-xs {
-    flex: 1;
-    text-align: center;
-  }
-
-  .btn-xs {
-    padding: 2px 8px;
-    font-size: 0.66rem;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-elevated);
-    color: var(--pv-text-muted);
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-  }
-
-  .btn-xs:hover {
-    color: var(--pv-text);
-    border-color: var(--pv-border-hover);
-  }
-
-  .btn-xs.active {
-    background: var(--pv-accent);
-    color: #fff;
-    border-color: var(--pv-accent);
-  }
-
   @media (max-width: 768px) {
     .panel {
       width: 100%;
       border-radius: 0;
       max-height: none;
     }
-    .btn { padding: 8px 16px; font-size: 0.85rem; min-height: 36px; }
-  }
-
-  /* Unsaved changes confirm dialog */
-  .confirm-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 200;
-  }
-  .confirm-dialog {
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 201;
-    width: 320px;
-    background: var(--pv-bg-surface);
-    border: 1px solid var(--pv-border);
-    border-radius: var(--pv-radius-lg);
-    box-shadow: var(--pv-shadow-lg);
-    padding: 20px;
-    animation: fadeIn 0.15s ease;
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
-    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  }
-  .confirm-text {
-    font-size: 0.8rem;
-    color: var(--pv-text);
-    margin: 0 0 16px;
-    line-height: 1.5;
-  }
-  .confirm-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
   }
 </style>

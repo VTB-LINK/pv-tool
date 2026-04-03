@@ -39,6 +39,11 @@ let _baseTemplateName = $state<string | null>(null);
 let _baseTemplateEffects = $state<import('../types/engine').EffectEntry[]>([]);
 let _baseTemplatePalette = $state<import('../types/engine').ColorPalette | null>(null);
 
+// Track the exact template snapshot that is currently loaded for full reset.
+let _loadedTemplateSnapshot = $state<TemplateConfig | null>(null);
+let _resetBaselineSnapshot = $state<TemplateConfig | null>(null);
+let _resetBaselineVersion = $state(0);
+
 let _text = $state('深夜東京/の6畳半夢/を見てた/灯りの灯らない蛍光灯/明日には消えてる電脳城/に/開幕戦/打ち上げて/いなくなんないよね/ここには誰もいない/ここには誰もいないから');
 let _segmentDuration = $state(3.0);
 let _animationSpeed = $state(2.0);
@@ -54,6 +59,13 @@ let _tilt = $state(0);
 let _glitch = $state(0);
 let _hueShift = $state(0);
 let _postFxLocked = $state(false);
+
+// Template features
+let _mediaOutline = $state(false);
+let _autoExtractColors = $state(false);
+let _motionDetection = $state(false);
+let _invertMedia = $state(false);
+let _thresholdMedia = $state(false);
 
 // Media
 let _mediaLoaded = $state(false);
@@ -113,14 +125,24 @@ export async function initEngine(container: HTMLElement) {
   _baseTemplateEffects = tpl0.effects.map(e => ({ ...e, config: { ...e.config } }));
   _baseTemplatePalette = tpl0.palette ? { ...tpl0.palette } : null;
   _engine.loadTemplate(cloneTemplate(tpl0));
+  setLoadedTemplateSnapshot(tpl0);
   _ready = true;
   syncFromEngine();
 }
 
 function syncFromEngine() {
   if (!_engine) return;
+  _segmentDuration = _engine.segmentDuration;
+  _bpm = _engine.beat.bpm;
+  _beatReactivity = _engine.beatReactivity;
   _animationSpeed = _engine.animationSpeed;
+  _motionIntensity = _engine.motionIntensity;
   _effectOpacity = _engine.effectOpacity;
+  _mediaOutline = _engine.mediaOutlineEnabled;
+  _autoExtractColors = _engine.autoExtractColorsEnabled;
+  _motionDetection = _engine.motionDetectionEnabled;
+  _invertMedia = _engine.invertMediaEnabled;
+  _thresholdMedia = _engine.thresholdMediaEnabled;
   if (_postFxLocked) {
     // Re-apply saved post FX values to the engine
     _engine.shake = _shake;
@@ -137,6 +159,35 @@ function syncFromEngine() {
   }
 }
 
+function resolveBuiltinTemplateByBaseName(baseName: string | undefined): TemplateConfig | null {
+  if (!baseName) return null;
+  const hit = templates.find(t => (t.nameKey ?? t.name) === baseName || t.name === baseName);
+  return hit ?? null;
+}
+
+function applyBaseReference(tpl: TemplateConfig) {
+  // From-scratch custom templates intentionally have no base reference.
+  if (!tpl.baseTemplateName) {
+    _baseTemplateName = null;
+    _baseTemplateEffects = [];
+    _baseTemplatePalette = null;
+    return;
+  }
+
+  const builtin = resolveBuiltinTemplateByBaseName(tpl.baseTemplateName);
+  if (builtin) {
+    _baseTemplateName = builtin.nameKey ?? builtin.name;
+    _baseTemplateEffects = builtin.effects.map(e => ({ ...e, config: { ...e.config } }));
+    _baseTemplatePalette = builtin.palette ? { ...builtin.palette } : null;
+    return;
+  }
+
+  // Fallback for non-builtin base names.
+  _baseTemplateName = tpl.baseTemplateName;
+  _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
+}
+
 // ── Template actions ──
 
 /** Deep-clone a template so the engine can mutate its copy without affecting the original. */
@@ -150,6 +201,16 @@ function cloneTemplate(tpl: TemplateConfig): TemplateConfig {
   };
 }
 
+function setLoadedTemplateSnapshot(tpl: TemplateConfig | null) {
+  _loadedTemplateSnapshot = tpl ? cloneTemplate(tpl) : null;
+  setResetBaselineSnapshot(tpl);
+}
+
+function setResetBaselineSnapshot(tpl: TemplateConfig | null) {
+  _resetBaselineSnapshot = tpl ? cloneTemplate(tpl) : null;
+  _resetBaselineVersion += 1;
+}
+
 export function selectTemplate(index: number) {
   if (!_engine) return;
   _currentTemplateIndex = index;
@@ -161,6 +222,7 @@ export function selectTemplate(index: number) {
   _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
   _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
   _engine.loadTemplate(cloneTemplate(tpl));
+  setLoadedTemplateSnapshot(tpl);
   syncFromEngine();
 }
 
@@ -168,8 +230,30 @@ export function selectTemplate(index: number) {
 export function reloadCurrentTemplate() {
   if (!_engine) return;
   if (_isCustomMode) return;
-  if (_currentTemplateIndex >= 0 && _currentTemplateIndex < templates.length) {
-    _engine.loadTemplate(cloneTemplate(templates[_currentTemplateIndex]));
+  if (_loadedTemplateSnapshot) {
+    if (_currentTemplateIndex >= 0 && _currentTemplateIndex < templates.length) {
+      const tpl = templates[_currentTemplateIndex];
+      _baseTemplateName = tpl.nameKey ?? tpl.name;
+      _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
+      _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
+    } else if (_loadedCustomIndex >= 0 && _loadedCustomIndex < _customTemplates.length) {
+      applyBaseReference(_customTemplates[_loadedCustomIndex]);
+    } else {
+      applyBaseReference(_loadedTemplateSnapshot);
+    }
+    _engine.loadTemplate(cloneTemplate(_loadedTemplateSnapshot));
+  } else if (_currentTemplateIndex >= 0 && _currentTemplateIndex < templates.length) {
+    const tpl = templates[_currentTemplateIndex];
+    _baseTemplateName = tpl.nameKey ?? tpl.name;
+    _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
+    _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
+    _engine.loadTemplate(cloneTemplate(tpl));
+    setLoadedTemplateSnapshot(tpl);
+  } else if (_loadedCustomIndex >= 0 && _loadedCustomIndex < _customTemplates.length) {
+    const tpl = _customTemplates[_loadedCustomIndex];
+    applyBaseReference(tpl);
+    _engine.loadTemplate(cloneTemplate(tpl));
+    setLoadedTemplateSnapshot(tpl);
   } else {
     return;
   }
@@ -187,29 +271,39 @@ function getBaseTemplateConfig(): TemplateConfig | null {
   return null;
 }
 
+export function getLoadedBaseTemplateConfig(): TemplateConfig | null {
+  const base = getBaseTemplateConfig();
+  return base ? cloneTemplate(base) : null;
+}
+
+export function getLoadedTemplateConfig(): TemplateConfig | null {
+  return _loadedTemplateSnapshot ? cloneTemplate(_loadedTemplateSnapshot) : null;
+}
+
+export function getResetBaselineConfig(): TemplateConfig | null {
+  return _resetBaselineSnapshot ? cloneTemplate(_resetBaselineSnapshot) : null;
+}
+
 /** Reset only the palette to the base template, keeping current effects. */
 export function resetPalette() {
   if (!_engine) return;
-  const base = getBaseTemplateConfig();
-  if (!base?.palette) return;
+  if (!_resetBaselineSnapshot?.palette) return;
   // Apply base palette key-by-key; updatePalette rebuilds effects internally
   // so just mutate the engine palette and reload to avoid N redundant rebuilds.
   const cur = getCurrentTemplateConfig();
   if (!cur) return;
-  _engine.loadTemplate({ ...cur, palette: { ...base.palette } });
+  _engine.loadTemplate({ ...cur, palette: { ..._resetBaselineSnapshot.palette } });
   syncFromEngine();
 }
 
 /** Reset only the effects list to the base template, keeping current palette. */
 export function resetEffects() {
   if (!_engine) return;
-  const base = getBaseTemplateConfig();
-  if (!base) return;
+  if (!_resetBaselineSnapshot) return;
   const cur = getCurrentTemplateConfig();
   if (!cur) return;
-  const baseEffects = base.effects.map(e => ({ ...e, config: { ...e.config } }));
+  const baseEffects = _resetBaselineSnapshot.effects.map(e => ({ ...e, config: { ...e.config } }));
   _engine.loadTemplate({ ...cur, effects: baseEffects });
-  _baseTemplateEffects = base.effects.map(e => ({ ...e, config: { ...e.config } }));
   syncFromEngine();
 }
 
@@ -220,10 +314,9 @@ export function selectCustomTemplate(index: number) {
   _customDirty = false;
   _loadedCustomIndex = index;
   const ct = _customTemplates[index];
-  _baseTemplateName = ct.baseTemplateName ?? ct.name;
-  _baseTemplateEffects = ct.effects.map(e => ({ ...e, config: { ...e.config } }));
-  _baseTemplatePalette = ct.palette ? { ...ct.palette } : null;
+  applyBaseReference(ct);
   _engine.loadTemplate(cloneTemplate(ct));
+  setLoadedTemplateSnapshot(ct);
   syncFromEngine();
 }
 
@@ -235,6 +328,7 @@ export function enterCustomMode() {
   _baseTemplateName = null;
   _baseTemplateEffects = [];
   _baseTemplatePalette = null;
+  setLoadedTemplateSnapshot(null);
   applyCustomTemplate();
 }
 
@@ -256,6 +350,13 @@ function buildCustomTemplate(): TemplateConfig {
       text: '#000000',
     },
     effects,
+    features: {
+      mediaOutline: _mediaOutline,
+      autoExtractColors: _autoExtractColors,
+      motionDetection: _motionDetection,
+      invertMedia: _invertMedia,
+      thresholdMedia: _thresholdMedia,
+    },
   };
 }
 
@@ -285,13 +386,12 @@ export interface SaveTemplateOptions {
   features?: boolean;
 }
 
-export function saveCurrentAsTemplate(name: string, options?: SaveTemplateOptions) {
-  if (!name.trim() || !_engine) return;
+function buildCurrentTemplateSnapshot(name: string, options?: SaveTemplateOptions): TemplateConfig | null {
+  if (!name.trim() || !_engine) return null;
   const includeAnimation = options?.animation ?? true;
   const includePostfx = options?.postfx ?? true;
   const includeFeatures = options?.features ?? true;
 
-  // Snapshot the current engine state (effects + palette) directly
   const effects = (_engine.currentEffects ?? []).map((e: any) => ({
     type: e.type,
     layer: e.layer,
@@ -302,13 +402,15 @@ export function saveCurrentAsTemplate(name: string, options?: SaveTemplateOption
     : { background: '#000', primary: '#fff', secondary: '#888', accent: '#f36', text: '#fff' };
   const tpl: TemplateConfig = { name: name.trim(), palette, effects };
 
-  // Metadata
   tpl.baseTemplateName = _baseTemplateName ?? undefined;
   tpl.lastModified = Date.now();
 
   if (includeAnimation) {
+    tpl.segmentDuration = _segmentDuration;
     tpl.bpm = _bpm;
+    tpl.beatReactivity = _beatReactivity;
     tpl.animationSpeed = _animationSpeed;
+    tpl.motionIntensity = _motionIntensity;
     tpl.bgOpacity = _effectOpacity;
   }
 
@@ -322,20 +424,43 @@ export function saveCurrentAsTemplate(name: string, options?: SaveTemplateOption
     };
   }
 
-  if (includeFeatures && _engine) {
+  if (includeFeatures) {
     tpl.features = {
-      mediaOutline: (_engine as any)._outlineEnabled ?? false,
-      motionDetection: (_engine as any)._motionDetectionEnabled ?? false,
-      invertMedia: (_engine as any)._invertMediaEnabled ?? false,
-      thresholdMedia: (_engine as any)._thresholdMediaEnabled ?? false,
-      autoExtractColors: false,
+      mediaOutline: _mediaOutline,
+      autoExtractColors: _autoExtractColors,
+      motionDetection: _motionDetection,
+      invertMedia: _invertMedia,
+      thresholdMedia: _thresholdMedia,
     };
   }
+
+  return tpl;
+}
+
+export function saveCurrentAsTemplate(name: string, options?: SaveTemplateOptions) {
+  const tpl = buildCurrentTemplateSnapshot(name, options);
+  if (!tpl) return;
 
   _customTemplates = [..._customTemplates, tpl];
   saveCustomTemplates(_customTemplates);
   _customDirty = false;
+  setResetBaselineSnapshot(tpl);
   // Don't call loadTemplate — current state is already correct
+}
+
+export function overwriteCurrentToCustomTemplate(index: number, options?: SaveTemplateOptions) {
+  if (index < 0 || index >= _customTemplates.length) return;
+  const existing = _customTemplates[index];
+  if (!existing) return;
+  const tpl = buildCurrentTemplateSnapshot(existing.name, options);
+  if (!tpl) return;
+
+  _customTemplates[index] = tpl;
+  _customTemplates = [..._customTemplates];
+  saveCustomTemplates(_customTemplates);
+  _customDirty = false;
+  _loadedCustomIndex = index;
+  setLoadedTemplateSnapshot(tpl);
 }
 
 export function deleteCustomTemplate(index: number) {
@@ -354,9 +479,7 @@ export function loadCustomTemplateIntoEditor(index: number) {
   _isCustomMode = false;
   _customDirty = false;
   _loadedCustomIndex = index;
-  _baseTemplateName = ct.baseTemplateName ?? ct.name;
-  _baseTemplateEffects = ct.effects.map(e => ({ ...e, config: { ...e.config } }));
-  _baseTemplatePalette = ct.palette ? { ...ct.palette } : null;
+  applyBaseReference(ct);
   _engine.loadTemplate(cloneTemplate(ct));
   syncFromEngine();
 }
@@ -378,15 +501,20 @@ export async function importShareCode(code: string) {
   const tpl = await decodeShareCode(code);
   _customTemplates = [..._customTemplates, tpl];
   saveCustomTemplates(_customTemplates);
-  if (_engine) _engine.loadTemplate(cloneTemplate(tpl));
+  if (_engine) {
+    applyBaseReference(tpl);
+    _engine.loadTemplate(cloneTemplate(tpl));
+    setLoadedTemplateSnapshot(tpl);
+  }
   _isCustomMode = false;
   syncFromEngine();
 }
 
-/** Add a decoded TemplateConfig to custom templates without loading it. */
-export function addCustomTemplate(tpl: TemplateConfig) {
+/** Add a decoded TemplateConfig to custom templates without loading it. Returns the new index. */
+export function addCustomTemplate(tpl: TemplateConfig): number {
   _customTemplates = [..._customTemplates, cloneTemplate(tpl)];
   saveCustomTemplates(_customTemplates);
+  return _customTemplates.length - 1;
 }
 
 /** Build a full TemplateConfig snapshot of the current engine state. */
@@ -401,10 +529,20 @@ export function getCurrentTemplateConfig(): TemplateConfig | null {
     ? { ..._engine.currentPalette }
     : { background: '#000', primary: '#fff', secondary: '#888', accent: '#f36', text: '#fff' };
   const tpl: TemplateConfig = { name: 'Current', palette, effects };
+  tpl.segmentDuration = _segmentDuration;
   tpl.bpm = _bpm;
+  tpl.beatReactivity = _beatReactivity;
   tpl.animationSpeed = _animationSpeed;
+  tpl.motionIntensity = _motionIntensity;
   tpl.bgOpacity = _effectOpacity;
   tpl.postfx = { shake: _shake, zoom: _zoom, tilt: _tilt, glitch: _glitch, hueShift: _hueShift };
+  tpl.features = {
+    mediaOutline: _mediaOutline,
+    autoExtractColors: _autoExtractColors,
+    motionDetection: _motionDetection,
+    invertMedia: _invertMedia,
+    thresholdMedia: _thresholdMedia,
+  };
   return tpl;
 }
 
@@ -415,40 +553,122 @@ export function loadShareCodeTemplate(tpl: TemplateConfig) {
   _isCustomMode = false;
   _customDirty = false;
   _loadedCustomIndex = -1;
-  // Treat the share-code template itself as the base (so reset buttons work after a share-URL load)
-  _baseTemplateName = tpl.baseTemplateName ?? tpl.name;
-  _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
-  _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
+  applyBaseReference(tpl);
   _engine.loadTemplate(cloneTemplate(tpl));
+  setLoadedTemplateSnapshot(tpl);
   syncFromEngine();
 }
 
 /** Load a template with diff options — handles missing groups. */
-export function loadTemplateWithOptions(tpl: TemplateConfig, opts: { resetMissing: boolean; customIndex?: number }) {
-  if (!_engine) return;
+export type MissingMode = 'keep' | 'reset' | 'builtin';
 
-  // If resetMissing is false, fill in missing fields from current state
+const DEFAULT_TEMPLATE_VALUES = {
+  segmentDuration: 3,
+  bpm: 120,
+  beatReactivity: 0.5,
+  animationSpeed: 2,
+  motionIntensity: 1,
+  bgOpacity: 1,
+} as const;
+
+export function resolveTemplateWithOptions(
+  tpl: TemplateConfig,
+  opts: {
+    missingMode: MissingMode;
+    customIndex?: number;
+    builtinIndex?: number;
+    /** @deprecated Use missingMode instead */
+    resetMissing?: boolean;
+  },
+): TemplateConfig {
+  const mode: MissingMode = opts.missingMode ?? (opts.resetMissing ? 'reset' : 'keep');
   const merged = cloneTemplate(tpl);
-  if (!opts.resetMissing) {
+
+  if (mode === 'keep') {
+    if (merged.segmentDuration === undefined) merged.segmentDuration = _segmentDuration;
     if (merged.bpm === undefined) merged.bpm = _bpm;
+    if (merged.beatReactivity === undefined) merged.beatReactivity = _beatReactivity;
     if (merged.animationSpeed === undefined) merged.animationSpeed = _animationSpeed;
+    if (merged.motionIntensity === undefined) merged.motionIntensity = _motionIntensity;
     if (merged.bgOpacity === undefined) merged.bgOpacity = _effectOpacity;
-    if (!merged.postfx) {
-      merged.postfx = { shake: _shake, zoom: _zoom, tilt: _tilt, glitch: _glitch, hueShift: _hueShift };
+    merged.postfx = {
+      shake: merged.postfx?.shake ?? _shake,
+      zoom: merged.postfx?.zoom ?? _zoom,
+      tilt: merged.postfx?.tilt ?? _tilt,
+      glitch: merged.postfx?.glitch ?? _glitch,
+      hueShift: merged.postfx?.hueShift ?? _hueShift,
+    };
+    merged.features = {
+      mediaOutline: merged.features?.mediaOutline ?? _mediaOutline,
+      autoExtractColors: merged.features?.autoExtractColors ?? ((_engine as any).currentTemplate?.features?.autoExtractColors ?? false),
+      motionDetection: merged.features?.motionDetection ?? _motionDetection,
+      invertMedia: merged.features?.invertMedia ?? _invertMedia,
+      thresholdMedia: merged.features?.thresholdMedia ?? _thresholdMedia,
+    };
+  } else if (mode === 'builtin' && tpl.baseTemplateName) {
+    const baseTpl = resolveBuiltinTemplateByBaseName(tpl.baseTemplateName);
+    if (baseTpl) {
+      if (merged.segmentDuration === undefined) merged.segmentDuration = baseTpl.segmentDuration ?? DEFAULT_TEMPLATE_VALUES.segmentDuration;
+      if (merged.bpm === undefined) merged.bpm = baseTpl.bpm;
+      if (merged.beatReactivity === undefined) merged.beatReactivity = baseTpl.beatReactivity ?? DEFAULT_TEMPLATE_VALUES.beatReactivity;
+      if (merged.animationSpeed === undefined) merged.animationSpeed = baseTpl.animationSpeed;
+      if (merged.motionIntensity === undefined) merged.motionIntensity = baseTpl.motionIntensity ?? DEFAULT_TEMPLATE_VALUES.motionIntensity;
+      if (merged.bgOpacity === undefined) merged.bgOpacity = baseTpl.bgOpacity;
+      merged.postfx = {
+        shake: merged.postfx?.shake ?? baseTpl.postfx?.shake,
+        zoom: merged.postfx?.zoom ?? baseTpl.postfx?.zoom,
+        tilt: merged.postfx?.tilt ?? baseTpl.postfx?.tilt,
+        glitch: merged.postfx?.glitch ?? baseTpl.postfx?.glitch,
+        hueShift: merged.postfx?.hueShift ?? baseTpl.postfx?.hueShift,
+      };
+      merged.features = {
+        mediaOutline: merged.features?.mediaOutline ?? baseTpl.features?.mediaOutline,
+        autoExtractColors: merged.features?.autoExtractColors ?? baseTpl.features?.autoExtractColors,
+        motionDetection: merged.features?.motionDetection ?? baseTpl.features?.motionDetection,
+        invertMedia: merged.features?.invertMedia ?? baseTpl.features?.invertMedia,
+        thresholdMedia: merged.features?.thresholdMedia ?? baseTpl.features?.thresholdMedia,
+      };
     }
   }
 
-  _currentTemplateIndex = -1;
+  return merged;
+}
+
+export function loadTemplateWithOptions(tpl: TemplateConfig, opts: {
+  missingMode: MissingMode;
+  customIndex?: number;
+  builtinIndex?: number;
+  /** @deprecated Use missingMode instead */
+  resetMissing?: boolean;
+}) {
+  if (!_engine) return;
+
+  const merged = resolveTemplateWithOptions(tpl, opts);
+
   _isCustomMode = false;
-  _loadedCustomIndex = opts.customIndex ?? -1;
-  // Update base tracking so reset buttons have the correct reference
-  if (opts.customIndex !== undefined && opts.customIndex >= 0 && opts.customIndex < _customTemplates.length) {
-    const ct = _customTemplates[opts.customIndex];
-    _baseTemplateName = ct.baseTemplateName ?? ct.name;
-    _baseTemplateEffects = ct.effects.map(e => ({ ...e, config: { ...e.config } }));
-    _baseTemplatePalette = ct.palette ? { ...ct.palette } : null;
+  _customDirty = false;
+
+  if (opts.builtinIndex !== undefined && opts.builtinIndex >= 0) {
+    // Switching to a built-in template
+    _currentTemplateIndex = opts.builtinIndex;
+    _loadedCustomIndex = -1;
+    const bt = templates[opts.builtinIndex];
+    _baseTemplateName = bt.nameKey ?? bt.name;
+    _baseTemplateEffects = bt.effects.map(e => ({ ...e, config: { ...e.config } }));
+    _baseTemplatePalette = bt.palette ? { ...bt.palette } : null;
+  } else {
+    _currentTemplateIndex = -1;
+    _loadedCustomIndex = opts.customIndex ?? -1;
+    if (opts.customIndex !== undefined && opts.customIndex >= 0 && opts.customIndex < _customTemplates.length) {
+      const ct = _customTemplates[opts.customIndex];
+      applyBaseReference(ct);
+    } else {
+      applyBaseReference(merged);
+    }
   }
+
   _engine.loadTemplate(merged);
+  setLoadedTemplateSnapshot(merged);
   syncFromEngine();
 }
 
@@ -494,6 +714,39 @@ export function setZoom(v: number) { _zoom = v; if (_engine) _engine.zoom = v; }
 export function setTilt(v: number) { _tilt = v; if (_engine) _engine.tilt = v; }
 export function setGlitch(v: number) { _glitch = v; if (_engine) _engine.glitch = v; }
 export function setHueShift(v: number) { _hueShift = v; if (_engine) _engine.hueShift = v; }
+
+export function setMediaOutline(v: boolean) {
+  _mediaOutline = v;
+  if (_engine) _engine.mediaOutlineEnabled = v;
+}
+
+export function setAutoExtractColors(v: boolean) {
+  _autoExtractColors = v;
+  if (_engine) _engine.autoExtractColorsEnabled = v;
+}
+
+export function setMotionDetection(v: boolean) {
+  _motionDetection = v;
+  if (_engine) _engine.motionDetectionEnabled = v;
+}
+
+export function setInvertMedia(v: boolean) {
+  _invertMedia = v;
+  if (v) _thresholdMedia = false;
+  if (_engine) {
+    _engine.invertMediaEnabled = v;
+    if (v) _engine.thresholdMediaEnabled = false;
+  }
+}
+
+export function setThresholdMedia(v: boolean) {
+  _thresholdMedia = v;
+  if (v) _invertMedia = false;
+  if (_engine) {
+    _engine.thresholdMediaEnabled = v;
+    if (v) _engine.invertMediaEnabled = false;
+  }
+}
 
 export function setCanvasColor(color: string | null) {
   _canvasColor = color;
@@ -606,44 +859,52 @@ export function toggleAudio() {
 
 function applyEmbeddedLyrics(raw: string) {
   if (!_engine) return;
-  // Try parsing as LRC first (timestamped)
-  const lrcLines = parseLrc(raw);
-  if (lrcLines.length > 0) {
-    _engine.setSrtTimeline(null);
-    _engine.setLyricTimeline(lrcLines);
-    _lyricsLoaded = true;
-    _lyricsFileName = '(embedded)';
-    return;
-  }
-  // Fallback: treat as plain text segments (one line = one segment)
-  const plainLines = raw.split(/\r?\n/).filter(l => l.trim());
-  if (plainLines.length > 0) {
-    _engine.setText(plainLines.join('/'));
+  if (applyEmbeddedLyricsToEngine(_engine, raw)) {
     _lyricsLoaded = true;
     _lyricsFileName = '(embedded)';
   }
 }
 
+function applyEmbeddedLyricsToEngine(target: PVEngine, raw: string): boolean {
+  const lrcLines = parseLrc(raw);
+  if (lrcLines.length > 0) {
+    target.setSrtTimeline(null);
+    target.setLyricTimeline(lrcLines);
+    return true;
+  }
+  const plainLines = raw.split(/\r?\n/).filter(l => l.trim());
+  if (plainLines.length > 0) {
+    target.setText(plainLines.join('/'));
+    return true;
+  }
+
+  return false;
+}
+
 /** Apply external file lyrics to the engine. */
 function applyFileLyrics(text: string, ext: string) {
   if (!_engine) return;
+  applyFileLyricsToEngine(_engine, text, ext);
+}
+
+function applyFileLyricsToEngine(target: PVEngine, text: string, ext: string) {
   if (ext === 'lrc') {
     const lines = parseLrc(text);
     if (lines.length > 0) {
-      _engine.setSrtTimeline(null);
-      _engine.setLyricTimeline(lines);
+      target.setSrtTimeline(null);
+      target.setLyricTimeline(lines);
     }
   } else if (ext === 'srt') {
     const entries = parseSrt(text);
     if (entries.length > 0) {
-      _engine.clearLyricTimeline();
-      _engine.setSrtTimeline(entries);
+      target.clearLyricTimeline();
+      target.setSrtTimeline(entries);
     }
   } else if (ext === 'ass' || ext === 'ssa') {
     const entries = parseAss(text);
     if (entries.length > 0) {
-      _engine.clearLyricTimeline();
-      _engine.setSrtTimeline(entries);
+      target.clearLyricTimeline();
+      target.setSrtTimeline(entries);
     }
   }
 }
@@ -780,7 +1041,9 @@ export const engine = {
   get baseTemplateName() { return _baseTemplateName; },
   get baseTemplateEffects() { return _baseTemplateEffects; },
   get basePalette() { return _baseTemplatePalette; },
-  get hasBaseTemplate() { return _currentTemplateIndex >= 0 || _loadedCustomIndex >= 0; },
+  get hasBaseTemplate() { return _baseTemplatePalette !== null || _baseTemplateEffects.length > 0; },
+  get hasLoadedTemplate() { return _loadedTemplateSnapshot !== null; },
+  get resetBaselineVersion() { return _resetBaselineVersion; },
   get text() { return _text; },
   get segmentDuration() { return _segmentDuration; },
   get animationSpeed() { return _animationSpeed; },
@@ -794,6 +1057,12 @@ export const engine = {
   get glitch() { return _glitch; },
   get hueShift() { return _hueShift; },
   get postFxLocked() { return _postFxLocked; },
+  get mediaOutline() { return _mediaOutline; },
+  get autoExtractColors() { return _autoExtractColors; },
+  get motionDetection() { return _motionDetection; },
+  get invertMedia() { return _invertMedia; },
+  get thresholdMedia() { return _thresholdMedia; },
+  get isVideoMedia() { return _engine?.isVideoMedia ?? false; },
   get mediaLoaded() { return _mediaLoaded; },
   get mediaFileName() { return _mediaFileName; },
   get mediaMode() { return _mediaMode; },
