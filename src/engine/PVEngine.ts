@@ -7,7 +7,7 @@
 
 import * as PIXI from 'pixi.js';
 import type { TemplateConfig, UpdateContext, ColorPalette, LayerType, MotionTargetInfo, LyricLine, EffectEntry } from '../types/engine';
-import { createEffect, BaseEffect } from '../effects/index';
+import { createEffect, type EffectInstance } from '../effects/index';
 import { extractDominantColors } from './ColorExtractor';
 import { MediaOutlineRenderer } from './MediaOutline';
 import { GlitchFilter } from './GlitchFilter';
@@ -23,7 +23,7 @@ export class PVEngine {
   private app: PIXI.Application;
   private layers = new Map<LayerType, PIXI.Container>();
   private effectsRoot!: PIXI.Container;
-  private activeEffects: BaseEffect[] = [];
+  private activeEffects: EffectInstance[] = [];
   private palette: ColorPalette = {
     background: '#ffffff',
     primary: '#000000',
@@ -57,8 +57,10 @@ export class PVEngine {
   private _glitch = 0;
 
   private mediaElement: HTMLVideoElement | HTMLImageElement | null = null;
+  private mediaObjectUrl: string | null = null;
   private outlineRenderer: MediaOutlineRenderer | null = null;
   private _outlineEnabled = false;
+  private _autoExtractColorsEnabled = false;
   private extractingColors = false;
 
   private motionDetector: MotionDetector | null = null;
@@ -74,6 +76,7 @@ export class PVEngine {
 
   private _nativeDPR = 1;
   private _currentResolution = 1;
+  private _performanceMaxDpr: number | null = null;
   private _resizeParent: HTMLElement | null = null;
   private _loading = false;
   private _bgColorOverride: string | null = null;
@@ -182,7 +185,7 @@ export class PVEngine {
         if (this._loopMode) {
           this._time = 0;
           this.lyricCursor = 0;
-          if (this.beat.isAudioMode) this.beat.seekAudio(0);
+          if (this.beat.isAudioMode) this.beat.seek(0);
           if (this.mediaElement instanceof HTMLVideoElement) this.mediaElement.currentTime = 0;
         } else {
           this._time = dur;
@@ -244,22 +247,22 @@ export class PVEngine {
       this.currentTemplate = template;
       this.palette = { ...template.palette };
 
+      this._segmentDuration = template.segmentDuration ?? 3;
       this.beat.bpm = template.bpm ?? 120;
-      if (template.animationSpeed !== undefined) {
-        this._animationSpeed = template.animationSpeed;
-      }
-      if (template.bgOpacity !== undefined) {
-        this._effectOpacity = template.bgOpacity;
-        this.bgFill.alpha = template.bgOpacity;
-      }
+      this._beatReactivity = template.beatReactivity ?? 0.5;
+      this._animationSpeed = template.animationSpeed ?? 2;
+      this._motionIntensity = template.motionIntensity ?? 1;
+      this._effectOpacity = template.bgOpacity ?? 1;
+      this.bgFill.alpha = this._effectOpacity;
       this._outlineEnabled = template.features?.mediaOutline ?? false;
+      this._autoExtractColorsEnabled = template.features?.autoExtractColors ?? false;
       this._motionDetectionEnabled = template.features?.motionDetection ?? false;
       this._invertMediaEnabled = template.features?.invertMedia ?? false;
       this._thresholdMediaEnabled = template.features?.thresholdMedia ?? false;
       this.syncMotionDetector();
       this.syncInvertFilter();
 
-      if (template.features?.autoExtractColors && this.mediaElement && !this.extractingColors) {
+      if (this._autoExtractColorsEnabled && this.mediaElement && !this.extractingColors) {
         this.applyExtractedColors();
       }
 
@@ -738,6 +741,73 @@ export class PVEngine {
   set beatReactivity(val: number) { this._beatReactivity = val; }
   get beatReactivity() { return this._beatReactivity; }
 
+  set mediaOutlineEnabled(val: boolean) {
+    this._outlineEnabled = val;
+    if (this.currentTemplate) {
+      this.currentTemplate.features = {
+        ...this.currentTemplate.features,
+        mediaOutline: val,
+      };
+    }
+    this.syncOutline();
+  }
+  get mediaOutlineEnabled() { return this._outlineEnabled; }
+
+  set autoExtractColorsEnabled(val: boolean) {
+    this._autoExtractColorsEnabled = val;
+    if (this.currentTemplate) {
+      this.currentTemplate.features = {
+        ...this.currentTemplate.features,
+        autoExtractColors: val,
+      };
+    }
+    if (val && this.mediaElement && !this.extractingColors) {
+      this.applyExtractedColors();
+      this.rebuildEffectsFromCurrentTemplate();
+    }
+  }
+  get autoExtractColorsEnabled() { return this._autoExtractColorsEnabled; }
+
+  set motionDetectionEnabled(val: boolean) {
+    this._motionDetectionEnabled = val;
+    if (this.currentTemplate) {
+      this.currentTemplate.features = {
+        ...this.currentTemplate.features,
+        motionDetection: val,
+      };
+    }
+    this.syncMotionDetector();
+  }
+  get motionDetectionEnabled() { return this._motionDetectionEnabled; }
+
+  set invertMediaEnabled(val: boolean) {
+    this._invertMediaEnabled = val;
+    if (this.currentTemplate) {
+      this.currentTemplate.features = {
+        ...this.currentTemplate.features,
+        invertMedia: val,
+      };
+    }
+    this.syncInvertFilter();
+  }
+  get invertMediaEnabled() { return this._invertMediaEnabled; }
+
+  set thresholdMediaEnabled(val: boolean) {
+    this._thresholdMediaEnabled = val;
+    if (this.currentTemplate) {
+      this.currentTemplate.features = {
+        ...this.currentTemplate.features,
+        thresholdMedia: val,
+      };
+    }
+    this.syncInvertFilter();
+  }
+  get thresholdMediaEnabled() { return this._thresholdMediaEnabled; }
+
+  get isVideoMedia(): boolean {
+    return this.mediaElement instanceof HTMLVideoElement;
+  }
+
   set canvasColor(color: string | null) {
     this._bgColorOverride = color;
     if (color) {
@@ -760,6 +830,7 @@ export class PVEngine {
   get hueShift() { return this._hueShift; }
 
   removeMedia(): void {
+    this.releaseMediaObjectUrl();
     const mediaLayer = this.layers.get('media');
     if (mediaLayer) {
       mediaLayer.removeChildren().forEach(c => c.destroy({ children: true }));
@@ -768,20 +839,22 @@ export class PVEngine {
     if (this.mediaElement instanceof HTMLVideoElement) {
       this.mediaElement.pause();
       this.mediaElement.src = '';
+      this.mediaElement.load();
     }
     this.mediaElement = null;
+    this.syncMotionDetector();
   }
 
   async addMedia(file: File, mode: 'fit' | 'free' = 'fit'): Promise<void> {
     if (this._loading) return;
     this._loading = true;
 
+    this.removeMedia();
     const url = URL.createObjectURL(file);
+    this.mediaObjectUrl = url;
 
     try {
       const mediaLayer = this.layers.get('media')!;
-      this.destroyOutline();
-      mediaLayer.removeChildren().forEach(c => c.destroy({ children: true }));
 
       const isVideo = file.type.startsWith('video/');
 
@@ -865,21 +938,19 @@ export class PVEngine {
         mediaLayer.addChild(sprite);
       }
 
-      if (this.currentTemplate?.features?.autoExtractColors) {
+      if (this._autoExtractColorsEnabled) {
         this.extractingColors = true;
         this.applyExtractedColors();
-        this._loading = false;
-        this.loadTemplate(this.currentTemplate);
         this.extractingColors = false;
-        return;
+        this.rebuildEffectsFromCurrentTemplate();
       }
 
       this.syncOutline();
       this.syncMotionDetector();
+      this.syncInvertFilter();
     } catch (err) {
       console.warn('[PVEngine] addMedia failed:', err);
     } finally {
-      URL.revokeObjectURL(url);
       this._loading = false;
     }
   }
@@ -894,6 +965,45 @@ export class PVEngine {
       accent: colors.complement,
       text: '#ffffff',
     };
+    if (this.currentTemplate) {
+      this.currentTemplate.palette = { ...this.palette };
+    }
+    if (this._bgColorOverride) {
+      this.palette.background = this._bgColorOverride;
+    }
+    if (!this._alphaMode) {
+      this.app.renderer.background.color = new PIXI.Color(this.palette.background).toNumber();
+    }
+    this.updateBgFill();
+  }
+
+  private rebuildEffectsFromCurrentTemplate(): void {
+    if (!this.currentTemplate) return;
+    this.clearEffects();
+    for (const entry of this.currentTemplate.effects) {
+      const layer = this.layers.get(entry.layer);
+      if (!layer) continue;
+
+      const config = { ...entry.config };
+      if (this.userText) {
+        config._userText = this.textSegments[0] || this.userText;
+      }
+
+      try {
+        const effect = createEffect(entry.type, layer, config, this.palette);
+        this.activeEffects.push(effect);
+      } catch (err) {
+        console.warn(`[PVEngine] Failed to rebuild effect "${entry.type}":`, err);
+      }
+    }
+    this.syncResolution();
+  }
+
+  private releaseMediaObjectUrl(): void {
+    if (this.mediaObjectUrl) {
+      URL.revokeObjectURL(this.mediaObjectUrl);
+    }
+    this.mediaObjectUrl = null;
   }
 
   private syncOutline(): void {
@@ -973,9 +1083,20 @@ export class PVEngine {
    * Keeps visuals sharp with few effects, avoids GPU overload with many.
    * Mobile devices get more aggressive downscaling.
    */
+  setPerformanceMaxDpr(maxDpr: number | null): void {
+    if (maxDpr === null) {
+      this._performanceMaxDpr = null;
+    } else if (Number.isFinite(maxDpr)) {
+      this._performanceMaxDpr = Math.max(0.5, Math.min(this._nativeDPR, maxDpr));
+    }
+    this.syncResolution();
+  }
+
   private syncResolution(): void {
     const n = this.activeEffects.length;
-    const dpr = this._nativeDPR;
+    const dpr = this._performanceMaxDpr === null
+      ? this._nativeDPR
+      : Math.min(this._nativeDPR, this._performanceMaxDpr);
     const mobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     let target: number;
@@ -1203,12 +1324,13 @@ export class PVEngine {
     const n = this.activeEffects.length;
     const heavySkip = n > 15 ? 3 : n > 8 ? 2 : 0;
 
-    for (const effect of this.activeEffects) {
+    for (const [index, effect] of this.activeEffects.entries()) {
       try {
         if (heavySkip && effect.heavy && this._tick % heavySkip !== 0) continue;
         effect.update(ctx);
       } catch (err) {
-        console.warn(`[PVEngine] Effect "${effect.name}" update error:`, err);
+        const effectType = this.currentTemplate?.effects[index]?.type ?? 'unknown';
+        console.warn(`[PVEngine] Effect "${effectType}" update error:`, err);
       }
     }
   }
@@ -1245,26 +1367,55 @@ export class PVEngine {
     return this._playbackTime;
   }
 
-  get timelineDuration(): number {
-    // When Now Playing is active, use NP-provided duration
-    if (this._npActive && this._npDuration > 0) {
-      return this._npDuration;
-    }
-    // When WesingCap is active, use WC-provided duration
-    if (this._nwcActive && this._nwcDuration > 0) {
-      return this._nwcDuration;
-    }
+  private getMediaDuration(): number {
+    if (!(this.mediaElement instanceof HTMLVideoElement)) return 0;
+    const d = this.mediaElement.duration;
+    return Number.isFinite(d) && d > 0 ? d : 0;
+  }
 
-    const audioDuration = this.beat.duration;
-    if (Number.isFinite(audioDuration) && audioDuration > 0) {
-      return audioDuration;
-    }
-
+  private getLyricsDuration(): number {
+    let max = 0;
     if (this.lyricTimeline && this.lyricTimeline.length > 0) {
-      return Math.max(this.lyricTimeline[this.lyricTimeline.length - 1].time + 2, 1);
+      max = Math.max(max, this.lyricTimeline[this.lyricTimeline.length - 1].time + 2);
+    }
+    if (this._srtTimeline && this._srtTimeline.length > 0) {
+      max = Math.max(max, this._srtTimeline[this._srtTimeline.length - 1].endMs / 1000);
+    }
+    return max;
+  }
+
+  private getTextDuration(): number {
+    return Math.max(this.textSegments.length * this._segmentDuration, this._segmentDuration);
+  }
+
+  private computeDurationInfo(): { duration: number; source: 'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text' } {
+    const candidates: Array<{ source: 'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text'; duration: number }> = [
+      { source: 'nowPlaying', duration: this._npActive && this._npDuration > 0 ? this._npDuration : 0 },
+      { source: 'wesingcap', duration: this._nwcActive && this._nwcDuration > 0 ? this._nwcDuration : 0 },
+      { source: 'audio', duration: Number.isFinite(this.beat.duration) && this.beat.duration > 0 ? this.beat.duration : 0 },
+      { source: 'lyrics', duration: this.getLyricsDuration() },
+      { source: 'media', duration: this.getMediaDuration() },
+      { source: 'text', duration: this.getTextDuration() },
+    ];
+
+    let best = candidates[0];
+    for (const c of candidates) {
+      if (c.duration > best.duration) best = c;
     }
 
-    return Math.max(this.textSegments.length * this._segmentDuration, this._segmentDuration);
+    if (best.duration <= 0) {
+      return { duration: this.getTextDuration(), source: 'text' };
+    }
+
+    return best;
+  }
+
+  get timelineDuration(): number {
+    return this.computeDurationInfo().duration;
+  }
+
+  get timelineDurationSource(): 'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text' {
+    return this.computeDurationInfo().source;
   }
 
   destroy() {

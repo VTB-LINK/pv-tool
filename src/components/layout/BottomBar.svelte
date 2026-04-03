@@ -1,7 +1,7 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
-  import { engine, getEngine } from '../../stores/engine.svelte';
+  import { engine } from '../../stores/engine.svelte';
   import { t } from '../../i18n';
   import { onMount, onDestroy } from 'svelte';
 
@@ -9,6 +9,7 @@
 
   let currentTime = $state(0);
   let totalTime = $state(0);
+  let durationSource = $state<'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text'>('text');
   let seekValue = $state(0);
   let isSeeking = $state(false);
   let isPaused = $state(false);
@@ -24,10 +25,20 @@
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 
+  function sourceLabel(source: 'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text'): string {
+    if (source === 'nowPlaying') return t('duration_source_nowplaying');
+    if (source === 'wesingcap') return t('duration_source_wesingcap');
+    if (source === 'audio') return t('duration_source_audio');
+    if (source === 'lyrics') return t('duration_source_lyrics');
+    if (source === 'media') return t('duration_source_media');
+    return t('duration_source_text');
+  }
+
   function tick() {
     if (ready && engine.instance) {
       currentTime = engine.instance.playbackTime;
       totalTime = engine.instance.timelineDuration;
+      durationSource = engine.instance.timelineDurationSource;
       isPaused = engine.instance.paused;
       isLooping = engine.instance.loopMode;
       if (!isSeeking && totalTime > 0) {
@@ -94,6 +105,7 @@
 </script>
 
 <div class="bottom-bar">
+  <div class="duration-source">{t('duration_source_label')}: {sourceLabel(durationSource)}</div>
   <div class="timeline">
     <div class="transport-group">
       <button class="transport-btn" onclick={handleReplay} title="Replay">
@@ -182,6 +194,15 @@
     padding: 6px 24px 10px;
     background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%);
     pointer-events: auto;
+  }
+
+  .duration-source {
+    max-width: 680px;
+    margin: 0 auto 4px;
+    font-size: 0.62rem;
+    color: var(--pv-text-muted);
+    letter-spacing: 0.3px;
+    user-select: none;
   }
 
   .timeline {

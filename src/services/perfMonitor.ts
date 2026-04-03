@@ -144,27 +144,3 @@ export function recommendedDpr(): number {
   return native;
 }
 
-/**
- * Dynamic effect import — loads effect modules on demand.
- * Returns the effect class after loading.
- */
-const effectCache = new Map<string, any>();
-
-export async function lazyLoadEffect(type: string): Promise<any> {
-  if (effectCache.has(type)) return effectCache.get(type)!;
-
-  try {
-    // Vite glob import pattern
-    const modules = import.meta.glob('/src/effects/*.ts');
-    const path = `/src/effects/${type}.ts`;
-    if (modules[path]) {
-      const mod = await modules[path]() as any;
-      const cls = mod.default || mod[type] || Object.values(mod)[0];
-      effectCache.set(type, cls);
-      return cls;
-    }
-  } catch (err) {
-    console.warn(`[lazyLoadEffect] Failed to load "${type}":`, err);
-  }
-  return null;
-}

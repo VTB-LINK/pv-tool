@@ -1,6 +1,7 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
+  import ExpandPanel from '../common/ExpandPanel.svelte';
   import Section from '../common/Section.svelte';
   import { engine, showToast } from '../../stores/engine.svelte';
   import { getCurrentTemplateConfig } from '../../stores/engine.svelte';
@@ -116,6 +117,8 @@
   let urlOptTemplate = $state(true);
   let urlOptListen = $state(true);
   let urlOptPostFx = $state(true);
+  let urlOptFeatures = $state(true);
+   const wesingCapLogoUrl = `${import.meta.env.BASE_URL}metabox5.svg`;
 
   /** Build a URL that restores the current state for OBS browser source */
   async function copyObsUrl() {
@@ -181,6 +184,14 @@
       params.set('beatreact', engine.beatReactivity.toFixed(2));
     }
 
+    if (urlOptFeatures) {
+      params.set('outline', engine.mediaOutline ? '1' : '0');
+      params.set('autocolors', engine.autoExtractColors ? '1' : '0');
+      params.set('motiondetect', engine.motionDetection ? '1' : '0');
+      params.set('invertmedia', engine.invertMedia ? '1' : '0');
+      params.set('thresholdmedia', engine.thresholdMedia ? '1' : '0');
+    }
+
     const url = base + '?' + params.toString();
     try {
       await navigator.clipboard.writeText(url);
@@ -206,7 +217,7 @@
   <Section label={`📡 ${t('live_mode')}`}>
     <!-- NowPlaying -->
     <div class="service-row">
-      <button class="listen-btn" class:active={npActive} onclick={toggleNowPlaying} disabled={npConnecting}>
+      <button class="pv-btn listen-btn" class:active={npActive} onclick={toggleNowPlaying} disabled={npConnecting}>
         {#if npConnecting}
           ⏳ {t('listen_nowplaying')}...
         {:else if npActive}
@@ -230,13 +241,22 @@
 
     <!-- WesingCap -->
     <div class="service-row">
-      <button class="listen-btn" class:active={nwcActive} onclick={toggleWesingCap} disabled={nwcConnecting}>
+      <button class="pv-btn listen-btn" class:active={nwcActive} onclick={toggleWesingCap} disabled={nwcConnecting}>
         {#if nwcConnecting}
-          ⏳ {t('listen_wesingcap')}...
+          <span class="service-label">
+            <span class="service-emoji" aria-hidden="true">⏳</span>
+            <span>{t('listen_wesingcap')}...</span>
+          </span>
         {:else if nwcActive}
-          ✅ {t('listen_wesingcap')}
+          <span class="service-label">
+            <span class="service-emoji" aria-hidden="true">✅</span>
+            <span>{t('listen_wesingcap')}</span>
+          </span>
         {:else}
-          🎤 {t('listen_wesingcap')}
+          <span class="service-label">
+              <img src={wesingCapLogoUrl} alt="" aria-hidden="true" class="service-logo" />
+            <span>{t('listen_wesingcap')}</span>
+          </span>
         {/if}
       </button>
       {#if nwcSongName}
@@ -244,45 +264,49 @@
           <span class="track-title">{nwcSongName}</span>
         </div>
       {/if}
-      <button class="settings-btn" onclick={() => nwcShowSettings = !nwcShowSettings}>
+      <button class="pv-btn-link settings-btn" onclick={() => nwcShowSettings = !nwcShowSettings}>
         ⚙ {t('nwc_settings_title')}
       </button>
-      {#if nwcShowSettings}
-        <div class="settings-form">
+      <ExpandPanel visible={nwcShowSettings}>
+        {#snippet children()}
           <span class="form-label">{t('nwc_ws_addr')}</span>
-          <input type="text" class="form-input" bind:value={nwcWsAddr} placeholder={t('nwc_ws_addr_placeholder')} />
-          <button class="save-btn" onclick={saveNwcSettings}>{t('nwc_save')}</button>
-        </div>
-      {/if}
+          <input type="text" class="pv-input pv-input-compact pv-input-mono pv-input-surface pv-control-full" bind:value={nwcWsAddr} placeholder={t('nwc_ws_addr_placeholder')} />
+          <button class="pv-btn pv-btn-xs pv-btn-outline-accent save-btn" onclick={saveNwcSettings}>{t('nwc_save')}</button>
+        {/snippet}
+      </ExpandPanel>
     </div>
 
     <!-- Copy OBS URL with options -->
-    <button class="copy-url-btn" onclick={() => urlOptionsOpen = !urlOptionsOpen}>
+    <button class="pv-btn pv-btn-block pv-btn-cta copy-url-btn" onclick={() => urlOptionsOpen = !urlOptionsOpen}>
       🔗 {t('copy_obs_url')}
     </button>
-    {#if urlOptionsOpen}
-      <div class="url-options">
-        <label class="url-opt-row">
+    <ExpandPanel visible={urlOptionsOpen}>
+      {#snippet children()}
+        <label class="pv-check-row">
           <input type="checkbox" bind:checked={urlOptAlpha} />
-          <span>{t('url_opt_alpha')}</span>
+          <span class="pv-check-text">{t('url_opt_alpha')}</span>
         </label>
-        <label class="url-opt-row">
+        <label class="pv-check-row">
           <input type="checkbox" bind:checked={urlOptTemplate} />
-          <span>{t('url_opt_template')}</span>
+          <span class="pv-check-text">{t('url_opt_template')}</span>
         </label>
-        <label class="url-opt-row">
+        <label class="pv-check-row">
           <input type="checkbox" bind:checked={urlOptListen} />
-          <span>{t('url_opt_listen')}</span>
+          <span class="pv-check-text">{t('url_opt_listen')}</span>
         </label>
-        <label class="url-opt-row">
+        <label class="pv-check-row">
           <input type="checkbox" bind:checked={urlOptPostFx} />
-          <span>{t('url_opt_postfx')}</span>
+          <span class="pv-check-text">{t('url_opt_postfx')}</span>
         </label>
-        <button class="copy-confirm-btn" onclick={copyObsUrl}>
+        <label class="pv-check-row">
+          <input type="checkbox" bind:checked={urlOptFeatures} />
+          <span class="pv-check-text">{t('url_opt_features')}</span>
+        </label>
+        <button class="pv-btn pv-btn-sm pv-btn-accent pv-btn-block copy-confirm-btn" onclick={copyObsUrl}>
           📋 {t('copy')}
         </button>
-      </div>
-    {/if}
+      {/snippet}
+    </ExpandPanel>
   </Section>
 </div>
 
@@ -308,21 +332,31 @@
 
   .listen-btn {
     width: 100%;
-    padding: 8px 14px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-elevated);
-    color: var(--pv-text);
-    font-size: 0.78rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all var(--pv-duration);
-    text-align: center;
+  }
+  .listen-btn.active { border-color: var(--pv-accent); color: var(--pv-accent); }
+  .listen-btn:disabled { cursor: wait; }
+
+  .service-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
   }
 
-  .listen-btn:hover { background: var(--pv-bg-hover); border-color: var(--pv-border-hover); }
-  .listen-btn.active { border-color: var(--pv-accent); color: var(--pv-accent); }
-  .listen-btn:disabled { opacity: 0.5; cursor: wait; }
+  .service-emoji {
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .service-logo {
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+    display: block;
+    object-fit: contain;
+  }
 
   .track-info {
     display: flex;
@@ -365,29 +399,7 @@
 
   .settings-btn {
     width: 100%;
-    padding: 3px 8px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--pv-text-muted);
-    font-size: 0.68rem;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: center;
-    transition: color var(--pv-duration);
-  }
-
-  .settings-btn:hover { color: var(--pv-text); }
-
-  .settings-form {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 8px;
-    background: var(--pv-bg-elevated);
-    border: 1px solid var(--pv-border);
-    border-radius: var(--pv-radius-sm);
-    margin-top: 4px;
+    justify-content: center;
   }
 
   .form-label {
@@ -397,99 +409,14 @@
     letter-spacing: 0.5px;
   }
 
-  .form-input {
-    padding: 5px 8px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-border);
-    background: var(--pv-bg-surface);
-    color: var(--pv-text);
-    font-size: 0.72rem;
-    font-family: var(--pv-font-mono);
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .form-input::placeholder { color: var(--pv-text-muted); }
-
-  .save-btn {
-    padding: 3px 10px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-accent);
-    background: transparent;
-    color: var(--pv-accent);
-    font-size: 0.7rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all var(--pv-duration);
-  }
-
-  .save-btn:hover { background: var(--pv-accent); color: #000; }
-
   .copy-url-btn {
-    width: 100%;
-    padding: 8px 14px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-accent);
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
-    color: var(--pv-accent);
-    font-size: 0.78rem;
     font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all var(--pv-duration);
-    text-align: center;
-  }
-
-  .copy-url-btn:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.25));
-    border-color: var(--pv-accent-glow);
-    box-shadow: 0 0 12px var(--pv-accent-glow);
-  }
-
-  .url-options {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 8px;
-    background: var(--pv-bg-elevated);
-    border: 1px solid var(--pv-border);
-    border-radius: var(--pv-radius-sm);
-    margin-top: 4px;
-  }
-
-  .url-opt-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.72rem;
-    color: var(--pv-text-secondary);
-    cursor: pointer;
-    transition: color 0.15s;
-  }
-
-  .url-opt-row:hover { color: var(--pv-text); }
-
-  .url-opt-row input[type="checkbox"] {
-    accent-color: var(--pv-accent);
-    cursor: pointer;
-    width: 13px;
-    height: 13px;
   }
 
   .copy-confirm-btn {
-    width: 100%;
-    padding: 6px 12px;
     margin-top: 2px;
-    border-radius: var(--pv-radius-sm);
-    border: 1px solid var(--pv-accent);
-    background: var(--pv-accent);
     color: #000;
-    font-size: 0.72rem;
     font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: center;
-    transition: all var(--pv-duration);
   }
 
   .copy-confirm-btn:hover {

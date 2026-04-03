@@ -19,7 +19,13 @@
     <span class="arrow">{open ? '▾' : '▸'}</span>
     <span class="section-label">{label}</span>
     {#if action}
-      <span class="section-action" onclick={(e: MouseEvent) => e.stopPropagation()}>
+      <span
+        class="section-action"
+        role="button"
+        tabindex="-1"
+        onkeydown={(e: KeyboardEvent) => e.stopPropagation()}
+        onclick={(e: MouseEvent) => e.stopPropagation()}
+      >
         {@render action()}
       </span>
     {/if}

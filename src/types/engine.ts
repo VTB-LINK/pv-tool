@@ -26,8 +26,11 @@ export interface TemplateConfig {
   nameKey?: string;
   palette: ColorPalette;
   effects: EffectEntry[];
+  segmentDuration?: number;
   bpm?: number;
+  beatReactivity?: number;
   animationSpeed?: number;
+  motionIntensity?: number;
   bgOpacity?: number;
   postfx?: {
     shake?: number;
