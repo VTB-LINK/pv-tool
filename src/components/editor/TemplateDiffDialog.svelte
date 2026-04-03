@@ -4,13 +4,8 @@
   import type { MissingMode } from '../../stores/engine.svelte';
   import { getTemplateEffectDiffs, getTemplateParamDiffGroups } from '../../services/templateDiff';
   import type { TemplateConfig } from '../../types/engine';
-  import { effectCatalog } from '../../engine/effectCatalog';
+  import { getEffectDisplayLabel } from '../../engine/effectCatalog';
   import { t } from '../../i18n';
-
-  const effectLabelMap = new Map<string, string>();
-  for (const preset of effectCatalog) {
-    if (!effectLabelMap.has(preset.type)) effectLabelMap.set(preset.type, preset.label);
-  }
 
   let {
     visible = false,
@@ -20,9 +15,19 @@
     confirmLabel = null as string | null,
     showUnchangedEffects = true,
     missingMode = 'reset' as MissingMode,
+    requireName = false,
+    showImportName = false,
+    highlightImportName = false,
+    importName = '',
+    importNamePlaceholder = '',
+    warningMessage = null as string | null,
+    secondaryActionLabel = null as string | null,
+    confirmAction = 'import' as 'import' | 'overwrite',
     onMissingModeChange = (_mode: MissingMode) => {},
+    onImportNameChange = (_value: string) => {},
+    onSecondaryAction = () => {},
     onClose = () => {},
-    onConfirm = (_opts: { missingMode: MissingMode }) => {},
+    onConfirm = (_opts: { missingMode: MissingMode; importName?: string; importAction?: 'import' | 'overwrite' }) => {},
   }: {
     visible?: boolean;
     currentConfig?: TemplateConfig | null;
@@ -31,9 +36,19 @@
     confirmLabel?: string | null;
     showUnchangedEffects?: boolean;
     missingMode?: MissingMode;
+    requireName?: boolean;
+    showImportName?: boolean;
+    highlightImportName?: boolean;
+    importName?: string;
+    importNamePlaceholder?: string;
+    warningMessage?: string | null;
+    secondaryActionLabel?: string | null;
+    confirmAction?: 'import' | 'overwrite';
     onMissingModeChange?: (mode: MissingMode) => void;
+    onImportNameChange?: (value: string) => void;
+    onSecondaryAction?: () => void;
     onClose?: () => void;
-    onConfirm?: (opts: { missingMode: MissingMode }) => void;
+    onConfirm?: (opts: { missingMode: MissingMode; importName?: string; importAction?: 'import' | 'overwrite' }) => void;
   } = $props();
   let paramDiffGroups = $derived(getTemplateParamDiffGroups(currentConfig, incomingConfig));
 
@@ -46,7 +61,7 @@
   let effectDiffs = $derived(
     getTemplateEffectDiffs(currentConfig, incomingConfig, showUnchangedEffects).map(item => ({
       ...item,
-      label: effectLabelMap.get(item.type) ?? item.type,
+      label: getEffectDisplayLabel(item),
     }))
   );
 
@@ -63,7 +78,8 @@
   }
 
   function handleConfirm() {
-    onConfirm({ missingMode });
+    if (requireName && !importName.trim()) return;
+    onConfirm({ missingMode, importName: importName.trim() || undefined, importAction: confirmAction });
     onClose();
   }
 
@@ -85,7 +101,24 @@
     onkeydown={handleOverlayKeydown}
   ></div>
   <div class="diff-dialog">
-    <h3 class="diff-title">{title ?? (t('diff_title') + ': ' + (incomingConfig.nameKey ? t(incomingConfig.nameKey as any) : incomingConfig.name))}</h3>
+    {#if showImportName}
+      <div class="diff-title-row">
+        <h3 class="diff-title">{title ?? t('diff_title')}</h3>
+        <input
+          type="text"
+          class="pv-input pv-input-compact import-name-input"
+          class:highlight={highlightImportName}
+          value={importName}
+          placeholder={importNamePlaceholder}
+          oninput={(event: Event) => onImportNameChange((event.target as HTMLInputElement).value)}
+        />
+      </div>
+      {#if warningMessage}
+        <div class="diff-warning">{warningMessage}</div>
+      {/if}
+    {:else}
+      <h3 class="diff-title">{title ?? (incomingConfig.name?.trim() ? (t('diff_title') + ': ' + (incomingConfig.nameKey ? t(incomingConfig.nameKey as any) : incomingConfig.name)) : t('diff_title'))}</h3>
+    {/if}
 
     <div class="diff-scroll">
       <!-- Palette diff -->
@@ -210,7 +243,10 @@
       {/if}
 
       <div class="diff-actions">
-        <button class="pv-btn pv-btn-accent btn accent" onclick={handleConfirm}>{confirmLabel ?? t('diff_confirm_load')}</button>
+        <button class="pv-btn pv-btn-accent btn accent" onclick={handleConfirm} disabled={requireName && !importName.trim()}>{confirmLabel ?? t('diff_confirm_load')}</button>
+        {#if secondaryActionLabel}
+          <button class="pv-btn btn" onclick={onSecondaryAction}>{secondaryActionLabel}</button>
+        {/if}
         <button class="pv-btn btn" onclick={() => onClose()}>{t('cancel')}</button>
       </div>
     </div>
@@ -253,6 +289,7 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--pv-text);
+    line-height: 1.2;
     margin-bottom: 12px;
   }
 
@@ -261,6 +298,54 @@
     flex: 1;
     min-height: 0;
     padding-bottom: 4px;
+  }
+
+  .diff-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .diff-title-row .diff-title {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: 2.2rem;
+    margin-bottom: 0;
+  }
+
+  .import-name-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 2.2rem;
+    min-height: 2.2rem;
+    padding: 0 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border-radius: 10px;
+  }
+
+  .import-name-input.highlight {
+    border-color: rgba(255, 92, 92, 0.95);
+    box-shadow: 0 0 0 1px rgba(255, 92, 92, 0.35);
+    background: rgba(255, 92, 92, 0.08);
+  }
+
+  .diff-warning {
+    margin: -4px 0 10px;
+    font-size: 0.68rem;
+    color: #ff8b8b;
+    line-height: 1.35;
+  }
+
+  @media (max-width: 640px) {
+    .diff-title-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
   }
 
   .diff-footer {

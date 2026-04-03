@@ -353,6 +353,7 @@ export class PVEngine {
     this.lyricTimeline = [...lines].sort((a, b) => a.time - b.time);
     this.lyricCursor = 0;
     this.lastLyricTime = -1;
+    this.lyricOffsetSeconds = 0;
 
     this.userText = this.lyricTimeline[0].text;
     this.textSegments = [this.userText];
@@ -367,6 +368,8 @@ export class PVEngine {
     this.lyricCursor = 0;
     this.lastLyricTime = -1;
     this.lyricOffsetSeconds = 0;
+    this.userText = '';
+    this.textSegments = [''];
   }
 
   get hasLyricTimeline(): boolean {
