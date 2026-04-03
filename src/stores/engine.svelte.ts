@@ -201,9 +201,47 @@ function cloneTemplate(tpl: TemplateConfig): TemplateConfig {
   };
 }
 
+function buildLoadedTemplateSnapshot(tpl: TemplateConfig | null): TemplateConfig | null {
+  if (!tpl) return null;
+  if (!_engine) return cloneTemplate(tpl);
+
+  return {
+    ...tpl,
+    palette: _engine.currentPalette
+      ? { ..._engine.currentPalette }
+      : { ...tpl.palette },
+    effects: (_engine.currentEffects ?? tpl.effects).map(e => ({
+      type: e.type,
+      layer: e.layer,
+      config: { ...e.config },
+    })),
+    segmentDuration: _engine.segmentDuration,
+    bpm: _engine.beat.bpm,
+    beatReactivity: _engine.beatReactivity,
+    animationSpeed: _engine.animationSpeed,
+    motionIntensity: _engine.motionIntensity,
+    bgOpacity: _engine.effectOpacity,
+    postfx: {
+      shake: _engine.shake,
+      zoom: _engine.zoom,
+      tilt: _engine.tilt,
+      glitch: _engine.glitch,
+      hueShift: _engine.hueShift,
+    },
+    features: {
+      mediaOutline: _engine.mediaOutlineEnabled,
+      autoExtractColors: _engine.autoExtractColorsEnabled,
+      motionDetection: _engine.motionDetectionEnabled,
+      invertMedia: _engine.invertMediaEnabled,
+      thresholdMedia: _engine.thresholdMediaEnabled,
+    },
+  };
+}
+
 function setLoadedTemplateSnapshot(tpl: TemplateConfig | null) {
-  _loadedTemplateSnapshot = tpl ? cloneTemplate(tpl) : null;
-  setResetBaselineSnapshot(tpl);
+  const snapshot = buildLoadedTemplateSnapshot(tpl);
+  _loadedTemplateSnapshot = snapshot;
+  setResetBaselineSnapshot(snapshot);
 }
 
 function setResetBaselineSnapshot(tpl: TemplateConfig | null) {
