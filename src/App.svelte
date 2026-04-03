@@ -6,7 +6,6 @@
   import RightPanel from './components/layout/RightPanel.svelte';
   import BottomBar from './components/layout/BottomBar.svelte';
   import Toast from './components/common/Toast.svelte';
-  import TemplateEditor from './components/editor/TemplateEditor.svelte';
   import MobileNav from './components/mobile/MobileNav.svelte';
   import MobileSheet from './components/mobile/MobileSheet.svelte';
   import {
@@ -35,6 +34,8 @@
   };
   let editorGuideToken = 0;
   let editorGuideRequest = $state<EditorGuideRequest | null>(null);
+  type TemplateEditorComponentType = typeof import('./components/editor/TemplateEditor.svelte').default;
+  let TemplateEditorComponent = $state<TemplateEditorComponentType | null>(null);
 
   // Flash the edit button when editor closes while in custom mode
   let flashEditBtn = $state(false);
@@ -63,6 +64,17 @@
   let autoStartNp = $state(false);
   let autoStartNwc = $state(false);
   let autoNwcWsAddr = $state('');
+
+  async function ensureTemplateEditorLoaded() {
+    if (TemplateEditorComponent) return;
+    const mod = await import('./components/editor/TemplateEditor.svelte');
+    TemplateEditorComponent = mod.default;
+  }
+
+  function openEditorPanel() {
+    editorOpen = true;
+    void ensureTemplateEditorLoaded();
+  }
 
   onMount(async () => {
     await initEngine(canvasContainer);
@@ -176,10 +188,7 @@
     if (isMobile || recommendedDpr() < window.devicePixelRatio) {
       perfMonitor = new PerfMonitor((dpr) => {
         const eng = engine.instance;
-        if (eng && (eng as any)._currentResolution !== undefined) {
-          (eng as any)._currentResolution = dpr;
-          (eng as any).syncResolution?.();
-        }
+        eng?.setPerformanceMaxDpr(dpr);
       }, { targetFps: isMobile ? 24 : 30 });
       perfMonitor.start();
     }
@@ -234,7 +243,7 @@
       togglePanels: () => { panelsVisible = !panelsVisible; },
       toggleRecording,
       togglePlay: toggleAudio,
-      openEditor: () => { editorOpen = true; },
+      openEditor: openEditorPanel,
       nextTemplate: () => {
         const idx = engine.currentTemplateIndex;
         if (idx < templates.length - 1) selectTemplate(idx + 1);
@@ -256,7 +265,7 @@
     editorGuideToken += 1;
     editorGuideRequest = { token: editorGuideToken, target: 'template-actions' };
     if (openEditor) {
-      editorOpen = true;
+      openEditorPanel();
     }
   }
 </script>
@@ -270,12 +279,11 @@
     <!-- Desktop layout -->
     <div class="panels-desktop" class:hidden={!panelsVisible}>
       <LeftPanel
-        {ready}
-        onOpenEditor={() => editorOpen = true}
+        onOpenEditor={openEditorPanel}
         onRequestTemplateGuide={() => requestTemplateActionsGuide(true)}
         {flashEditBtn}
       />
-      <RightPanel {ready} {autoStartNp} {autoStartNwc} {autoNwcWsAddr} />
+      <RightPanel {autoStartNp} {autoStartNwc} {autoNwcWsAddr} />
     </div>
 
     {#if panelsVisible}
@@ -290,19 +298,23 @@
     <!-- Mobile layout -->
     {#if mobileSheetVisible}
       <div class="mobile-sheet" class:open={mobileSheetVisible}>
-        <MobileSheet tab={mobileTab} onOpenEditor={() => editorOpen = true} />
+        <MobileSheet tab={mobileTab} onOpenEditor={openEditorPanel} />
       </div>
     {/if}
 
-    <MobileNav bind:activeTab={mobileTab} onOpenEditor={() => editorOpen = true} />
+    <MobileNav bind:activeTab={mobileTab} onOpenEditor={openEditorPanel} />
   {/if}
 
   <Toast />
-  <TemplateEditor
-    bind:visible={editorOpen}
-    guideRequest={editorGuideRequest}
-    onRequestTemplateGuide={() => requestTemplateActionsGuide(false)}
-  />
+  {#if editorOpen || TemplateEditorComponent}
+    {#if TemplateEditorComponent}
+      <TemplateEditorComponent
+        bind:visible={editorOpen}
+        guideRequest={editorGuideRequest}
+        onRequestTemplateGuide={() => requestTemplateActionsGuide(false)}
+      />
+    {/if}
+  {/if}
 </div>
 
 <style>

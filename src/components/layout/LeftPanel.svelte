@@ -1,12 +1,13 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
-  import SegmentedControl, { type SegmentedControlOption } from '../common/SegmentedControl.svelte';
+  import SegmentedControl from '../common/SegmentedControl.svelte';
   import Section from '../common/Section.svelte';
-  import SelectMenu, { type SelectMenuOption } from '../common/SelectMenu.svelte';
+  import SelectMenu from '../common/SelectMenu.svelte';
   import Slider from '../common/Slider.svelte';
   import UnsavedChangesDialog from '../common/UnsavedChangesDialog.svelte';
   import TemplateDiffDialog from '../editor/TemplateDiffDialog.svelte';
+  import type { SegmentedControlOption, SelectMenuOption } from '../common/options';
   import {
     engine, selectTemplate, selectCustomTemplate, enterCustomMode,
     setText, setSegmentDuration, setAnimationSpeed, setMotionIntensity,
@@ -21,10 +22,13 @@
   import type { TemplateConfig } from '../../types/engine';
 
   let {
-    ready = false,
     onOpenEditor = () => {},
     onRequestTemplateGuide = () => {},
     flashEditBtn = false,
+  }: {
+    onOpenEditor?: () => void;
+    onRequestTemplateGuide?: () => void;
+    flashEditBtn?: boolean;
   } = $props();
 
   let textInput = $state(engine.text);
@@ -33,7 +37,6 @@
   let mediaInput: HTMLInputElement;
   let audioInput: HTMLInputElement;
   let lyricsInput: HTMLInputElement;
-  let pendingFile: File | null = null;
 
   // Edit button flash animation
   let editBtnFlashing = $state(false);
@@ -232,7 +235,7 @@
           onSelect={handleTemplatePick}
         />
       </div>
-      <button class="pv-btn pv-btn-sm btn btn-sm edit-btn" class:flashing={editBtnFlashing} onclick={onOpenEditor} onanimationend={() => editBtnFlashing = false} title={t('open_editor')}>🎨</button>
+      <button class="pv-btn pv-btn-sm btn btn-sm edit-btn" class:flashing={editBtnFlashing} onclick={() => onOpenEditor()} onanimationend={() => editBtnFlashing = false} title={t('open_editor')}>🎨</button>
     </div>
   </Section>
 
@@ -275,28 +278,28 @@
       label={t('seg_duration')}
       value={engine.segmentDuration}
       min={1} max={10} step={0.5}
-      format={(v) => `${v.toFixed(1)}s`}
+      format={(v: number) => `${v.toFixed(1)}s`}
       oninput={setSegmentDuration}
     />
     <Slider
       label={t('anim_speed')}
       value={engine.animationSpeed}
       min={0} max={4} step={0.1}
-      format={(v) => `${v.toFixed(1)}x`}
+      format={(v: number) => `${v.toFixed(1)}x`}
       oninput={setAnimationSpeed}
     />
     <Slider
       label={t('motion_intensity')}
       value={engine.motionIntensity}
       min={0} max={2} step={0.1}
-      format={(v) => `${v.toFixed(1)}x`}
+      format={(v: number) => `${v.toFixed(1)}x`}
       oninput={setMotionIntensity}
     />
     <Slider
       label={t('bg_opacity')}
       value={engine.effectOpacity}
       min={0} max={1} step={0.05}
-      format={(v) => `${Math.round(v * 100)}%`}
+      format={(v: number) => `${Math.round(v * 100)}%`}
       oninput={setEffectOpacity}
     />
   </Section>
@@ -370,14 +373,14 @@
       label={t('bpm')}
       value={engine.bpm}
       min={30} max={240} step={1}
-      format={(v) => String(Math.round(v))}
+      format={(v: number) => String(Math.round(v))}
       oninput={setBpm}
     />
     <Slider
       label={t('beat_react')}
       value={engine.beatReactivity}
       min={0} max={1} step={0.05}
-      format={(v) => v.toFixed(2)}
+      format={(v: number) => v.toFixed(2)}
       oninput={setBeatReactivity}
     />
   </Section>

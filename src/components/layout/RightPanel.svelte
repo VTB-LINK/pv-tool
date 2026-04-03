@@ -11,7 +11,15 @@
   } from '../../stores/engine.svelte';
   import { t } from '../../i18n';
 
-  let { ready = false, autoStartNp = false, autoStartNwc = false, autoNwcWsAddr = '' } = $props();
+  let {
+    autoStartNp = false,
+    autoStartNwc = false,
+    autoNwcWsAddr = '',
+  }: {
+    autoStartNp?: boolean;
+    autoStartNwc?: boolean;
+    autoNwcWsAddr?: string;
+  } = $props();
 
   function formatRecTime(ms: number): string {
     const s = Math.floor(ms / 1000);
@@ -176,12 +184,12 @@
     text-align: center;
   }
 
-  .agpl-footer a {
+  .agpl-footer :global(a) {
     color: #58a6ff;
     text-decoration: none;
   }
 
-  .agpl-footer a:hover {
+  .agpl-footer :global(a:hover) {
     text-decoration: underline;
   }
 </style>

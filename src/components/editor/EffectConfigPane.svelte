@@ -3,7 +3,7 @@
 <script lang="ts">
   import Slider from '../common/Slider.svelte';
   import { t } from '../../i18n';
-  import type { ConfigField, ConfigFieldType } from '../../effects/v2/schema';
+  import type { ConfigField } from '../../effects/v2/schema';
   import { resolveLocalized } from '../../effects/v2/schema';
 
   let {

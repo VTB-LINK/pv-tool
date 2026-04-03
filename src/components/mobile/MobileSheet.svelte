@@ -1,9 +1,10 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
-  import SelectMenu, { type SelectMenuOption } from '../common/SelectMenu.svelte';
+  import SelectMenu from '../common/SelectMenu.svelte';
   import Section from '../common/Section.svelte';
   import Slider from '../common/Slider.svelte';
+  import type { SelectMenuOption } from '../common/options';
   import { engine, selectTemplate, selectCustomTemplate, showToast } from '../../stores/engine.svelte';
   import { templates } from '../../templates';
   import { t } from '../../i18n';
@@ -74,7 +75,7 @@
         ariaLabel={t('template')}
         onSelect={handleTemplatePick}
       />
-      <button class="pv-btn pv-btn-lg btn edit-btn" onclick={onOpenEditor}>🎨 {t('open_editor')}</button>
+      <button class="pv-btn pv-btn-lg btn edit-btn" onclick={() => onOpenEditor()}>🎨 {t('open_editor')}</button>
     </Section>
 
     <Section label={t('text_label')}>
@@ -92,13 +93,13 @@
 
   {:else if tab === 'controls'}
     <Section label={t('template')}>
-      <Slider label={t('seg_duration')} value={engine.segDuration} min={0.5} max={10} step={0.5}
+      <Slider label={t('seg_duration')} value={engine.segmentDuration} min={0.5} max={10} step={0.5}
         format={(v: number) => `${v.toFixed(1)}s`}
         oninput={(v: number) => { if (engine.instance) engine.instance.segmentDuration = v; }} />
-      <Slider label={t('anim_speed')} value={engine.animSpeed} min={0.1} max={5} step={0.1}
+      <Slider label={t('anim_speed')} value={engine.animationSpeed} min={0.1} max={5} step={0.1}
         format={(v: number) => `${v.toFixed(1)}x`}
         oninput={(v: number) => { if (engine.instance) engine.instance.animationSpeed = v; }} />
-      <Slider label={t('bg_opacity')} value={engine.bgOpacity} min={0} max={1} step={0.05}
+      <Slider label={t('bg_opacity')} value={engine.effectOpacity} min={0} max={1} step={0.05}
         format={(v: number) => `${Math.round(v * 100)}%`}
         oninput={(v: number) => { if (engine.instance) engine.instance.effectOpacity = v; }} />
     </Section>
@@ -131,9 +132,6 @@
     max-height: 50vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-  }
-
-  .text-input {
   }
 
   .file-input {

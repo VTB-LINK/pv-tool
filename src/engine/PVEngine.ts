@@ -7,7 +7,7 @@
 
 import * as PIXI from 'pixi.js';
 import type { TemplateConfig, UpdateContext, ColorPalette, LayerType, MotionTargetInfo, LyricLine, EffectEntry } from '../types/engine';
-import { createEffect, BaseEffect } from '../effects/index';
+import { createEffect, type EffectInstance } from '../effects/index';
 import { extractDominantColors } from './ColorExtractor';
 import { MediaOutlineRenderer } from './MediaOutline';
 import { GlitchFilter } from './GlitchFilter';
@@ -23,7 +23,7 @@ export class PVEngine {
   private app: PIXI.Application;
   private layers = new Map<LayerType, PIXI.Container>();
   private effectsRoot!: PIXI.Container;
-  private activeEffects: BaseEffect[] = [];
+  private activeEffects: EffectInstance[] = [];
   private palette: ColorPalette = {
     background: '#ffffff',
     primary: '#000000',
@@ -76,6 +76,7 @@ export class PVEngine {
 
   private _nativeDPR = 1;
   private _currentResolution = 1;
+  private _performanceMaxDpr: number | null = null;
   private _resizeParent: HTMLElement | null = null;
   private _loading = false;
   private _bgColorOverride: string | null = null;
@@ -184,7 +185,7 @@ export class PVEngine {
         if (this._loopMode) {
           this._time = 0;
           this.lyricCursor = 0;
-          if (this.beat.isAudioMode) this.beat.seekAudio(0);
+          if (this.beat.isAudioMode) this.beat.seek(0);
           if (this.mediaElement instanceof HTMLVideoElement) this.mediaElement.currentTime = 0;
         } else {
           this._time = dur;
@@ -1082,9 +1083,20 @@ export class PVEngine {
    * Keeps visuals sharp with few effects, avoids GPU overload with many.
    * Mobile devices get more aggressive downscaling.
    */
+  setPerformanceMaxDpr(maxDpr: number | null): void {
+    if (maxDpr === null) {
+      this._performanceMaxDpr = null;
+    } else if (Number.isFinite(maxDpr)) {
+      this._performanceMaxDpr = Math.max(0.5, Math.min(this._nativeDPR, maxDpr));
+    }
+    this.syncResolution();
+  }
+
   private syncResolution(): void {
     const n = this.activeEffects.length;
-    const dpr = this._nativeDPR;
+    const dpr = this._performanceMaxDpr === null
+      ? this._nativeDPR
+      : Math.min(this._nativeDPR, this._performanceMaxDpr);
     const mobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     let target: number;
@@ -1312,12 +1324,13 @@ export class PVEngine {
     const n = this.activeEffects.length;
     const heavySkip = n > 15 ? 3 : n > 8 ? 2 : 0;
 
-    for (const effect of this.activeEffects) {
+    for (const [index, effect] of this.activeEffects.entries()) {
       try {
         if (heavySkip && effect.heavy && this._tick % heavySkip !== 0) continue;
         effect.update(ctx);
       } catch (err) {
-        console.warn(`[PVEngine] Effect "${effect.name}" update error:`, err);
+        const effectType = this.currentTemplate?.effects[index]?.type ?? 'unknown';
+        console.warn(`[PVEngine] Effect "${effectType}" update error:`, err);
       }
     }
   }

@@ -1,8 +1,6 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
-  import { t } from '../../i18n';
-
   let { activeTab = $bindable('canvas'), onOpenEditor = () => {} } = $props();
 
   const tabs = [

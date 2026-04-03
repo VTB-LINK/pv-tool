@@ -1,10 +1,7 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
-  export interface SegmentedControlOption {
-    value: string;
-    label: string;
-  }
+  import type { SegmentedControlOption } from './options';
 
   let {
     items = [] as SegmentedControlOption[],

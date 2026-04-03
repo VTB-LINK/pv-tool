@@ -23,6 +23,17 @@
     onMissingModeChange = (_mode: MissingMode) => {},
     onClose = () => {},
     onConfirm = (_opts: { missingMode: MissingMode }) => {},
+  }: {
+    visible?: boolean;
+    currentConfig?: TemplateConfig | null;
+    incomingConfig?: TemplateConfig | null;
+    title?: string | null;
+    confirmLabel?: string | null;
+    showUnchangedEffects?: boolean;
+    missingMode?: MissingMode;
+    onMissingModeChange?: (mode: MissingMode) => void;
+    onClose?: () => void;
+    onConfirm?: (opts: { missingMode: MissingMode }) => void;
   } = $props();
   let paramDiffGroups = $derived(getTemplateParamDiffGroups(currentConfig, incomingConfig));
 
@@ -55,6 +66,13 @@
     onConfirm({ missingMode });
     onClose();
   }
+
+  function handleOverlayKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClose();
+    }
+  }
 </script>
 
 {#if visible && currentConfig && incomingConfig}
@@ -63,8 +81,8 @@
     role="button"
     tabindex="0"
     aria-label={t('cancel')}
-    onclick={onClose}
-    onkeydown={(e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && onClose()}
+    onclick={() => onClose()}
+    onkeydown={handleOverlayKeydown}
   ></div>
   <div class="diff-dialog">
     <h3 class="diff-title">{title ?? (t('diff_title') + ': ' + (incomingConfig.nameKey ? t(incomingConfig.nameKey as any) : incomingConfig.name))}</h3>
@@ -193,7 +211,7 @@
 
       <div class="diff-actions">
         <button class="pv-btn pv-btn-accent btn accent" onclick={handleConfirm}>{confirmLabel ?? t('diff_confirm_load')}</button>
-        <button class="pv-btn btn" onclick={onClose}>{t('cancel')}</button>
+        <button class="pv-btn btn" onclick={() => onClose()}>{t('cancel')}</button>
       </div>
     </div>
   </div>

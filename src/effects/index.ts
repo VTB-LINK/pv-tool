@@ -19,6 +19,7 @@ export { BaseEffectV2 } from './v2/BaseEffect';
 export type { EffectMeta, ConfigField, ConfigFieldType } from './v2/schema';
 export { v2Registry, v2Metas } from './v2/registry';
 export { buildDefaultConfig } from './v2/schema';
+export type EffectInstance = BaseEffect | BaseEffectV2;
 
 /**
  * Unified effect factory — tries V2 registry first, falls back to V1.
@@ -28,7 +29,7 @@ export function createEffect(
   container: PIXI.Container,
   config: Record<string, any>,
   palette: ColorPalette,
-): BaseEffect | BaseEffectV2 {
+): EffectInstance {
   // Try V2 first
   const V2Ctor = v2Registry.get(type);
   if (V2Ctor) {

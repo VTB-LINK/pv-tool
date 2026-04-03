@@ -706,16 +706,45 @@
     if (localized !== ct.baseTemplateName) return localized;
     return ct.baseTemplateName;
   }
+
+  function closeEditor() {
+    visible = false;
+  }
+
+  function handleOverlayKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      closeEditor();
+    }
+  }
+
+  function toggleActiveEffect(index: number) {
+    activeEffectIndex = activeEffectIndex === index ? null : index;
+  }
+
+  function handleEffectKeydown(event: KeyboardEvent, index: number) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleActiveEffect(index);
+    }
+  }
 </script>
 
 {#if visible}
-  <div class="editor-overlay" onclick={() => visible = false}></div>
+  <div
+    class="editor-overlay"
+    role="button"
+    tabindex="0"
+    aria-label={t('cancel')}
+    onclick={closeEditor}
+    onkeydown={handleOverlayKeydown}
+  ></div>
   <div class="editor-panel">
     <div class="editor-header">
       <h3 class="editor-title">🎨 {t('template_editor')}</h3>
       <div class="header-actions">
         <button class="reset-btn" title={getResetTooltip(t('reset_template'), canResetTemplate())} disabled={!canResetTemplate()} onclick={handleResetTemplateClick}>↺ {t('reset_template')}</button>
-        <button class="close-btn" onclick={() => visible = false}>✕</button>
+        <button class="close-btn" onclick={closeEditor}>✕</button>
       </div>
     </div>
 
@@ -816,7 +845,11 @@
           <div
             class="effect-item effect-origin-{origin}"
             class:active={activeEffectIndex === i}
-            onclick={() => activeEffectIndex = activeEffectIndex === i ? null : i}
+            role="button"
+            tabindex="0"
+            aria-expanded={activeEffectIndex === i}
+            onclick={() => toggleActiveEffect(i)}
+            onkeydown={(event: KeyboardEvent) => handleEffectKeydown(event, i)}
           >
             <span class="effect-layer">{layerIcons[effect.layer] ?? '?'}</span>
             <span class="effect-label">{effectLabelMap.get(effect.type) ?? effect.type}</span>
@@ -1612,9 +1645,6 @@
   /* Save advanced */
   .save-advanced-toggle {
     margin-top: 4px;
-  }
-
-  .btn-link {
   }
 
   @media (max-width: 768px) {

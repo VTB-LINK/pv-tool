@@ -1,3 +1,6 @@
+// VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE
+// Licensed under AGPL-3.0.
+
 import { t } from '../i18n';
 import type { TemplateConfig } from '../types/engine';
 import { resolveLocalized } from '../effects/v2/schema';
@@ -251,10 +254,12 @@ export function getTemplateParamDiffGroups(currentConfig: TemplateConfig | null,
     });
   }
 
-  return [
+  const groups: ParamDiffGroup[] = [
     { id: 'template', label: t('diff_group_template'), items: templateItems },
     { id: 'rhythm', label: t('diff_group_rhythm'), items: rhythmItems },
     { id: 'postfx', label: t('diff_group_postfx'), items: postfxItems },
     { id: 'features', label: t('diff_group_features'), items: featureItems },
-  ].filter(group => group.items.length > 0);
+  ];
+
+  return groups.filter(group => group.items.length > 0);
 }

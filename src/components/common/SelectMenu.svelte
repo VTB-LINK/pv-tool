@@ -1,11 +1,7 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
-  export interface SelectMenuOption {
-    value: string;
-    label: string;
-    active?: boolean;
-  }
+  import type { SelectMenuOption } from './options';
 
   let rootEl: HTMLDivElement | null = null;
 
