@@ -79,6 +79,7 @@ let _mediaScale = $state(1.0);
 let _audioLoaded = $state(false);
 let _audioFileName = $state('');
 let _audioPaused = $state(false);
+let _audioVolume = $state(0.5);
 
 // Lyrics
 let _lyricsLoaded = $state(false);
@@ -847,6 +848,7 @@ export function setMediaScale(s: number) {
 export async function loadAudio(file: File) {
   if (!_engine) return;
   await _engine.beat.loadAudio(file);
+  _engine.beat.volume = _audioVolume;
   _audioLoaded = true;
   _audioFileName = file.name;
   _audioPaused = false;
@@ -855,13 +857,16 @@ export async function loadAudio(file: File) {
   try {
     const raw = await extractEmbeddedLyrics(file);
     _embeddedLyricsRaw = raw;
-    // Auto-apply embedded lyrics only if no external lyrics file is loaded
-    if (raw && !_lyricsLoaded) {
+    // Keep embedded lyrics in sync with the current audio unless the user
+    // explicitly switched to an external lyrics file.
+    if (raw && (_embeddedLyricsSource === 'embedded' || !_lyricsLoaded)) {
       applyEmbeddedLyrics(raw);
       _embeddedLyricsSource = 'embedded';
+    } else if (!raw) {
+      handleEmbeddedLyricsUnavailable();
     }
   } catch {
-    _embeddedLyricsRaw = null;
+    handleEmbeddedLyricsUnavailable();
   }
 }
 
@@ -871,15 +876,7 @@ export function clearAudio() {
   _audioLoaded = false;
   _audioFileName = '';
   _audioPaused = false;
-  _embeddedLyricsRaw = null;
-  // If lyrics came from embedded, clear them too
-  if (_embeddedLyricsSource === 'embedded') {
-    _engine.clearLyricTimeline();
-    _engine.setSrtTimeline(null);
-    _lyricsLoaded = false;
-    _lyricsFileName = '';
-    _embeddedLyricsSource = 'none';
-  }
+  handleEmbeddedLyricsUnavailable();
 }
 
 export function toggleAudio() {
@@ -890,6 +887,13 @@ export function toggleAudio() {
   } else {
     _engine.beat.pause();
     _audioPaused = true;
+  }
+}
+
+export function setAudioVolume(v: number) {
+  _audioVolume = Math.max(0, Math.min(1, v));
+  if (_engine) {
+    _engine.beat.volume = _audioVolume;
   }
 }
 
@@ -947,6 +951,36 @@ function applyFileLyricsToEngine(target: PVEngine, text: string, ext: string) {
   }
 }
 
+function restoreDefaultText() {
+  if (!_engine) return;
+  _engine.setText(_text.replace(/\r?\n/g, '/'));
+}
+
+function handleEmbeddedLyricsUnavailable() {
+  if (!_engine) return;
+
+  _embeddedLyricsRaw = null;
+
+  if (_embeddedLyricsSource !== 'embedded') {
+    return;
+  }
+
+  if (_fileLyricsText) {
+    applyFileLyrics(_fileLyricsText, _fileLyricsExt);
+    _lyricsLoaded = true;
+    _lyricsFileName = _fileLyricsFileName;
+    _embeddedLyricsSource = 'file';
+    return;
+  }
+
+  _engine.clearLyricTimeline();
+  _engine.setSrtTimeline(null);
+  restoreDefaultText();
+  _lyricsLoaded = false;
+  _lyricsFileName = '';
+  _embeddedLyricsSource = 'none';
+}
+
 export function selectLyricsSource(source: 'embedded' | 'file') {
   if (!_engine) return;
   _embeddedLyricsSource = source;
@@ -974,6 +1008,7 @@ export function clearLyrics() {
     applyEmbeddedLyrics(_embeddedLyricsRaw);
     _embeddedLyricsSource = 'embedded';
   } else {
+    restoreDefaultText();
     _lyricsLoaded = false;
     _lyricsFileName = '';
     _embeddedLyricsSource = 'none';
@@ -1110,6 +1145,7 @@ export const engine = {
   get audioLoaded() { return _audioLoaded; },
   get audioFileName() { return _audioFileName; },
   get audioPaused() { return _audioPaused; },
+  get audioVolume() { return _audioVolume; },
   get lyricsLoaded() { return _lyricsLoaded; },
   get lyricsFileName() { return _lyricsFileName; },
   get embeddedLyricsRaw() { return _embeddedLyricsRaw; },

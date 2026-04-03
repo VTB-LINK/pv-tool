@@ -286,14 +286,10 @@
       <RightPanel {autoStartNp} {autoStartNwc} {autoNwcWsAddr} />
     </div>
 
-    {#if panelsVisible}
-      <BottomBar {ready} />
-    {/if}
+    <BottomBar {ready} visible={panelsVisible} />
 
     <!-- Hint -->
-    {#if panelsVisible}
-      <div class="hint">{t('hint_press')} <kbd>H</kbd> {t('hint_hide_panels')}</div>
-    {/if}
+    <div class="hint" class:hidden={!panelsVisible}>{t('hint_press')} <kbd>H</kbd> {t('hint_hide_panels')}</div>
   {:else}
     <!-- Mobile layout -->
     {#if mobileSheetVisible}
@@ -392,6 +388,14 @@
     user-select: none;
     pointer-events: none;
     white-space: nowrap;
+    opacity: 1;
+    transition: opacity var(--pv-duration-slow) var(--pv-ease),
+                transform var(--pv-duration-slow) var(--pv-ease);
+  }
+
+  .hint.hidden {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
   }
 
   .hint kbd {
