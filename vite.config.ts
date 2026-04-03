@@ -12,8 +12,6 @@ export default defineConfig({
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('pixi.js')) return 'pixi';
           if (id.includes('jieba-wasm')) return 'jieba';
-          if (id.includes('gsap')) return 'gsap';
-          if (id.includes('jszip')) return 'jszip';
           return 'vendor';
         },
       },
