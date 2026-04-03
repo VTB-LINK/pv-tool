@@ -476,6 +476,28 @@ function buildCurrentTemplateSnapshot(name: string, options?: SaveTemplateOption
   return tpl;
 }
 
+function getCurrentTemplateName(): string {
+  if (_loadedCustomIndex >= 0 && _loadedCustomIndex < _customTemplates.length) {
+    return _customTemplates[_loadedCustomIndex].name;
+  }
+
+  if (_loadedTemplateSnapshot?.name?.trim() && _loadedTemplateSnapshot.name !== 'Current') {
+    return _loadedTemplateSnapshot.name;
+  }
+
+  if (_currentTemplateIndex >= 0 && _currentTemplateIndex < templates.length) {
+    return templates[_currentTemplateIndex].name;
+  }
+
+  if (_baseTemplateName) {
+    const builtin = resolveBuiltinTemplateByBaseName(_baseTemplateName);
+    if (builtin?.name) return builtin.name;
+    return _baseTemplateName;
+  }
+
+  return 'Current';
+}
+
 export function saveCurrentAsTemplate(name: string, options?: SaveTemplateOptions) {
   const tpl = buildCurrentTemplateSnapshot(name, options);
   if (!tpl) return;
@@ -567,7 +589,12 @@ export function getCurrentTemplateConfig(): TemplateConfig | null {
   const palette = _engine.currentPalette
     ? { ..._engine.currentPalette }
     : { background: '#000', primary: '#fff', secondary: '#888', accent: '#f36', text: '#fff' };
-  const tpl: TemplateConfig = { name: 'Current', palette, effects };
+  const tpl: TemplateConfig = {
+    name: getCurrentTemplateName(),
+    palette,
+    effects,
+    baseTemplateName: _baseTemplateName ?? _loadedTemplateSnapshot?.baseTemplateName ?? undefined,
+  };
   tpl.segmentDuration = _segmentDuration;
   tpl.bpm = _bpm;
   tpl.beatReactivity = _beatReactivity;

@@ -6,6 +6,9 @@
 // Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
 
 import type { LayerType } from '../types/engine';
+import { t, type LocaleKey } from '../i18n';
+import { v2Registry, v2Metas } from '../effects/v2/registry';
+import { buildDefaultConfig, resolveLocalized } from '../effects/v2/schema';
 
 export interface EffectPreset {
   type: string;
@@ -13,6 +16,51 @@ export interface EffectPreset {
   category: string;
   layer: LayerType;
   config: Record<string, any>;
+}
+
+type EffectDescriptor = {
+  type: string;
+  config?: Record<string, any>;
+  label?: string;
+};
+
+function translateEffectKey(key: string, fallback: string): string {
+  const translated = t(key as LocaleKey);
+  return translated === key ? fallback : translated;
+}
+
+function getEffectLabelKey(effect: EffectDescriptor): string {
+  if (effect.type === 'organicBlob') {
+    const shape = typeof effect.config?.shape === 'string' ? effect.config.shape : 'blob';
+    return `fx_organicBlob_${shape}`;
+  }
+
+  return `fx_${effect.type}`;
+}
+
+function findEffectPreset(effect: EffectDescriptor): EffectPreset | undefined {
+  return effectCatalog.find((preset) => {
+    if (preset.type !== effect.type) return false;
+    if (effect.type === 'organicBlob') {
+      return preset.config.shape === effect.config?.shape;
+    }
+    return true;
+  });
+}
+
+export function getEffectVersion(type: string): 1 | 2 {
+  return v2Registry.has(type) ? 2 : 1;
+}
+
+export function getEffectDisplayLabel(effect: EffectDescriptor): string {
+  const preset = findEffectPreset(effect);
+  const fallback = preset?.label ?? effect.label ?? effect.type;
+  return translateEffectKey(getEffectLabelKey({ type: effect.type, config: effect.config ?? preset?.config }), fallback);
+}
+
+export function getEffectDisplayCategory(preset: EffectPreset): string {
+  const key = `ecat_${preset.category}`;
+  return translateEffectKey(key, preset.category);
 }
 
 export const effectCatalog: EffectPreset[] = [
@@ -192,10 +240,6 @@ export const effectCatalog: EffectPreset[] = [
     } 
   },
 ];
-
-// ── Merge V2 effects (auto-discovered from meta declarations) ──
-import { v2Metas } from '../effects/v2/registry';
-import { buildDefaultConfig, resolveLocalized } from '../effects/v2/schema';
 
 for (const meta of v2Metas) {
   // Build label matching V1 pattern: "中文名 EnglishName"

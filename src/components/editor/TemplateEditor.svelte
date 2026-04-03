@@ -12,23 +12,23 @@
     saveCurrentAsTemplate, deleteCustomTemplate,
     exportShareCode,
     getCurrentTemplateConfig, getResetBaselineConfig,
-    loadTemplateWithOptions, addCustomTemplate, overwriteCurrentToCustomTemplate,
+    loadTemplateWithOptions, addCustomTemplate, overwriteCurrentToCustomTemplate, updateCustomTemplate,
     markEditorDirty,
     resetPalette, resetEffects,
     setMediaOutline, setAutoExtractColors, setMotionDetection, setInvertMedia, setThresholdMedia,
   } from '../../stores/engine.svelte';
   import type { MissingMode, SaveTemplateOptions } from '../../stores/engine.svelte';
-  import { decodeShareCode } from '../../services/templateStore';
-  import { effectCatalog, type EffectPreset } from '../../engine/effectCatalog';
+  import { decodeTemplateImportInput } from '../../services/templateStore';
+  import {
+    effectCatalog,
+    getEffectDisplayCategory,
+    getEffectDisplayLabel,
+    getEffectVersion,
+    type EffectPreset,
+  } from '../../engine/effectCatalog';
   import type { EffectEntry, ColorPalette, TemplateConfig } from '../../types/engine';
   import { t } from '../../i18n';
   import { v2Registry } from '../../effects/v2/registry';
-
-  // Build a lookup: effectType → localized label
-  const effectLabelMap = new Map<string, string>();
-  for (const preset of effectCatalog) {
-    if (!effectLabelMap.has(preset.type)) effectLabelMap.set(preset.type, preset.label);
-  }
 
   type EditorGuideRequest = {
     token: number;
@@ -66,12 +66,16 @@
   let deleteConfirmIndex = $state<number | null>(null);
   let editorConfirmVisible = $state(false);
   let pendingEditorAction = $state<(() => void) | null>(null);
+  let overwriteConfirmVisible = $state(false);
+  let pendingOverwriteIndex = $state<number | null>(null);
+  let pendingOverwriteOptions = $state<SaveTemplateOptions | null>(null);
 
   type EditorDialogMode = 'import-share' | 'load-custom' | 'reset-template' | 'reset-palette' | 'reset-effects';
 
   let editorDialogVisible = $state(false);
   let editorDialogIncoming = $state<TemplateConfig | null>(null);
   let editorDialogMode = $state<EditorDialogMode | null>(null);
+  let editorDialogImportName = $state('');
   let pendingCustomLoadIndex = $state<number | null>(null);
   let editorDialogMissingMode = $state<MissingMode>('reset');
   let loadedBaselineKey = $state<string | null>(null);
@@ -277,15 +281,27 @@
   });
 
   // ── Categories for catalog ──
-  type CatalogCategory = { name: string; items: (EffectPreset & { index: number })[] };
+  type CatalogCategoryItem = EffectPreset & {
+    index: number;
+    displayLabel: string;
+    version: 1 | 2;
+  };
+
+  type CatalogCategory = { name: string; items: CatalogCategoryItem[] };
 
   function getCatalogCategories(): CatalogCategory[] {
-    const map = new Map<string, (EffectPreset & { index: number })[]>();
+    const map = new Map<string, CatalogCategoryItem[]>();
     effectCatalog.forEach((item, i) => {
-      const q = catalogFilter.toLowerCase();
-      if (q && !item.label.toLowerCase().includes(q) && !item.type.toLowerCase().includes(q)) return;
-      if (!map.has(item.category)) map.set(item.category, []);
-      map.get(item.category)!.push({ ...item, index: i });
+      const q = catalogFilter.trim().toLowerCase();
+      const displayLabel = getEffectDisplayLabel(item);
+      const displayCategory = getEffectDisplayCategory(item);
+      const version = getEffectVersion(item.type);
+      const haystack = [displayLabel, item.label, displayCategory, item.category, item.type, `v${version}`]
+        .join(' ')
+        .toLowerCase();
+      if (q && !haystack.includes(q)) return;
+      if (!map.has(displayCategory)) map.set(displayCategory, []);
+      map.get(displayCategory)!.push({ ...item, index: i, displayLabel, version });
     });
     return Array.from(map.entries()).map(([name, items]) => ({ name, items }));
   }
@@ -303,7 +319,7 @@
       eng.addEffect(entry);
       effectsVersion++;
       markEditorDirty();
-      showToast(`+ ${preset.label}`);
+      showToast(`+ ${getEffectDisplayLabel(preset)}`);
       showCatalog = false;
       // Select the newly added effect
       const effects = getCurrentEffects();
@@ -416,6 +432,34 @@
       .filter(({ template }) => !normalized || normalizeTemplateName(template.name).includes(normalized));
   }
 
+  function getTemplateSummaryTitle(template: TemplateConfig): string {
+    const baseText = template.baseTemplateName
+      ? getBaseDisplayName(template)
+      : t('custom_from_scratch');
+    const dateText = template.lastModified ? formatDate(template.lastModified) : '--';
+    return `${t('template_field_name')}: ${template.name}\n${t('template_field_base')}: ${baseText}\n${t('template_field_date')}: ${dateText}`;
+  }
+
+  function getExactImportMatchIndex(): number | null {
+    if (editorDialogMode !== 'import-share') return null;
+    const normalized = normalizeTemplateName(editorDialogImportName);
+    if (!normalized) return null;
+    const matchedIndex = engine.customTemplates.findIndex(template => normalizeTemplateName(template.name) === normalized);
+    return matchedIndex >= 0 ? matchedIndex : null;
+  }
+
+  function getNextAvailableTemplateName(baseName: string): string {
+    const trimmed = baseName.trim();
+    const rootName = trimmed.replace(/\s*\((\d+)\)$/, '').trim() || 'Imported';
+    let candidate = `${rootName} (2)`;
+    let counter = 2;
+    while (engine.customTemplates.some(template => normalizeTemplateName(template.name) === normalizeTemplateName(candidate))) {
+      counter += 1;
+      candidate = `${rootName} (${counter})`;
+    }
+    return candidate;
+  }
+
   function handleSaveAction() {
     if (!saveName.trim()) return;
     const exactMatchIndex = getExactSaveMatchIndex();
@@ -423,9 +467,9 @@
       ...getSaveOptions(),
     };
     if (exactMatchIndex !== null) {
-      overwriteCurrentToCustomTemplate(exactMatchIndex, opts);
-      closeSaveDialog();
-      showToast(t('overwrite_saved'));
+      pendingOverwriteIndex = exactMatchIndex;
+      pendingOverwriteOptions = opts;
+      overwriteConfirmVisible = true;
       return;
     }
 
@@ -452,6 +496,36 @@
     saveName = '';
     saveAdvanced = false;
     saveSuggestionOpen = false;
+    closeOverwriteConfirm();
+  }
+
+  function closeOverwriteConfirm() {
+    overwriteConfirmVisible = false;
+    pendingOverwriteIndex = null;
+    pendingOverwriteOptions = null;
+  }
+
+  function getOverwriteConfirmTemplateName(): string {
+    return pendingOverwriteIndex !== null
+      ? engine.customTemplates[pendingOverwriteIndex]?.name ?? saveName.trim()
+      : saveName.trim();
+  }
+
+  function handleOverwriteConfirmOverwrite() {
+    if (pendingOverwriteIndex === null || !pendingOverwriteOptions) return;
+    overwriteCurrentToCustomTemplate(pendingOverwriteIndex, pendingOverwriteOptions);
+    closeOverwriteConfirm();
+    closeSaveDialog();
+    showToast(t('overwrite_saved'));
+  }
+
+  function handleOverwriteConfirmSaveAs() {
+    closeOverwriteConfirm();
+    saveSuggestionOpen = true;
+    void tick().then(() => {
+      saveNameInput?.focus();
+      saveNameInput?.select();
+    });
   }
 
   function openImportDialog() {
@@ -566,7 +640,7 @@
   function handleCopyEffectsList(index: number) {
     const tpl = engine.customTemplates[index];
     if (!tpl) return;
-    const lines = tpl.effects.map(e => '- ' + (effectLabelMap.get(e.type) ?? e.type));
+    const lines = tpl.effects.map(e => '- ' + getEffectDisplayLabel(e));
     const text = `${tpl.name}:\n${lines.join('\n')}`;
     navigator.clipboard.writeText(text).then(() => {
       showToast(t('copied'));
@@ -582,6 +656,7 @@
   function openEditorDialog(mode: EditorDialogMode, incoming: TemplateConfig, customIndex: number | null = null) {
     editorDialogMode = mode;
     editorDialogIncoming = incoming;
+    editorDialogImportName = getInitialImportName(mode, incoming);
     pendingCustomLoadIndex = customIndex;
     editorDialogMissingMode = incoming.baseTemplateName ? 'builtin' : 'reset';
     editorDialogVisible = true;
@@ -591,13 +666,38 @@
     editorDialogVisible = false;
     editorDialogIncoming = null;
     editorDialogMode = null;
+    editorDialogImportName = '';
     pendingCustomLoadIndex = null;
+  }
+
+  function hasMeaningfulTemplateName(name: string | null | undefined): boolean {
+    if (!name) return false;
+    const trimmed = name.trim();
+    if (!trimmed) return false;
+    if (trimmed === 'Current' || trimmed === 'Custom') return false;
+    if (/^https?:\/\//i.test(trimmed)) return false;
+    return true;
+  }
+
+  function shouldShowImportName(mode: EditorDialogMode | null, incoming: TemplateConfig | null): boolean {
+    if (mode !== 'import-share' || !incoming) return false;
+    return true;
+  }
+
+  function shouldPromptImportName(mode: EditorDialogMode | null, incoming: TemplateConfig | null): boolean {
+    if (!shouldShowImportName(mode, incoming)) return false;
+    return !hasMeaningfulTemplateName(incoming?.name);
+  }
+
+  function getInitialImportName(mode: EditorDialogMode | null, incoming: TemplateConfig | null): string {
+    if (!shouldShowImportName(mode, incoming)) return incoming?.name ?? '';
+    return hasMeaningfulTemplateName(incoming?.name) ? incoming!.name.trim() : '';
   }
 
   async function handleImport() {
     if (!shareCodeInput.trim()) return;
     try {
-      const tpl = await decodeShareCode(shareCodeInput.trim());
+      const tpl = await decodeTemplateImportInput(shareCodeInput);
       guardEditorSwitch(() => {
         openEditorDialog('import-share', tpl);
         shareDialogOpen = false;
@@ -647,18 +747,42 @@
     openEditorDialog('reset-template', incoming);
   }
 
-  function handleEditorDialogConfirm() {
+  function handleEditorDialogConfirm(opts?: { missingMode: MissingMode; importName?: string; importAction?: 'import' | 'overwrite' }) {
     if (!editorDialogMode) return;
 
     if (editorDialogMode === 'import-share') {
       if (!editorDialogIncoming) return;
-      const customIndex = addCustomTemplate(editorDialogIncoming);
-      loadTemplateWithOptions(editorDialogIncoming, { missingMode: editorDialogMissingMode, customIndex });
-      effectsVersion++;
-      showToast(t('imported'));
+      const importName = shouldShowImportName(editorDialogMode, editorDialogIncoming)
+        ? (opts?.importName?.trim() ?? editorDialogImportName.trim())
+        : (editorDialogIncoming.name?.trim() ?? '');
+      if (!importName) return;
+      const duplicateIndex = engine.customTemplates.findIndex(template => normalizeTemplateName(template.name) === normalizeTemplateName(importName));
+      const importedTemplate: TemplateConfig = {
+        ...editorDialogIncoming,
+        name: importName,
+      };
+      if (duplicateIndex >= 0 && opts?.importAction === 'overwrite') {
+        const existingName = engine.customTemplates[duplicateIndex]?.name ?? importName;
+        const overwrittenTemplate: TemplateConfig = {
+          ...importedTemplate,
+          name: existingName,
+          lastModified: Date.now(),
+        };
+        updateCustomTemplate(duplicateIndex, overwrittenTemplate);
+        loadTemplateWithOptions(overwrittenTemplate, { missingMode: opts?.missingMode ?? editorDialogMissingMode, customIndex: duplicateIndex });
+        effectsVersion++;
+        showToast(t('overwrite_saved'));
+      } else {
+        const customIndex = addCustomTemplate(importedTemplate);
+        loadTemplateWithOptions(importedTemplate, { missingMode: opts?.missingMode ?? editorDialogMissingMode, customIndex });
+        effectsVersion++;
+        showToast(t('imported'));
+        closeEditorDialog();
+        return;
+      }
     } else if (editorDialogMode === 'load-custom') {
       if (!editorDialogIncoming || pendingCustomLoadIndex === null) return;
-      loadTemplateWithOptions(editorDialogIncoming, { missingMode: editorDialogMissingMode, customIndex: pendingCustomLoadIndex });
+      loadTemplateWithOptions(editorDialogIncoming, { missingMode: opts?.missingMode ?? editorDialogMissingMode, customIndex: pendingCustomLoadIndex });
       effectsVersion++;
       showToast(t('loaded'));
     } else if (editorDialogMode === 'reset-template') {
@@ -683,6 +807,10 @@
     }
 
     closeEditorDialog();
+  }
+
+  function handleImportDuplicateSaveAs() {
+    editorDialogImportName = getNextAvailableTemplateName(editorDialogImportName || editorDialogIncoming?.name || 'Imported');
   }
 
   const layerIcons: Record<string, string> = {
@@ -842,6 +970,7 @@
       <div class="effects-list">
         {#each getCurrentEffects() as effect, i}
           {@const origin = effectOrigins[i] ?? 'new'}
+          {@const version = getEffectVersion(effect.type)}
           <div
             class="effect-item effect-origin-{origin}"
             class:active={activeEffectIndex === i}
@@ -852,8 +981,11 @@
             onkeydown={(event: KeyboardEvent) => handleEffectKeydown(event, i)}
           >
             <span class="effect-layer">{layerIcons[effect.layer] ?? '?'}</span>
-            <span class="effect-label">{effectLabelMap.get(effect.type) ?? effect.type}</span>
-            <span class="effect-type">{effect.type}</span>
+            <div class="effect-copy" title={`${getEffectDisplayLabel(effect)} · ${effect.type}`}>
+              <span class="effect-label">{getEffectDisplayLabel(effect)}</span>
+              <span class="effect-type">{effect.type}</span>
+            </div>
+            <span class="effect-version-badge" class:v2={version === 2}>V{version}</span>
             <div class="effect-actions">
               <button class="pv-btn-icon icon-btn" title="Move up" onclick={(e: MouseEvent) => { e.stopPropagation(); moveEffect(i, -1); }}>↑</button>
               <button class="pv-btn-icon icon-btn" title="Move down" onclick={(e: MouseEvent) => { e.stopPropagation(); moveEffect(i, 1); }}>↓</button>
@@ -897,13 +1029,15 @@
             <div class="catalog-category">
               <span class="catalog-cat-label">{category.name}</span>
               {#each category.items as item}
+                {@const version = item.version}
                 <button
                   class="catalog-item"
                   onclick={() => addEffect(item)}
                   title={item.type}
                 >
                   <span class="cat-layer">{layerIcons[item.layer] ?? '?'}</span>
-                  <span>{item.label}</span>
+                  <span class="catalog-item-label">{item.displayLabel}</span>
+                  <span class="effect-version-badge" class:v2={version === 2}>V{version}</span>
                 </button>
               {/each}
             </div>
@@ -945,23 +1079,23 @@
                 {#if saveSuggestions.length > 0}
                   {#each saveSuggestions as { template, index }}
                     <button
-                      class="save-suggestion-row custom-item-card"
+                      class="save-suggestion-row"
                       class:selected={exactSaveMatchIndex === index}
-                      title={`名称: ${template.name}\n基础: ${template.baseTemplateName ? getBaseDisplayName(template) : t('custom_from_scratch')}\n日期: ${template.lastModified ? formatDate(template.lastModified) : '--'}`}
+                      title={getTemplateSummaryTitle(template)}
                       onmousedown={(e: MouseEvent) => e.preventDefault()}
                       onclick={() => selectSaveSuggestion(template.name)}
                     >
-                      <div class="custom-item-row">
-                        <span class="custom-name">{template.name}</span>
+                      <div class="save-suggestion-head">
+                        <span class="save-suggestion-name">{template.name}</span>
                       </div>
-                      <div class="custom-item-meta save-suggestion-meta">
-                        <span class="custom-base">{template.baseTemplateName ? t('based_on') + ' ' + getBaseDisplayName(template) : t('custom_from_scratch')}</span>
-                        <span class="custom-date save-suggestion-date-line">{template.lastModified ? formatDate(template.lastModified) : '--'}</span>
+                      <div class="save-suggestion-copy">
+                        <span class="save-suggestion-base">{template.baseTemplateName ? t('based_on') + ' ' + getBaseDisplayName(template) : t('custom_from_scratch')}</span>
+                        <span class="save-suggestion-date">{template.lastModified ? formatDate(template.lastModified) : '--'}</span>
                       </div>
                     </button>
                   {/each}
                 {:else}
-                  <div class="save-suggestion-empty custom-item-card">{t('save_template_new_hint')}</div>
+                  <div class="save-suggestion-empty">{t('save_template_new_hint')}</div>
                 {/if}
               </div>
             {/if}
@@ -1013,7 +1147,7 @@
       {#if engine.customTemplates.length > 0}
         <div class="custom-list">
           {#each engine.customTemplates as ct, i}
-            <div class="custom-item-card">
+            <div class="custom-item-card" title={getTemplateSummaryTitle(ct)}>
               <div class="custom-item-row">
                 <span class="custom-name">⭐ {ct.name}</span>
                 <div class="custom-actions">
@@ -1066,15 +1200,39 @@
   onCancel={handleEditorConfirmCancel}
 />
 
+<UnsavedChangesDialog
+  visible={overwriteConfirmVisible}
+  message={t('overwrite_confirm_message')}
+  messageName={getOverwriteConfirmTemplateName()}
+  saveLabel={t('overwrite')}
+  confirmLabel={t('save_as')}
+  cancelLabel={t('cancel')}
+  position="right"
+  actionLayout="primary-first"
+  onSave={handleOverwriteConfirmOverwrite}
+  onConfirm={handleOverwriteConfirmSaveAs}
+  onCancel={closeOverwriteConfirm}
+/>
+
 <TemplateDiffDialog
   visible={editorDialogVisible}
   currentConfig={editorDialogVisible ? getCurrentTemplateConfig() : null}
   incomingConfig={editorDialogIncoming}
-  title={editorDialogMode === 'reset-template' ? t('reset_template') : editorDialogMode === 'reset-palette' ? t('reset_palette') : editorDialogMode === 'reset-effects' ? t('reset_effects') : null}
-  confirmLabel={editorDialogMode?.startsWith('reset-') ? t('diff_confirm_reset') : t('diff_confirm_load')}
+  title={editorDialogMode === 'import-share' ? t('diff_import_title') : editorDialogMode === 'reset-template' ? t('reset_template') : editorDialogMode === 'reset-palette' ? t('reset_palette') : editorDialogMode === 'reset-effects' ? t('reset_effects') : null}
+  confirmLabel={editorDialogMode === 'import-share' ? (getExactImportMatchIndex() !== null ? t('diff_confirm_overwrite_import') : t('diff_confirm_import')) : editorDialogMode?.startsWith('reset-') ? t('diff_confirm_reset') : t('diff_confirm_load')}
   showUnchangedEffects={editorDialogMode === 'import-share' || editorDialogMode === 'load-custom'}
   missingMode={editorDialogMissingMode}
+  showImportName={shouldShowImportName(editorDialogMode, editorDialogIncoming)}
+  requireName={shouldPromptImportName(editorDialogMode, editorDialogIncoming)}
+  highlightImportName={shouldPromptImportName(editorDialogMode, editorDialogIncoming)}
+  importName={editorDialogImportName}
+  importNamePlaceholder={t('tpl_name_placeholder')}
+  warningMessage={editorDialogMode === 'import-share' && getExactImportMatchIndex() !== null ? `${t('import_name_conflict')} "${editorDialogImportName.trim()}"` : null}
+  secondaryActionLabel={editorDialogMode === 'import-share' && getExactImportMatchIndex() !== null ? t('save_as') : null}
+  confirmAction={editorDialogMode === 'import-share' && getExactImportMatchIndex() !== null ? 'overwrite' : 'import'}
   onMissingModeChange={(mode: MissingMode) => editorDialogMissingMode = mode}
+  onImportNameChange={(value: string) => editorDialogImportName = value}
+  onSecondaryAction={handleImportDuplicateSaveAs}
   onClose={closeEditorDialog}
   onConfirm={handleEditorDialogConfirm}
 />
@@ -1150,12 +1308,19 @@
   }
 
   .save-suggestion-row {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
     width: 100%;
     padding: 8px 10px;
+    border-radius: var(--pv-radius-sm);
+    border: 1px solid transparent;
     background: var(--pv-bg-elevated);
     color: var(--pv-text);
     text-align: left;
     cursor: pointer;
+    transition: background 0.1s, border-color 0.1s, box-shadow 0.1s;
   }
 
   .save-suggestion-row:hover {
@@ -1169,37 +1334,60 @@
     box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.22);
   }
 
-  .save-suggestion-meta {
+  .save-suggestion-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+  }
+
+  .save-suggestion-name {
+    font-size: 0.75rem;
+    color: var(--pv-text);
+    font-weight: 500;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .save-suggestion-copy {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
     margin-top: 4px;
+    min-width: 0;
   }
 
-  .save-suggestion-meta .custom-base,
-  .save-suggestion-meta .custom-date {
-    margin-left: 0;
+  .save-suggestion-base,
+  .save-suggestion-date {
     width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.15;
   }
 
-  .save-suggestion-date-line {
-    display: block;
+  .save-suggestion-base {
+    font-size: 0.64rem;
+    color: var(--pv-text-muted);
   }
 
-  .save-suggestion-empty {
-    display: block;
-    padding: 8px 10px;
-    background: var(--pv-bg-elevated);
-    border-color: var(--pv-border);
-    font-size: 0.68rem;
+  .save-suggestion-date {
+    font-size: 0.64rem;
     color: var(--pv-text-muted);
   }
 
   .save-suggestion-empty {
+    display: block;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: var(--pv-radius-sm);
+    border: 1px solid var(--pv-border);
+    background: var(--pv-bg-elevated);
+    font-size: 0.68rem;
+    color: var(--pv-text-muted);
     line-height: 1.5;
   }
 
@@ -1374,9 +1562,10 @@
   }
 
   .effect-item {
-    display: flex;
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto auto;
     align-items: center;
-    gap: 8px;
+    column-gap: 8px;
     padding: 6px 8px;
     border-radius: var(--pv-radius-sm);
     cursor: pointer;
@@ -1395,20 +1584,54 @@
     text-align: center;
   }
 
+  .effect-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
   .effect-label {
-    flex: 1;
     font-size: 0.73rem;
     color: var(--pv-text);
+    line-height: 1.25;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    word-break: break-word;
   }
 
   .effect-type {
     font-size: 0.6rem;
     color: var(--pv-text-muted);
     font-family: var(--pv-font-mono);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .effect-version-badge {
     flex-shrink: 0;
+    min-width: 24px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    border: 1px solid var(--pv-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--pv-text-muted);
+    font-size: 0.56rem;
+    font-family: var(--pv-font-mono);
+    text-align: center;
+    letter-spacing: 0.4px;
+  }
+
+  .effect-version-badge.v2 {
+    border-color: rgba(99, 102, 241, 0.35);
+    background: rgba(99, 102, 241, 0.12);
+    color: #b6c2ff;
   }
 
   .effect-actions {
@@ -1416,8 +1639,10 @@
     gap: 2px;
     opacity: 0;
     transition: opacity 0.15s;
+    align-self: start;
   }
-  .effect-item:hover .effect-actions { opacity: 1; }
+  .effect-item:hover .effect-actions,
+  .effect-item.active .effect-actions { opacity: 1; }
 
   /* Effects origin coloring */
   .effect-origin-modified {
@@ -1517,6 +1742,14 @@
     text-align: center;
   }
 
+  .catalog-item-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   /* Action row */
   .action-row {
     display: flex;
@@ -1549,9 +1782,12 @@
   .custom-item-card {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
     padding: 6px 8px;
     border-radius: var(--pv-radius-sm);
     border: 1px solid transparent;
+    overflow: hidden;
     transition: background 0.1s, border-color 0.1s;
   }
   .custom-item-card:hover {
@@ -1562,15 +1798,23 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
   }
   .custom-name {
     font-size: 0.75rem;
     color: var(--pv-text);
     font-weight: 500;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .custom-actions {
     display: flex;
     gap: 2px;
+    flex-shrink: 0;
     opacity: 0;
     transition: opacity 0.15s;
   }
@@ -1578,6 +1822,8 @@
   .custom-item-meta {
     display: flex;
     justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
     margin-top: 2px;
   }
   .custom-base {
