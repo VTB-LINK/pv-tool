@@ -49,8 +49,15 @@ export interface EffectDiffItem {
   type: string;
   label: string;
   status: 'added' | 'removed' | 'modified' | 'unchanged';
+  visibilityChanged?: boolean;
+  currentVisible?: boolean;
+  incomingVisible?: boolean;
   configItems: EffectConfigDiffItem[];
   complexConfigItems: EffectComplexConfigDiffItem[];
+}
+
+function hasEffectVisibilityChanged(currentEffect: { visible?: boolean }, incomingEffect: { visible?: boolean }): boolean {
+  return (currentEffect.visible !== false) !== (incomingEffect.visible !== false);
 }
 
 function formatNumber(value: number | undefined, fallback: number, digits = 2) {
@@ -160,11 +167,14 @@ export function getTemplateEffectDiffs(currentConfig: TemplateConfig | null, inc
     for (let currentIndex = 0; currentIndex < currentEffects.length; currentIndex++) {
       if (currentUsed.has(currentIndex)) continue;
       const currentEffect = currentEffects[currentIndex];
-      if (currentEffect.type === incomingEffect.type && currentJson[currentIndex] === incomingJson) {
+      if (currentEffect.type === incomingEffect.type && currentJson[currentIndex] === incomingJson && !hasEffectVisibilityChanged(currentEffect, incomingEffect)) {
         result.push({
           type: incomingEffect.type,
           label: getEffectDisplayLabel(incomingEffect),
           status: 'unchanged',
+          visibilityChanged: false,
+          currentVisible: currentEffect.visible !== false,
+          incomingVisible: incomingEffect.visible !== false,
           configItems: [],
           complexConfigItems: [],
         });
@@ -187,6 +197,9 @@ export function getTemplateEffectDiffs(currentConfig: TemplateConfig | null, inc
           type: incomingEffect.type,
           label: getEffectDisplayLabel(incomingEffect),
           status: 'modified',
+          visibilityChanged: hasEffectVisibilityChanged(currentEffect, incomingEffect),
+          currentVisible: currentEffect.visible !== false,
+          incomingVisible: incomingEffect.visible !== false,
           configItems: diffItems.configItems,
           complexConfigItems: diffItems.complexConfigItems,
         });
@@ -204,6 +217,8 @@ export function getTemplateEffectDiffs(currentConfig: TemplateConfig | null, inc
       type: incomingEffect.type,
       label: getEffectDisplayLabel(incomingEffect),
       status: 'added',
+      visibilityChanged: false,
+      incomingVisible: incomingEffect.visible !== false,
       configItems: [],
       complexConfigItems: [],
     });
@@ -216,6 +231,8 @@ export function getTemplateEffectDiffs(currentConfig: TemplateConfig | null, inc
       type: currentEffect.type,
       label: getEffectDisplayLabel(currentEffect),
       status: 'removed',
+      visibilityChanged: false,
+      currentVisible: currentEffect.visible !== false,
       configItems: [],
       complexConfigItems: [],
     });

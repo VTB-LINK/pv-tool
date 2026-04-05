@@ -24,7 +24,7 @@ export class PVEngine {
   private app: PIXI.Application;
   private layers = new Map<LayerType, PIXI.Container>();
   private effectsRoot!: PIXI.Container;
-  private activeEffects: EffectInstance[] = [];
+  private activeEffects: Array<EffectInstance | null> = [];
   private palette: ColorPalette = {
     background: '#ffffff',
     primary: '#000000',
@@ -284,20 +284,7 @@ export class PVEngine {
       this.updateBgFill();
 
       for (const entry of normalizedTemplate.effects) {
-        const layer = this.layers.get(entry.layer);
-        if (!layer) continue;
-
-        const config = { ...entry.config };
-        if (this.userText) {
-          config._userText = this.textSegments[0] || this.userText;
-        }
-
-        try {
-          const effect = createEffect(entry.type, layer, config, this.palette);
-          this.activeEffects.push(effect);
-        } catch (err) {
-          console.warn(`[PVEngine] Failed to create effect "${entry.type}":`, err);
-        }
+        this.activeEffects.push(this.createRuntimeEffect(entry));
       }
 
       if (normalizedTemplate.postfx) {
@@ -994,21 +981,45 @@ export class PVEngine {
     this.clearEffects();
     this.currentTemplate.effects = normalizeEffectEntries(this.currentTemplate.effects);
     for (const entry of this.currentTemplate.effects) {
-      const layer = this.layers.get(entry.layer);
-      if (!layer) continue;
-
-      const config = { ...normalizeEffectConfig(entry) };
-      if (this.userText) {
-        config._userText = this.textSegments[0] || this.userText;
-      }
-
-      try {
-        const effect = createEffect(entry.type, layer, config, this.palette);
-        this.activeEffects.push(effect);
-      } catch (err) {
-        console.warn(`[PVEngine] Failed to rebuild effect "${entry.type}":`, err);
-      }
+      this.activeEffects.push(this.createRuntimeEffect(entry));
     }
+    this.syncResolution();
+  }
+
+  private createRuntimeEffect(entry: EffectEntry): EffectInstance | null {
+    if (entry.visible === false) {
+      return null;
+    }
+
+    const layer = this.layers.get(entry.layer);
+    if (!layer) return null;
+
+    const config = { ...normalizeEffectConfig(entry) };
+    if (this.userText) {
+      config._userText = this.textSegments[0] || this.userText;
+    }
+
+    try {
+      return createEffect(entry.type, layer, config, this.palette);
+    } catch (err) {
+      console.warn(`[PVEngine] Failed to create effect "${entry.type}":`, err);
+      return null;
+    }
+  }
+
+  private destroyRuntimeEffect(index: number): void {
+    const effect = this.activeEffects[index];
+    if (!effect) return;
+    try { effect.destroy(); } catch { /* safe */ }
+    this.activeEffects[index] = null;
+  }
+
+  private rebuildRuntimeEffect(index: number): void {
+    if (!this.currentTemplate) return;
+    if (index < 0 || index >= this.currentTemplate.effects.length) return;
+    this.destroyRuntimeEffect(index);
+    this.currentTemplate.effects[index] = normalizeEffectEntry(this.currentTemplate.effects[index]);
+    this.activeEffects[index] = this.createRuntimeEffect(this.currentTemplate.effects[index]);
     this.syncResolution();
   }
 
@@ -1106,7 +1117,7 @@ export class PVEngine {
   }
 
   private syncResolution(): void {
-    const n = this.activeEffects.length;
+    const n = this.activeEffects.filter(Boolean).length;
     const dpr = this._performanceMaxDpr === null
       ? this._nativeDPR
       : Math.min(this._nativeDPR, this._performanceMaxDpr);
@@ -1163,6 +1174,7 @@ export class PVEngine {
 
   private clearEffects() {
     for (const e of this.activeEffects) {
+      if (!e) continue;
       try { e.destroy(); } catch { /* already destroyed */ }
     }
     this.activeEffects = [];
@@ -1191,18 +1203,7 @@ export class PVEngine {
     if (!this.currentTemplate) return;
     const normalizedEntry = normalizeEffectEntry(entry);
     this.currentTemplate.effects.push(normalizedEntry);
-    const layer = this.layers.get(normalizedEntry.layer);
-    if (!layer) return;
-    const config = { ...normalizedEntry.config };
-    if (this.userText) {
-      config._userText = this.textSegments[0] || this.userText;
-    }
-    try {
-      const effect = createEffect(normalizedEntry.type, layer, config, this.palette);
-      this.activeEffects.push(effect);
-    } catch (err) {
-      console.warn(`[PVEngine] addEffect "${normalizedEntry.type}" failed:`, err);
-    }
+    this.activeEffects.push(this.createRuntimeEffect(normalizedEntry));
     this.syncResolution();
   }
 
@@ -1210,7 +1211,7 @@ export class PVEngine {
   removeEffect(index: number): void {
     if (!this.currentTemplate) return;
     if (index < 0 || index >= this.activeEffects.length) return;
-    try { this.activeEffects[index].destroy(); } catch { /* safe */ }
+    this.destroyRuntimeEffect(index);
     this.activeEffects.splice(index, 1);
     this.currentTemplate.effects.splice(index, 1);
     this.syncResolution();
@@ -1232,22 +1233,14 @@ export class PVEngine {
     if (index < 0 || index >= this.activeEffects.length) return;
     // Update the template config
     this.currentTemplate.effects[index].config[key] = value;
-    this.currentTemplate.effects[index] = normalizeEffectEntry(this.currentTemplate.effects[index]);
-    // Rebuild the single effect
-    const entry = this.currentTemplate.effects[index];
-    const layer = this.layers.get(entry.layer);
-    if (!layer) return;
-    try { this.activeEffects[index].destroy(); } catch { /* safe */ }
-    const config = { ...entry.config };
-    if (this.userText) {
-      config._userText = this.textSegments[0] || this.userText;
-    }
-    try {
-      const effect = createEffect(entry.type, layer, config, this.palette);
-      this.activeEffects[index] = effect;
-    } catch (err) {
-      console.warn(`[PVEngine] updateEffectConfig failed:`, err);
-    }
+    this.rebuildRuntimeEffect(index);
+  }
+
+  updateEffectVisibility(index: number, visible: boolean): void {
+    if (!this.currentTemplate) return;
+    if (index < 0 || index >= this.currentTemplate.effects.length) return;
+    this.currentTemplate.effects[index].visible = visible;
+    this.rebuildRuntimeEffect(index);
   }
 
   /** Update a palette color and rebuild all effects. */
@@ -1336,11 +1329,12 @@ export class PVEngine {
     if (this._tick === 0x7fffffff) this._tick = 0;
 
     // Throttle heavy effects when many are active
-    const n = this.activeEffects.length;
+    const n = this.activeEffects.filter(Boolean).length;
     const heavySkip = n > 15 ? 3 : n > 8 ? 2 : 0;
 
     for (const [index, effect] of this.activeEffects.entries()) {
       try {
+        if (!effect) continue;
         if (heavySkip && effect.heavy && this._tick % heavySkip !== 0) continue;
         effect.update(ctx);
       } catch (err) {

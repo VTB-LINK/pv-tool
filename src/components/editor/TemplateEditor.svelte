@@ -3,6 +3,9 @@
 <script lang="ts">
   import ExpandPanel from '../common/ExpandPanel.svelte';
   import { tick, untrack } from 'svelte';
+  import { cubicOut } from 'svelte/easing';
+  import { fade } from 'svelte/transition';
+  import type { TransitionConfig } from 'svelte/transition';
   import Section from '../common/Section.svelte';
   import UnsavedChangesDialog from '../common/UnsavedChangesDialog.svelte';
   import EffectConfigPane from './EffectConfigPane.svelte';
@@ -12,9 +15,10 @@
     saveCurrentAsTemplate, deleteCustomTemplate,
     exportShareCode,
     getCurrentTemplateConfig, getResetBaselineConfig,
-    loadTemplateWithOptions, addCustomTemplate, overwriteCurrentToCustomTemplate, updateCustomTemplate,
+    loadTemplateWithOptions, addCustomTemplate, overwriteCurrentToCustomTemplate, renameCustomTemplate, updateCustomTemplate,
     markEditorDirty,
     resetPalette, resetEffects,
+    setEffectVisible,
     setMediaOutline, setAutoExtractColors, setMotionDetection, setInvertMedia, setThresholdMedia,
   } from '../../stores/engine.svelte';
   import type { MissingMode, SaveTemplateOptions } from '../../stores/engine.svelte';
@@ -62,6 +66,11 @@
 
   // Share dropdown
   let shareMenuIndex = $state<number | null>(null);
+  let renameIndex = $state<number | null>(null);
+  let renameValue = $state('');
+  let renameInput = $state<HTMLInputElement | null>(null);
+  let renameConflictArmed = $state(false);
+  let renameConflictSuggested = $state('');
 
   // Delete confirmation
   let deleteConfirmIndex = $state<number | null>(null);
@@ -119,10 +128,10 @@
     const curMatched = new Set<number>();
 
     // Pass 1: exact type + config → 'original'
-    const baseJsons = baseEffects.map(b => JSON.stringify(b.config));
+    const baseJsons = baseEffects.map(b => JSON.stringify({ config: b.config, visible: b.visible !== false }));
     for (let ci = 0; ci < currentEffects.length; ci++) {
       const cur = currentEffects[ci];
-      const curJson = JSON.stringify(cur.config);
+      const curJson = JSON.stringify({ config: cur.config, visible: cur.visible !== false });
       for (let bi = 0; bi < baseEffects.length; bi++) {
         if (baseUsed.has(bi)) continue;
         if (baseEffects[bi].type === cur.type && baseJsons[bi] === curJson) {
@@ -209,6 +218,7 @@
       if (!other) return false;
       return effect.type === other.type
         && effect.layer === other.layer
+        && (effect.visible !== false) === (other.visible !== false)
         && JSON.stringify(effect.config) === JSON.stringify(other.config);
     });
   }
@@ -229,7 +239,7 @@
     const effects = normalizeEffectEntries(tpl.effects);
     return JSON.stringify({
       palette: tpl.palette,
-      effects: effects.map(effect => ({ type: effect.type, layer: effect.layer, config: effect.config })),
+      effects: effects.map(effect => ({ type: effect.type, layer: effect.layer, config: effect.config, visible: effect.visible !== false })),
       segmentDuration: tpl.segmentDuration,
       bpm: tpl.bpm,
       beatReactivity: tpl.beatReactivity,
@@ -377,6 +387,16 @@
     }
   }
 
+  function toggleEffectVisibility(index: number) {
+    const effect = getCurrentEffects()[index];
+    if (!effect) return;
+    const nextVisible = effect.visible === false;
+    setEffectVisible(index, nextVisible);
+    effectsVersion++;
+    markEditorDirty();
+    showToast(nextVisible ? t('effect_shown') : t('effect_hidden'));
+  }
+
   function handlePaletteChange(key: keyof ColorPalette, color: string) {
     const eng = engine.instance;
     if (!eng) return;
@@ -463,6 +483,87 @@
       candidate = `${rootName} (${counter})`;
     }
     return candidate;
+  }
+
+  function getTemplateRenameConflictIndex(index: number, name: string): number | null {
+    const normalized = normalizeTemplateName(name);
+    if (!normalized) return null;
+    const matchedIndex = engine.customTemplates.findIndex((template, templateIndex) => {
+      if (templateIndex === index) return false;
+      return normalizeTemplateName(template.name) === normalized;
+    });
+    return matchedIndex >= 0 ? matchedIndex : null;
+  }
+
+  function resetRenameState() {
+    renameIndex = null;
+    renameValue = '';
+    renameConflictArmed = false;
+    renameConflictSuggested = '';
+  }
+
+  function openRenameTemplate(index: number) {
+    const template = engine.customTemplates[index];
+    if (!template) return;
+
+    renameIndex = index;
+    renameValue = template.name;
+    renameConflictArmed = false;
+    renameConflictSuggested = '';
+    shareMenuIndex = null;
+    deleteConfirmIndex = null;
+
+    void tick().then(() => {
+      renameInput?.focus();
+      renameInput?.select();
+    });
+  }
+
+  function handleRenameInput() {
+    renameConflictArmed = false;
+    renameConflictSuggested = '';
+  }
+
+  function getRenameHint(): string | null {
+    if (renameIndex === null || !renameConflictArmed || !renameConflictSuggested) return null;
+    return `${t('rename_conflict_exists')} ${t('rename_conflict_retry_auto')} "${renameConflictSuggested}"`;
+  }
+
+  function handleRenameSave(index: number) {
+    const template = engine.customTemplates[index];
+    if (!template) return;
+
+    const trimmed = renameValue.trim();
+    if (!trimmed) return;
+
+    const sameNormalized = normalizeTemplateName(trimmed) === normalizeTemplateName(template.name);
+    if (!sameNormalized) {
+      const duplicateIndex = getTemplateRenameConflictIndex(index, trimmed);
+      if (duplicateIndex !== null) {
+        const suggestedName = getNextAvailableTemplateName(trimmed);
+        if (!renameConflictArmed || renameConflictSuggested !== suggestedName) {
+          renameConflictArmed = true;
+          renameConflictSuggested = suggestedName;
+          return;
+        }
+
+        const autoRenamed = renameCustomTemplate(index, suggestedName);
+        if (!autoRenamed) return;
+        resetRenameState();
+        showToast(`${t('renamed_to')} ${autoRenamed}`);
+        return;
+      }
+    }
+
+    if (trimmed === template.name) {
+      resetRenameState();
+      return;
+    }
+
+    const renamed = renameCustomTemplate(index, trimmed);
+    if (!renamed) return;
+    resetRenameState();
+    showToast(`${t('renamed_to')} ${renamed}`);
   }
 
   function handleSaveAction() {
@@ -716,6 +817,7 @@
   function handleLoadCustomTemplate(index: number) {
     const tpl = engine.customTemplates[index];
     if (!tpl) return;
+    resetRenameState();
     guardEditorSwitch(() => openEditorDialog('load-custom', tpl, index));
   }
 
@@ -861,18 +963,27 @@
       toggleActiveEffect(index);
     }
   }
+
+  function slidePanel(_node: Element): TransitionConfig {
+    return {
+      duration: 250,
+      easing: cubicOut,
+      css: (t, u) => `transform: translateX(${u * 100}%); opacity: ${0.55 + t * 0.45};`,
+    };
+  }
 </script>
 
 {#if visible}
   <div
     class="editor-overlay"
+    transition:fade={{ duration: 180 }}
     role="button"
     tabindex="0"
     aria-label={t('cancel')}
     onclick={closeEditor}
     onkeydown={handleOverlayKeydown}
   ></div>
-  <div class="editor-panel">
+  <div class="editor-panel" transition:slidePanel>
     <div class="editor-header">
       <h3 class="editor-title">🎨 {t('template_editor')}</h3>
       <div class="header-actions">
@@ -880,6 +991,8 @@
         <button class="close-btn" onclick={closeEditor}>✕</button>
       </div>
     </div>
+
+    <div class="editor-body">
 
     <!-- Palette Section -->
     <Section label={t('palette')}>
@@ -978,6 +1091,7 @@
           {@const version = getEffectVersion(effect.type)}
           <div
             class="effect-item effect-origin-{origin}"
+            class:hidden={effect.visible === false}
             class:active={activeEffectIndex === i}
             role="button"
             tabindex="0"
@@ -992,6 +1106,15 @@
             </div>
             <span class="effect-version-badge" class:v2={version === 2}>V{version}</span>
             <div class="effect-actions">
+              <button class="pv-btn-icon icon-btn vis-toggle-btn" title={effect.visible === false ? t('show_effect') : t('hide_effect')} onclick={(e: MouseEvent) => { e.stopPropagation(); toggleEffectVisibility(i); }}>
+                <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
+                  {#if effect.visible === false}
+                    <path d="M2.5 2.5l15 15M10 4c-1.4 0-2.7.4-3.8 1L8 6.8A4 4 0 0 1 13.2 12l2 2c1.6-1.2 3-2.8 3.8-4-1.5-2.7-4.8-6-9-6zM1 10s1.4-2.7 3.8-4.2l1.8 1.8A4 4 0 0 0 12.4 13.4l1.8 1.8C12.7 16.6 11.4 16 10 16c-5.5 0-9-6-9-6z"/>
+                  {:else}
+                    <path d="M10 4C4.5 4 1 10 1 10s3.5 6 9 6 9-6 9-6-3.5-6-9-6zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+                  {/if}
+                </svg>
+              </button>
               <button class="pv-btn-icon icon-btn" title="Move up" onclick={(e: MouseEvent) => { e.stopPropagation(); moveEffect(i, -1); }}>↑</button>
               <button class="pv-btn-icon icon-btn" title="Move down" onclick={(e: MouseEvent) => { e.stopPropagation(); moveEffect(i, 1); }}>↓</button>
               <button class="pv-btn-icon pv-btn-icon-danger icon-btn danger" title="Remove" onclick={(e: MouseEvent) => { e.stopPropagation(); removeEffect(i); }}>✕</button>
@@ -1016,14 +1139,17 @@
         {/if}
       </div>
 
-      <button class="pv-btn btn add-btn" onclick={() => showCatalog = !showCatalog}>
+      <button class="pv-btn btn add-btn" type="button" onclick={() => showCatalog = !showCatalog}>
         {showCatalog ? '▾ ' + t('hide_catalog') : '+ ' + t('add_effect')}
       </button>
     </Section>
 
     <!-- Effect Catalog -->
     {#if showCatalog}
-      <Section label={t('effect_catalog')} open={true}>
+      <div class="catalog-panel" role="region" aria-label={t('effect_catalog')}>
+        <div class="catalog-panel-header">
+          <span class="catalog-panel-title">{t('effect_catalog')}</span>
+        </div>
         <input
           type="text"
           class="search-input"
@@ -1049,7 +1175,7 @@
             </div>
           {/each}
         </div>
-      </Section>
+      </div>
     {/if}
 
     <!-- Save / Import / Export -->
@@ -1155,14 +1281,44 @@
           {#each engine.customTemplates as ct, i}
             <div class="custom-item-card" title={getTemplateSummaryTitle(ct)}>
               <div class="custom-item-row">
-                <span class="custom-name">⭐ {ct.name}</span>
-                <div class="custom-actions">
-                  <button class="pv-btn-icon icon-btn" title={t('load_template')} onclick={() => handleLoadCustomTemplate(i)}>▶</button>
-                  <button class="pv-btn-icon icon-btn" title={t('share')} onclick={() => toggleShareMenu(i)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                  </button>
-                  <button class="pv-btn-icon pv-btn-icon-danger icon-btn danger" title={t('delete_tpl')} onclick={() => deleteConfirmIndex = i}>✕</button>
-                </div>
+                {#if renameIndex === i}
+                  <div class="custom-rename-box">
+                    <input
+                      type="text"
+                      class="pv-input pv-input-compact custom-rename-input"
+                      placeholder={t('tpl_name_placeholder')}
+                      bind:this={renameInput}
+                      bind:value={renameValue}
+                      oninput={handleRenameInput}
+                      onkeydown={(event: KeyboardEvent) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          handleRenameSave(i);
+                        } else if (event.key === 'Escape') {
+                          event.preventDefault();
+                          resetRenameState();
+                        }
+                      }}
+                    />
+                    {#if getRenameHint()}
+                      <span class="custom-rename-hint">{getRenameHint()}</span>
+                    {/if}
+                  </div>
+                  <div class="custom-actions custom-actions-visible">
+                    <button class="pv-btn-icon icon-btn" title={t('save')} onclick={() => handleRenameSave(i)}>✓</button>
+                    <button class="pv-btn-icon icon-btn" title={t('cancel')} onclick={resetRenameState}>✕</button>
+                  </div>
+                {:else}
+                  <span class="custom-name">⭐ {ct.name}</span>
+                  <div class="custom-actions" class:custom-actions-visible={shareMenuIndex === i || deleteConfirmIndex === i}>
+                    <button class="pv-btn-icon icon-btn" title={t('load_template')} onclick={() => handleLoadCustomTemplate(i)}>▶</button>
+                    <button class="pv-btn-icon icon-btn" title={t('rename_template')} onclick={() => openRenameTemplate(i)}>✎</button>
+                    <button class="pv-btn-icon icon-btn" title={t('share')} onclick={() => { resetRenameState(); toggleShareMenu(i); }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    </button>
+                    <button class="pv-btn-icon pv-btn-icon-danger icon-btn danger" title={t('delete_tpl')} onclick={() => { resetRenameState(); deleteConfirmIndex = i; }}>✕</button>
+                  </div>
+                {/if}
               </div>
               <div class="custom-item-meta">
                 <span class="custom-base">{ct.baseTemplateName ? t('based_on') + ' ' + getBaseDisplayName(ct) : t('custom_from_scratch')}</span>
@@ -1195,6 +1351,7 @@
         </div>
       {/if}
       </Section>
+    </div>
     </div>
   </div>
 {/if}
@@ -1262,12 +1419,20 @@
     backdrop-filter: blur(24px) saturate(1.4);
     border-left: 1px solid var(--pv-border);
     box-shadow: var(--pv-shadow-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .editor-body {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
-    padding: 16px;
+    padding: 8px 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    animation: slideInRight 0.25s var(--pv-ease);
+    overscroll-behavior: contain;
   }
 
   .template-actions-anchor {
@@ -1397,18 +1562,14 @@
     line-height: 1.5;
   }
 
-  @keyframes slideInRight {
-    from { transform: translateX(100%); }
-    to { transform: translateX(0); }
-  }
-
   .editor-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 8px;
+    flex-shrink: 0;
+    padding: 16px 16px 8px;
+    background: var(--pv-bg-surface);
     border-bottom: 1px solid var(--pv-border);
-    margin-bottom: 8px;
   }
 
   .editor-title {
@@ -1650,6 +1811,20 @@
   .effect-item:hover .effect-actions,
   .effect-item.active .effect-actions { opacity: 1; }
 
+  .effect-item.hidden {
+    opacity: 0.58;
+  }
+
+  .effect-item.hidden .effect-label,
+  .effect-item.hidden .effect-type {
+    text-decoration: line-through;
+  }
+
+  .vis-toggle-btn svg {
+    display: block;
+    margin-top: 2px;
+  }
+
   /* Effects origin coloring */
   .effect-origin-modified {
     border-left: 2px solid #e0a030;
@@ -1683,6 +1858,31 @@
     width: 100%;
     text-align: center;
     margin-top: 6px;
+  }
+
+  .catalog-panel {
+    margin-top: 8px;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--pv-border);
+    border-radius: var(--pv-radius-md);
+    background: var(--pv-bg-elevated);
+    animation: fadeIn 0.15s ease;
+  }
+
+  .catalog-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .catalog-panel-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pv-text-muted);
   }
 
   /* Search */
@@ -1817,6 +2017,22 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .custom-rename-box {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: 4px;
+  }
+  .custom-rename-input {
+    width: 100%;
+    min-width: 0;
+  }
+  .custom-rename-hint {
+    font-size: 0.62rem;
+    color: var(--pv-text-muted);
+    line-height: 1.35;
+  }
   .custom-actions {
     display: flex;
     gap: 2px;
@@ -1825,6 +2041,7 @@
     transition: opacity 0.15s;
   }
   .custom-item-card:hover .custom-actions { opacity: 1; }
+  .custom-actions-visible { opacity: 1; }
   .custom-item-meta {
     display: flex;
     justify-content: space-between;

@@ -19,6 +19,7 @@ export interface EffectEntry {
   type: string;
   layer: LayerType;
   config: Record<string, any>;
+  visible?: boolean;
 }
 
 export interface TemplateConfig {
