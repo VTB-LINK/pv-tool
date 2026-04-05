@@ -14,7 +14,8 @@
     setEffectOpacity, setBpm, setBeatReactivity, setCanvasColor,
     loadMedia, loadAudio, loadLyrics, selectLyricsSource,
     clearMedia, clearAudio, clearLyrics, showToast,
-    getCurrentTemplateConfig, loadTemplateWithOptions,
+    captureEditingSessionSnapshot, getCurrentTemplateConfig, loadTemplateWithOptions,
+    restoreEditingSessionSnapshot,
   } from '../../stores/engine.svelte';
   import type { MissingMode } from '../../stores/engine.svelte';
   import { templates } from '../../templates';
@@ -46,8 +47,7 @@
   let diffIncoming = $state<TemplateConfig | null>(null);
   let pendingDiffType = $state<'builtin' | 'custom' | null>(null);
   let pendingDiffIndex = $state(-1);
-  let previousTemplateIndex = $state(-1);
-  let previousLoadedCustomIndex = $state(-1);
+  let previousEditingSession = $state<import('../../stores/engine.svelte').EditingSessionSnapshot | null>(null);
 
   // Unsaved changes confirmation
   let confirmVisible = $state(false);
@@ -87,8 +87,7 @@
       return;
     }
     // Save current template state before showing diff
-    previousTemplateIndex = engine.currentTemplateIndex;
-    previousLoadedCustomIndex = engine.loadedCustomIndex;
+    previousEditingSession = captureEditingSessionSnapshot();
     diffIncoming = tpl;
     diffMissingMode = tpl.baseTemplateName ? 'builtin' : 'reset';
     pendingDiffType = type;
@@ -100,18 +99,12 @@
   let diffMissingMode = $state<MissingMode>('reset');
 
   function closeDiff() {
-    // Restore previous template state when user cancels
-    if (previousLoadedCustomIndex >= 0) {
-      selectCustomTemplate(previousLoadedCustomIndex);
-    } else if (previousTemplateIndex >= 0) {
-      selectTemplate(previousTemplateIndex);
-    }
+    restoreEditingSessionSnapshot(previousEditingSession);
     diffVisible = false;
     diffIncoming = null;
     pendingDiffType = null;
     pendingDiffIndex = -1;
-    previousTemplateIndex = -1;
-    previousLoadedCustomIndex = -1;
+    previousEditingSession = null;
   }
 
   function confirmDiff() {
@@ -125,8 +118,7 @@
     pendingDiffType = null;
     pendingDiffIndex = -1;
     diffVisible = false;
-    previousTemplateIndex = -1;
-    previousLoadedCustomIndex = -1;
+    previousEditingSession = null;
   }
 
   function triggerFlash() {

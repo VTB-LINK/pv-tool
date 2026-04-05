@@ -7,7 +7,7 @@
 import { PVEngine } from '../engine/PVEngine';
 import { templates } from '../templates';
 import type { TemplateConfig } from '../types/engine';
-import { effectCatalog } from '../engine/effectCatalog';
+import { compactEffectEntries, effectCatalog, normalizeEffectEntries } from '../engine/effectCatalog';
 import { CanvasRecorder } from '../services/recorder';
 import { parseLrc } from '../engine/lrc';
 import { parseSrt } from '../engine/srtParser';
@@ -123,7 +123,7 @@ export async function initEngine(container: HTMLElement) {
   _engine.setText(_text);
   const tpl0 = templates[0];
   _baseTemplateName = tpl0.nameKey ?? tpl0.name;
-  _baseTemplateEffects = tpl0.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _baseTemplateEffects = normalizeEffectEntries(tpl0.effects);
   _baseTemplatePalette = tpl0.palette ? { ...tpl0.palette } : null;
   _engine.loadTemplate(cloneTemplate(tpl0));
   setLoadedTemplateSnapshot(tpl0);
@@ -178,14 +178,14 @@ function applyBaseReference(tpl: TemplateConfig) {
   const builtin = resolveBuiltinTemplateByBaseName(tpl.baseTemplateName);
   if (builtin) {
     _baseTemplateName = builtin.nameKey ?? builtin.name;
-    _baseTemplateEffects = builtin.effects.map(e => ({ ...e, config: { ...e.config } }));
+    _baseTemplateEffects = normalizeEffectEntries(builtin.effects);
     _baseTemplatePalette = builtin.palette ? { ...builtin.palette } : null;
     return;
   }
 
   // Fallback for non-builtin base names.
   _baseTemplateName = tpl.baseTemplateName;
-  _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _baseTemplateEffects = normalizeEffectEntries(tpl.effects);
   _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
 }
 
@@ -202,9 +202,50 @@ function cloneTemplate(tpl: TemplateConfig): TemplateConfig {
   };
 }
 
+function serializeTemplateForDirtyCheck(tpl: TemplateConfig | null): string {
+  if (!tpl) return '';
+  const effects = normalizeEffectEntries(tpl.effects);
+  return JSON.stringify({
+    palette: tpl.palette,
+    effects: effects.map(effect => ({ type: effect.type, layer: effect.layer, config: effect.config })),
+    segmentDuration: tpl.segmentDuration,
+    bpm: tpl.bpm,
+    beatReactivity: tpl.beatReactivity,
+    animationSpeed: tpl.animationSpeed,
+    motionIntensity: tpl.motionIntensity,
+    bgOpacity: tpl.bgOpacity,
+    postfx: {
+      shake: tpl.postfx?.shake ?? 0,
+      zoom: tpl.postfx?.zoom ?? 0,
+      tilt: tpl.postfx?.tilt ?? 0,
+      glitch: tpl.postfx?.glitch ?? 0,
+      hueShift: tpl.postfx?.hueShift ?? 0,
+    },
+    features: {
+      mediaOutline: tpl.features?.mediaOutline ?? false,
+      autoExtractColors: tpl.features?.autoExtractColors ?? false,
+      motionDetection: tpl.features?.motionDetection ?? false,
+      invertMedia: tpl.features?.invertMedia ?? false,
+      thresholdMedia: tpl.features?.thresholdMedia ?? false,
+    },
+  });
+}
+
+function computeTemplateDirtyState(): boolean {
+  if (!_resetBaselineSnapshot) return _customDirty;
+  const current = getCurrentTemplateConfig();
+  if (!current) return _customDirty;
+  return serializeTemplateForDirtyCheck(current) !== serializeTemplateForDirtyCheck(_resetBaselineSnapshot);
+}
+
 function buildLoadedTemplateSnapshot(tpl: TemplateConfig | null): TemplateConfig | null {
   if (!tpl) return null;
-  if (!_engine) return cloneTemplate(tpl);
+  if (!_engine) {
+    return {
+      ...cloneTemplate(tpl),
+      effects: normalizeEffectEntries(tpl.effects),
+    };
+  }
 
   return {
     ...tpl,
@@ -258,7 +299,7 @@ export function selectTemplate(index: number) {
   _loadedCustomIndex = -1;
   const tpl = templates[index];
   _baseTemplateName = tpl.nameKey ?? tpl.name;
-  _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
+  _baseTemplateEffects = normalizeEffectEntries(tpl.effects);
   _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
   _engine.loadTemplate(cloneTemplate(tpl));
   setLoadedTemplateSnapshot(tpl);
@@ -273,7 +314,7 @@ export function reloadCurrentTemplate() {
     if (_currentTemplateIndex >= 0 && _currentTemplateIndex < templates.length) {
       const tpl = templates[_currentTemplateIndex];
       _baseTemplateName = tpl.nameKey ?? tpl.name;
-      _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
+      _baseTemplateEffects = normalizeEffectEntries(tpl.effects);
       _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
     } else if (_loadedCustomIndex >= 0 && _loadedCustomIndex < _customTemplates.length) {
       applyBaseReference(_customTemplates[_loadedCustomIndex]);
@@ -284,7 +325,7 @@ export function reloadCurrentTemplate() {
   } else if (_currentTemplateIndex >= 0 && _currentTemplateIndex < templates.length) {
     const tpl = templates[_currentTemplateIndex];
     _baseTemplateName = tpl.nameKey ?? tpl.name;
-    _baseTemplateEffects = tpl.effects.map(e => ({ ...e, config: { ...e.config } }));
+    _baseTemplateEffects = normalizeEffectEntries(tpl.effects);
     _baseTemplatePalette = tpl.palette ? { ...tpl.palette } : null;
     _engine.loadTemplate(cloneTemplate(tpl));
     setLoadedTemplateSnapshot(tpl);
@@ -323,6 +364,54 @@ export function getResetBaselineConfig(): TemplateConfig | null {
   return _resetBaselineSnapshot ? cloneTemplate(_resetBaselineSnapshot) : null;
 }
 
+export interface EditingSessionSnapshot {
+  currentTemplate: TemplateConfig | null;
+  loadedTemplate: TemplateConfig | null;
+  resetBaseline: TemplateConfig | null;
+  currentTemplateIndex: number;
+  loadedCustomIndex: number;
+  isCustomMode: boolean;
+  customDirty: boolean;
+}
+
+export function captureEditingSessionSnapshot(): EditingSessionSnapshot {
+  return {
+    currentTemplate: getCurrentTemplateConfig(),
+    loadedTemplate: getLoadedTemplateConfig(),
+    resetBaseline: getResetBaselineConfig(),
+    currentTemplateIndex: _currentTemplateIndex,
+    loadedCustomIndex: _loadedCustomIndex,
+    isCustomMode: _isCustomMode,
+    customDirty: computeTemplateDirtyState(),
+  };
+}
+
+export function restoreEditingSessionSnapshot(snapshot: EditingSessionSnapshot | null) {
+  if (!_engine || !snapshot?.currentTemplate) return;
+
+  _currentTemplateIndex = snapshot.currentTemplateIndex;
+  _loadedCustomIndex = snapshot.loadedCustomIndex;
+  _isCustomMode = snapshot.isCustomMode;
+  _customDirty = snapshot.customDirty;
+
+  if (_currentTemplateIndex >= 0 && _currentTemplateIndex < templates.length) {
+    const builtin = templates[_currentTemplateIndex];
+    _baseTemplateName = builtin.nameKey ?? builtin.name;
+    _baseTemplateEffects = normalizeEffectEntries(builtin.effects);
+    _baseTemplatePalette = builtin.palette ? { ...builtin.palette } : null;
+  } else if (_loadedCustomIndex >= 0 && _loadedCustomIndex < _customTemplates.length) {
+    applyBaseReference(_customTemplates[_loadedCustomIndex]);
+  } else {
+    applyBaseReference(snapshot.currentTemplate);
+  }
+
+  _engine.loadTemplate(cloneTemplate(snapshot.currentTemplate));
+  _loadedTemplateSnapshot = snapshot.loadedTemplate ? cloneTemplate(snapshot.loadedTemplate) : null;
+  _resetBaselineSnapshot = snapshot.resetBaseline ? cloneTemplate(snapshot.resetBaseline) : null;
+  _resetBaselineVersion += 1;
+  syncFromEngine();
+}
+
 /** Reset only the palette to the base template, keeping current effects. */
 export function resetPalette() {
   if (!_engine) return;
@@ -341,7 +430,7 @@ export function resetEffects() {
   if (!_resetBaselineSnapshot) return;
   const cur = getCurrentTemplateConfig();
   if (!cur) return;
-  const baseEffects = _resetBaselineSnapshot.effects.map(e => ({ ...e, config: { ...e.config } }));
+  const baseEffects = normalizeEffectEntries(_resetBaselineSnapshot.effects);
   _engine.loadTemplate({ ...cur, effects: baseEffects });
   syncFromEngine();
 }
@@ -431,11 +520,11 @@ function buildCurrentTemplateSnapshot(name: string, options?: SaveTemplateOption
   const includePostfx = options?.postfx ?? true;
   const includeFeatures = options?.features ?? true;
 
-  const effects = (_engine.currentEffects ?? []).map((e: any) => ({
+  const effects = compactEffectEntries((_engine.currentEffects ?? []).map((e: any) => ({
     type: e.type,
     layer: e.layer,
     config: { ...e.config },
-  }));
+  })));
   const palette = _engine.currentPalette
     ? { ..._engine.currentPalette }
     : { background: '#000', primary: '#fff', secondary: '#888', accent: '#f36', text: '#fff' };
@@ -720,7 +809,7 @@ export function loadTemplateWithOptions(tpl: TemplateConfig, opts: {
     _loadedCustomIndex = -1;
     const bt = templates[opts.builtinIndex];
     _baseTemplateName = bt.nameKey ?? bt.name;
-    _baseTemplateEffects = bt.effects.map(e => ({ ...e, config: { ...e.config } }));
+    _baseTemplateEffects = normalizeEffectEntries(bt.effects);
     _baseTemplatePalette = bt.palette ? { ...bt.palette } : null;
   } else {
     _currentTemplateIndex = -1;
@@ -1134,7 +1223,7 @@ export const engine = {
   get ready() { return _ready; },
   get currentTemplateIndex() { return _currentTemplateIndex; },
   get isCustomMode() { return _isCustomMode; },
-  get customDirty() { return _customDirty; },
+  get customDirty() { return computeTemplateDirtyState(); },
   get loadedCustomIndex() { return _loadedCustomIndex; },
   get customEffects() { return _customEffects; },
   get customTemplates() { return _customTemplates; },

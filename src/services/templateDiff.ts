@@ -3,7 +3,15 @@
 
 import { t } from '../i18n';
 import type { TemplateConfig } from '../types/engine';
-import { resolveLocalized } from '../effects/v2/schema';
+import { getEffectDisplayLabel, normalizeEffectEntries } from '../engine/effectCatalog';
+import {
+  detectComplexConfigKind,
+  formatComplexConfigValue,
+  formatEffectConfigKeyLabel,
+  shouldIncludeComplexConfigDiffKey,
+  shouldIncludeScalarConfigDiffKey,
+  summarizeComplexConfigValue,
+} from './effectConfigFields';
 import { v2Registry } from '../effects/v2/registry';
 
 export interface ParamDiffItem {
@@ -27,11 +35,22 @@ export interface EffectConfigDiffItem {
   incoming: string;
 }
 
+export interface EffectComplexConfigDiffItem {
+  key: string;
+  label: string;
+  kind: 'array' | 'object';
+  currentSummary: string;
+  incomingSummary: string;
+  currentRaw: string;
+  incomingRaw: string;
+}
+
 export interface EffectDiffItem {
   type: string;
   label: string;
   status: 'added' | 'removed' | 'modified' | 'unchanged';
   configItems: EffectConfigDiffItem[];
+  complexConfigItems: EffectComplexConfigDiffItem[];
 }
 
 function formatNumber(value: number | undefined, fallback: number, digits = 2) {
@@ -68,38 +87,69 @@ function formatConfigValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function formatConfigKeyLabel(effectType: string, key: string): string {
-  const meta = v2Registry.get(effectType)?.meta;
-  const field = meta?.fields.find(item => item.key === key);
-  if (field) return resolveLocalized(field.label);
-  return key.replace(/([A-Z])/g, ' $1').replace(/[_-]/g, ' ').trim();
-}
-
-function getEffectConfigDiffItems(currentConfig: Record<string, unknown>, incomingConfig: Record<string, unknown>, effectType: string): EffectConfigDiffItem[] {
-  const keys = new Set([...Object.keys(currentConfig), ...Object.keys(incomingConfig)]);
+function getEffectConfigDiffItems(currentConfig: Record<string, unknown>, incomingConfig: Record<string, unknown>, effectType: string): {
+  configItems: EffectConfigDiffItem[];
+  complexConfigItems: EffectComplexConfigDiffItem[];
+} {
+  const schemaKeys = v2Registry.get(effectType)?.meta?.fields.map(field => field.key) ?? null;
+  const scalarKeys = schemaKeys
+    ? new Set(schemaKeys)
+    : new Set(
+      [...Object.keys(currentConfig), ...Object.keys(incomingConfig)].filter(key => {
+        return shouldIncludeScalarConfigDiffKey(key, currentConfig[key], incomingConfig[key]);
+      })
+    );
+  const complexKeys = schemaKeys
+    ? new Set(schemaKeys.filter(key => shouldIncludeComplexConfigDiffKey(key, currentConfig[key], incomingConfig[key])))
+    : new Set(
+      [...Object.keys(currentConfig), ...Object.keys(incomingConfig)].filter(key => {
+        return shouldIncludeComplexConfigDiffKey(key, currentConfig[key], incomingConfig[key]);
+      })
+    );
   const items: EffectConfigDiffItem[] = [];
+  const complexItems: EffectComplexConfigDiffItem[] = [];
 
-  for (const key of keys) {
+  for (const key of scalarKeys) {
+    if (!schemaKeys && !shouldIncludeScalarConfigDiffKey(key, currentConfig[key], incomingConfig[key])) continue;
     const current = formatConfigValue(currentConfig[key]);
     const incoming = formatConfigValue(incomingConfig[key]);
     if (current === incoming) continue;
     items.push({
       key,
-      label: formatConfigKeyLabel(effectType, key),
+      label: formatEffectConfigKeyLabel(effectType, key),
       current,
       incoming,
     });
   }
 
-  return items;
+  for (const key of complexKeys) {
+    const currentValue = currentConfig[key];
+    const incomingValue = incomingConfig[key];
+    if (!shouldIncludeComplexConfigDiffKey(key, currentValue, incomingValue)) continue;
+    if (JSON.stringify(currentValue) === JSON.stringify(incomingValue)) continue;
+    complexItems.push({
+      key,
+      label: formatEffectConfigKeyLabel(effectType, key),
+      kind: detectComplexConfigKind(currentValue ?? incomingValue),
+      currentSummary: summarizeComplexConfigValue(currentValue),
+      incomingSummary: summarizeComplexConfigValue(incomingValue),
+      currentRaw: formatComplexConfigValue(currentValue),
+      incomingRaw: formatComplexConfigValue(incomingValue),
+    });
+  }
+
+  return {
+    configItems: items,
+    complexConfigItems: complexItems,
+  };
 }
 
 export function getTemplateEffectDiffs(currentConfig: TemplateConfig | null, incomingConfig: TemplateConfig | null, showUnchangedEffects = true): EffectDiffItem[] {
   if (!currentConfig || !incomingConfig) return [];
 
   const result: EffectDiffItem[] = [];
-  const currentEffects = currentConfig.effects;
-  const incomingEffects = incomingConfig.effects;
+  const currentEffects = normalizeEffectEntries(currentConfig.effects);
+  const incomingEffects = normalizeEffectEntries(incomingConfig.effects);
   const currentUsed = new Set<number>();
   const incomingMatched = new Set<number>();
   const currentJson = currentEffects.map(effect => JSON.stringify(effect.config));
@@ -113,9 +163,10 @@ export function getTemplateEffectDiffs(currentConfig: TemplateConfig | null, inc
       if (currentEffect.type === incomingEffect.type && currentJson[currentIndex] === incomingJson) {
         result.push({
           type: incomingEffect.type,
-          label: incomingEffect.type,
+          label: getEffectDisplayLabel(incomingEffect),
           status: 'unchanged',
           configItems: [],
+          complexConfigItems: [],
         });
         currentUsed.add(currentIndex);
         incomingMatched.add(incomingIndex);
@@ -131,11 +182,13 @@ export function getTemplateEffectDiffs(currentConfig: TemplateConfig | null, inc
       if (currentUsed.has(currentIndex)) continue;
       const currentEffect = currentEffects[currentIndex];
       if (currentEffect.type === incomingEffect.type) {
+        const diffItems = getEffectConfigDiffItems(currentEffect.config as Record<string, unknown>, incomingEffect.config as Record<string, unknown>, incomingEffect.type);
         result.push({
           type: incomingEffect.type,
-          label: incomingEffect.type,
+          label: getEffectDisplayLabel(incomingEffect),
           status: 'modified',
-          configItems: getEffectConfigDiffItems(currentEffect.config as Record<string, unknown>, incomingEffect.config as Record<string, unknown>, incomingEffect.type),
+          configItems: diffItems.configItems,
+          complexConfigItems: diffItems.complexConfigItems,
         });
         currentUsed.add(currentIndex);
         incomingMatched.add(incomingIndex);
@@ -149,9 +202,10 @@ export function getTemplateEffectDiffs(currentConfig: TemplateConfig | null, inc
     const incomingEffect = incomingEffects[incomingIndex];
     result.push({
       type: incomingEffect.type,
-      label: incomingEffect.type,
+      label: getEffectDisplayLabel(incomingEffect),
       status: 'added',
       configItems: [],
+      complexConfigItems: [],
     });
   }
 
@@ -160,9 +214,10 @@ export function getTemplateEffectDiffs(currentConfig: TemplateConfig | null, inc
     const currentEffect = currentEffects[currentIndex];
     result.push({
       type: currentEffect.type,
-      label: currentEffect.type,
+      label: getEffectDisplayLabel(currentEffect),
       status: 'removed',
       configItems: [],
+      complexConfigItems: [],
     });
   }
 

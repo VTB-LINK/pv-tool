@@ -22,6 +22,9 @@
     "typescript-eslint": "^8.57.2",
     "vite": "^7.3.1"
   },
+    "overrides": {
+      "@xmldom/xmldom": "^0.8.12"
+    },
   "dependencies": {
     "jieba-wasm": "^2.4.0",
     "pixi.js": "^8.16.0"
