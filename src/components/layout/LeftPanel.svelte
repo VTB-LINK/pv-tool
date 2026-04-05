@@ -415,7 +415,7 @@
   .template-row {
     display: flex;
     gap: 6px;
-    align-items: center;
+    align-items: stretch;
   }
   .template-select {
     flex: 1;
@@ -424,7 +424,12 @@
   .edit-btn {
     flex-shrink: 0;
     font-size: 0.85rem !important;
-    padding: 4px 8px !important;
+    min-width: 42px;
+    padding: 0 10px !important;
+    border-radius: var(--pv-radius-sm) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .edit-btn.flashing {
     animation: flash-glow 0.5s ease 3;

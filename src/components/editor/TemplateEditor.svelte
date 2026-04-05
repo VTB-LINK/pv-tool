@@ -3,6 +3,9 @@
 <script lang="ts">
   import ExpandPanel from '../common/ExpandPanel.svelte';
   import { tick, untrack } from 'svelte';
+  import { cubicOut } from 'svelte/easing';
+  import { fade } from 'svelte/transition';
+  import type { TransitionConfig } from 'svelte/transition';
   import Section from '../common/Section.svelte';
   import UnsavedChangesDialog from '../common/UnsavedChangesDialog.svelte';
   import EffectConfigPane from './EffectConfigPane.svelte';
@@ -861,18 +864,27 @@
       toggleActiveEffect(index);
     }
   }
+
+  function slidePanel(_node: Element): TransitionConfig {
+    return {
+      duration: 250,
+      easing: cubicOut,
+      css: (t, u) => `transform: translateX(${u * 100}%); opacity: ${0.55 + t * 0.45};`,
+    };
+  }
 </script>
 
 {#if visible}
   <div
     class="editor-overlay"
+    transition:fade={{ duration: 180 }}
     role="button"
     tabindex="0"
     aria-label={t('cancel')}
     onclick={closeEditor}
     onkeydown={handleOverlayKeydown}
   ></div>
-  <div class="editor-panel">
+  <div class="editor-panel" transition:slidePanel>
     <div class="editor-header">
       <h3 class="editor-title">🎨 {t('template_editor')}</h3>
       <div class="header-actions">
@@ -1016,14 +1028,17 @@
         {/if}
       </div>
 
-      <button class="pv-btn btn add-btn" onclick={() => showCatalog = !showCatalog}>
+      <button class="pv-btn btn add-btn" type="button" onclick={() => showCatalog = !showCatalog}>
         {showCatalog ? '▾ ' + t('hide_catalog') : '+ ' + t('add_effect')}
       </button>
     </Section>
 
     <!-- Effect Catalog -->
     {#if showCatalog}
-      <Section label={t('effect_catalog')} open={true}>
+      <div class="catalog-panel" role="region" aria-label={t('effect_catalog')}>
+        <div class="catalog-panel-header">
+          <span class="catalog-panel-title">{t('effect_catalog')}</span>
+        </div>
         <input
           type="text"
           class="search-input"
@@ -1049,7 +1064,7 @@
             </div>
           {/each}
         </div>
-      </Section>
+      </div>
     {/if}
 
     <!-- Save / Import / Export -->
@@ -1267,7 +1282,6 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    animation: slideInRight 0.25s var(--pv-ease);
   }
 
   .template-actions-anchor {
@@ -1395,11 +1409,6 @@
     font-size: 0.68rem;
     color: var(--pv-text-muted);
     line-height: 1.5;
-  }
-
-  @keyframes slideInRight {
-    from { transform: translateX(100%); }
-    to { transform: translateX(0); }
   }
 
   .editor-header {
@@ -1683,6 +1692,31 @@
     width: 100%;
     text-align: center;
     margin-top: 6px;
+  }
+
+  .catalog-panel {
+    margin-top: 8px;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--pv-border);
+    border-radius: var(--pv-radius-md);
+    background: var(--pv-bg-elevated);
+    animation: fadeIn 0.15s ease;
+  }
+
+  .catalog-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .catalog-panel-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pv-text-muted);
   }
 
   /* Search */
