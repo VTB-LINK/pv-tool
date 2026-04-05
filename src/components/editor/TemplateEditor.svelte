@@ -980,6 +980,8 @@
       </div>
     </div>
 
+    <div class="editor-body">
+
     <!-- Palette Section -->
     <Section label={t('palette')}>
       {#snippet action()}
@@ -1328,6 +1330,7 @@
       {/if}
       </Section>
     </div>
+    </div>
   </div>
 {/if}
 
@@ -1394,11 +1397,20 @@
     backdrop-filter: blur(24px) saturate(1.4);
     border-left: 1px solid var(--pv-border);
     box-shadow: var(--pv-shadow-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .editor-body {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
-    padding: 16px;
+    padding: 8px 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    overscroll-behavior: contain;
   }
 
   .template-actions-anchor {
@@ -1532,9 +1544,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 8px;
+    flex-shrink: 0;
+    padding: 16px 16px 8px;
+    background: var(--pv-bg-surface);
     border-bottom: 1px solid var(--pv-border);
-    margin-bottom: 8px;
   }
 
   .editor-title {
