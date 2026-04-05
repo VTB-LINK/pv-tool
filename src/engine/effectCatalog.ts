@@ -766,6 +766,7 @@ export function normalizeEffectConfig(effect: EffectDescriptor): Record<string, 
 export function normalizeEffectEntry(entry: EffectEntry): EffectEntry {
   return {
     ...entry,
+    visible: entry.visible !== false,
     config: normalizeEffectConfig(entry),
   };
 }
@@ -789,9 +790,10 @@ export function compactEffectConfig(effect: EffectDescriptor): Record<string, an
 }
 
 export function compactEffectEntry(entry: EffectEntry): EffectEntry {
+  const normalized = normalizeEffectEntry(entry);
   return {
-    ...entry,
-    config: compactEffectConfig(entry),
+    ...normalized,
+    config: compactEffectConfig(normalized),
   };
 }
 

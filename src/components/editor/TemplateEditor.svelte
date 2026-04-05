@@ -18,6 +18,7 @@
     loadTemplateWithOptions, addCustomTemplate, overwriteCurrentToCustomTemplate, renameCustomTemplate, updateCustomTemplate,
     markEditorDirty,
     resetPalette, resetEffects,
+    setEffectVisible,
     setMediaOutline, setAutoExtractColors, setMotionDetection, setInvertMedia, setThresholdMedia,
   } from '../../stores/engine.svelte';
   import type { MissingMode, SaveTemplateOptions } from '../../stores/engine.svelte';
@@ -127,10 +128,10 @@
     const curMatched = new Set<number>();
 
     // Pass 1: exact type + config → 'original'
-    const baseJsons = baseEffects.map(b => JSON.stringify(b.config));
+    const baseJsons = baseEffects.map(b => JSON.stringify({ config: b.config, visible: b.visible !== false }));
     for (let ci = 0; ci < currentEffects.length; ci++) {
       const cur = currentEffects[ci];
-      const curJson = JSON.stringify(cur.config);
+      const curJson = JSON.stringify({ config: cur.config, visible: cur.visible !== false });
       for (let bi = 0; bi < baseEffects.length; bi++) {
         if (baseUsed.has(bi)) continue;
         if (baseEffects[bi].type === cur.type && baseJsons[bi] === curJson) {
@@ -217,6 +218,7 @@
       if (!other) return false;
       return effect.type === other.type
         && effect.layer === other.layer
+        && (effect.visible !== false) === (other.visible !== false)
         && JSON.stringify(effect.config) === JSON.stringify(other.config);
     });
   }
@@ -237,7 +239,7 @@
     const effects = normalizeEffectEntries(tpl.effects);
     return JSON.stringify({
       palette: tpl.palette,
-      effects: effects.map(effect => ({ type: effect.type, layer: effect.layer, config: effect.config })),
+      effects: effects.map(effect => ({ type: effect.type, layer: effect.layer, config: effect.config, visible: effect.visible !== false })),
       segmentDuration: tpl.segmentDuration,
       bpm: tpl.bpm,
       beatReactivity: tpl.beatReactivity,
@@ -383,6 +385,16 @@
     } catch (err) {
       console.warn('[TemplateEditor] updateConfig failed:', err);
     }
+  }
+
+  function toggleEffectVisibility(index: number) {
+    const effect = getCurrentEffects()[index];
+    if (!effect) return;
+    const nextVisible = effect.visible === false;
+    setEffectVisible(index, nextVisible);
+    effectsVersion++;
+    markEditorDirty();
+    showToast(nextVisible ? t('effect_shown') : t('effect_hidden'));
   }
 
   function handlePaletteChange(key: keyof ColorPalette, color: string) {
@@ -1079,6 +1091,7 @@
           {@const version = getEffectVersion(effect.type)}
           <div
             class="effect-item effect-origin-{origin}"
+            class:hidden={effect.visible === false}
             class:active={activeEffectIndex === i}
             role="button"
             tabindex="0"
@@ -1093,6 +1106,15 @@
             </div>
             <span class="effect-version-badge" class:v2={version === 2}>V{version}</span>
             <div class="effect-actions">
+              <button class="pv-btn-icon icon-btn vis-toggle-btn" title={effect.visible === false ? t('show_effect') : t('hide_effect')} onclick={(e: MouseEvent) => { e.stopPropagation(); toggleEffectVisibility(i); }}>
+                <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
+                  {#if effect.visible === false}
+                    <path d="M2.5 2.5l15 15M10 4c-1.4 0-2.7.4-3.8 1L8 6.8A4 4 0 0 1 13.2 12l2 2c1.6-1.2 3-2.8 3.8-4-1.5-2.7-4.8-6-9-6zM1 10s1.4-2.7 3.8-4.2l1.8 1.8A4 4 0 0 0 12.4 13.4l1.8 1.8C12.7 16.6 11.4 16 10 16c-5.5 0-9-6-9-6z"/>
+                  {:else}
+                    <path d="M10 4C4.5 4 1 10 1 10s3.5 6 9 6 9-6 9-6-3.5-6-9-6zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+                  {/if}
+                </svg>
+              </button>
               <button class="pv-btn-icon icon-btn" title="Move up" onclick={(e: MouseEvent) => { e.stopPropagation(); moveEffect(i, -1); }}>↑</button>
               <button class="pv-btn-icon icon-btn" title="Move down" onclick={(e: MouseEvent) => { e.stopPropagation(); moveEffect(i, 1); }}>↓</button>
               <button class="pv-btn-icon pv-btn-icon-danger icon-btn danger" title="Remove" onclick={(e: MouseEvent) => { e.stopPropagation(); removeEffect(i); }}>✕</button>
@@ -1788,6 +1810,20 @@
   }
   .effect-item:hover .effect-actions,
   .effect-item.active .effect-actions { opacity: 1; }
+
+  .effect-item.hidden {
+    opacity: 0.58;
+  }
+
+  .effect-item.hidden .effect-label,
+  .effect-item.hidden .effect-type {
+    text-decoration: line-through;
+  }
+
+  .vis-toggle-btn svg {
+    display: block;
+    margin-top: 2px;
+  }
 
   /* Effects origin coloring */
   .effect-origin-modified {

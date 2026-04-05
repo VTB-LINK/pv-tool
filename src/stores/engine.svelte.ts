@@ -207,7 +207,7 @@ function serializeTemplateForDirtyCheck(tpl: TemplateConfig | null): string {
   const effects = normalizeEffectEntries(tpl.effects);
   return JSON.stringify({
     palette: tpl.palette,
-    effects: effects.map(effect => ({ type: effect.type, layer: effect.layer, config: effect.config })),
+    effects: effects.map(effect => ({ type: effect.type, layer: effect.layer, config: effect.config, visible: effect.visible !== false })),
     segmentDuration: tpl.segmentDuration,
     bpm: tpl.bpm,
     beatReactivity: tpl.beatReactivity,
@@ -256,6 +256,7 @@ function buildLoadedTemplateSnapshot(tpl: TemplateConfig | null): TemplateConfig
       type: e.type,
       layer: e.layer,
       config: { ...e.config },
+      visible: e.visible !== false,
     })),
     segmentDuration: _engine.segmentDuration,
     bpm: _engine.beat.bpm,
@@ -435,6 +436,11 @@ export function resetEffects() {
   syncFromEngine();
 }
 
+export function setEffectVisible(index: number, visible: boolean) {
+  if (!_engine) return;
+  _engine.updateEffectVisibility(index, visible);
+}
+
 export function selectCustomTemplate(index: number) {
   if (!_engine) return;
   _currentTemplateIndex = -1;
@@ -524,6 +530,7 @@ function buildCurrentTemplateSnapshot(name: string, options?: SaveTemplateOption
     type: e.type,
     layer: e.layer,
     config: { ...e.config },
+    visible: e.visible !== false,
   })));
   const palette = _engine.currentPalette
     ? { ..._engine.currentPalette }
@@ -713,6 +720,7 @@ export function getCurrentTemplateConfig(): TemplateConfig | null {
     type: e.type,
     layer: e.layer,
     config: { ...e.config },
+    visible: e.visible !== false,
   }));
   const palette = _engine.currentPalette
     ? { ..._engine.currentPalette }

@@ -118,6 +118,7 @@ function cloneTemplate(template: TemplateConfig): TemplateConfig {
     palette: { ...template.palette },
     effects: template.effects.map(effect => ({
       ...effect,
+      visible: effect.visible !== false,
       config: { ...effect.config },
     })),
     postfx: template.postfx ? { ...template.postfx } : undefined,

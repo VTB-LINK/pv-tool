@@ -182,6 +182,21 @@
                   <span class="diff-effect-badge">{t(ed.status === 'added' ? 'diff_effect_added' : ed.status === 'removed' ? 'diff_effect_removed' : ed.status === 'modified' ? 'diff_effect_modified' : 'diff_effect_unchanged')}</span>
                   <span class="diff-effect-name">{ed.label}</span>
                 </div>
+                {#if ed.visibilityChanged}
+                  <div class="diff-visibility-row">
+                    <svg class="diff-vis-icon" viewBox="0 0 20 20" fill="currentColor" width="14" height="14">{#if ed.currentVisible}<path d="M10 4C4.5 4 1 10 1 10s3.5 6 9 6 9-6 9-6-3.5-6-9-6zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>{:else}<path d="M2.5 2.5l15 15M10 4c-1.4 0-2.7.4-3.8 1L8 6.8A4 4 0 0 1 13.2 12l2 2c1.6-1.2 3-2.8 3.8-4-1.5-2.7-4.8-6-9-6zM1 10s1.4-2.7 3.8-4.2l1.8 1.8A4 4 0 0 0 12.4 13.4l1.8 1.8C12.7 16.6 11.4 16 10 16c-5.5 0-9-6-9-6z"/>{/if}</svg>
+                    <span>{ed.currentVisible ? t('diff_visibility_visible') : t('diff_visibility_hidden')}</span>
+                    <span class="diff-vis-arrow">→</span>
+                    <svg class="diff-vis-icon" viewBox="0 0 20 20" fill="currentColor" width="14" height="14">{#if ed.incomingVisible}<path d="M10 4C4.5 4 1 10 1 10s3.5 6 9 6 9-6 9-6-3.5-6-9-6zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>{:else}<path d="M2.5 2.5l15 15M10 4c-1.4 0-2.7.4-3.8 1L8 6.8A4 4 0 0 1 13.2 12l2 2c1.6-1.2 3-2.8 3.8-4-1.5-2.7-4.8-6-9-6zM1 10s1.4-2.7 3.8-4.2l1.8 1.8A4 4 0 0 0 12.4 13.4l1.8 1.8C12.7 16.6 11.4 16 10 16c-5.5 0-9-6-9-6z"/>{/if}</svg>
+                    <span>{ed.incomingVisible ? t('diff_visibility_visible') : t('diff_visibility_hidden')}</span>
+                  </div>
+                {/if}
+                {#if !ed.visibilityChanged && ed.status === 'added' && ed.incomingVisible === false}
+                  <div class="diff-visibility-row diff-vis-hidden-note">
+                    <svg class="diff-vis-icon" viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M2.5 2.5l15 15M10 4c-1.4 0-2.7.4-3.8 1L8 6.8A4 4 0 0 1 13.2 12l2 2c1.6-1.2 3-2.8 3.8-4-1.5-2.7-4.8-6-9-6zM1 10s1.4-2.7 3.8-4.2l1.8 1.8A4 4 0 0 0 12.4 13.4l1.8 1.8C12.7 16.6 11.4 16 10 16c-5.5 0-9-6-9-6z"/></svg>
+                    <span>{t('diff_visibility_hidden')}</span>
+                  </div>
+                {/if}
                 {#if ed.status === 'modified' && ed.configItems.length > 0}
                   <table class="diff-table effect-diff-table">
                     <colgroup>
@@ -453,6 +468,29 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .diff-visibility-row {
+    margin-top: 6px;
+    font-size: 0.68rem;
+    color: #f0bf64;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .diff-vis-icon {
+    flex-shrink: 0;
+  }
+
+  .diff-vis-arrow {
+    margin: 0 2px;
+    opacity: 0.6;
+  }
+
+  .diff-vis-hidden-note {
+    color: var(--pv-text-muted, #888);
   }
 
   .diff-effect-badge {
