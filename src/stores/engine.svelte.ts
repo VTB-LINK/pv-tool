@@ -643,6 +643,45 @@ export function updateCustomTemplate(index: number, tpl: TemplateConfig) {
   saveCustomTemplates(_customTemplates);
 }
 
+export function renameCustomTemplate(index: number, name: string): string | null {
+  if (index < 0 || index >= _customTemplates.length) return null;
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+
+  const existing = _customTemplates[index];
+  if (!existing) return null;
+
+  const renamed = cloneTemplate(existing);
+  renamed.name = trimmed;
+  renamed.lastModified = Date.now();
+
+  _customTemplates[index] = renamed;
+  _customTemplates = [..._customTemplates];
+  saveCustomTemplates(_customTemplates);
+
+  if (_loadedCustomIndex === index) {
+    if (_loadedTemplateSnapshot) {
+      _loadedTemplateSnapshot = {
+        ..._loadedTemplateSnapshot,
+        name: trimmed,
+        lastModified: renamed.lastModified,
+      };
+    }
+
+    const baseline = _resetBaselineSnapshot
+      ? {
+        ..._resetBaselineSnapshot,
+        name: trimmed,
+        lastModified: renamed.lastModified,
+      }
+      : renamed;
+
+    setResetBaselineSnapshot(baseline);
+  }
+
+  return trimmed;
+}
+
 export async function exportShareCode(index: number): Promise<string> {
   return encodeShareCode(_customTemplates[index]);
 }

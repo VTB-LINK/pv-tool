@@ -15,7 +15,7 @@
     saveCurrentAsTemplate, deleteCustomTemplate,
     exportShareCode,
     getCurrentTemplateConfig, getResetBaselineConfig,
-    loadTemplateWithOptions, addCustomTemplate, overwriteCurrentToCustomTemplate, updateCustomTemplate,
+    loadTemplateWithOptions, addCustomTemplate, overwriteCurrentToCustomTemplate, renameCustomTemplate, updateCustomTemplate,
     markEditorDirty,
     resetPalette, resetEffects,
     setMediaOutline, setAutoExtractColors, setMotionDetection, setInvertMedia, setThresholdMedia,
@@ -65,6 +65,11 @@
 
   // Share dropdown
   let shareMenuIndex = $state<number | null>(null);
+  let renameIndex = $state<number | null>(null);
+  let renameValue = $state('');
+  let renameInput = $state<HTMLInputElement | null>(null);
+  let renameConflictArmed = $state(false);
+  let renameConflictSuggested = $state('');
 
   // Delete confirmation
   let deleteConfirmIndex = $state<number | null>(null);
@@ -468,6 +473,87 @@
     return candidate;
   }
 
+  function getTemplateRenameConflictIndex(index: number, name: string): number | null {
+    const normalized = normalizeTemplateName(name);
+    if (!normalized) return null;
+    const matchedIndex = engine.customTemplates.findIndex((template, templateIndex) => {
+      if (templateIndex === index) return false;
+      return normalizeTemplateName(template.name) === normalized;
+    });
+    return matchedIndex >= 0 ? matchedIndex : null;
+  }
+
+  function resetRenameState() {
+    renameIndex = null;
+    renameValue = '';
+    renameConflictArmed = false;
+    renameConflictSuggested = '';
+  }
+
+  function openRenameTemplate(index: number) {
+    const template = engine.customTemplates[index];
+    if (!template) return;
+
+    renameIndex = index;
+    renameValue = template.name;
+    renameConflictArmed = false;
+    renameConflictSuggested = '';
+    shareMenuIndex = null;
+    deleteConfirmIndex = null;
+
+    void tick().then(() => {
+      renameInput?.focus();
+      renameInput?.select();
+    });
+  }
+
+  function handleRenameInput() {
+    renameConflictArmed = false;
+    renameConflictSuggested = '';
+  }
+
+  function getRenameHint(): string | null {
+    if (renameIndex === null || !renameConflictArmed || !renameConflictSuggested) return null;
+    return `${t('rename_conflict_exists')} ${t('rename_conflict_retry_auto')} "${renameConflictSuggested}"`;
+  }
+
+  function handleRenameSave(index: number) {
+    const template = engine.customTemplates[index];
+    if (!template) return;
+
+    const trimmed = renameValue.trim();
+    if (!trimmed) return;
+
+    const sameNormalized = normalizeTemplateName(trimmed) === normalizeTemplateName(template.name);
+    if (!sameNormalized) {
+      const duplicateIndex = getTemplateRenameConflictIndex(index, trimmed);
+      if (duplicateIndex !== null) {
+        const suggestedName = getNextAvailableTemplateName(trimmed);
+        if (!renameConflictArmed || renameConflictSuggested !== suggestedName) {
+          renameConflictArmed = true;
+          renameConflictSuggested = suggestedName;
+          return;
+        }
+
+        const autoRenamed = renameCustomTemplate(index, suggestedName);
+        if (!autoRenamed) return;
+        resetRenameState();
+        showToast(`${t('renamed_to')} ${autoRenamed}`);
+        return;
+      }
+    }
+
+    if (trimmed === template.name) {
+      resetRenameState();
+      return;
+    }
+
+    const renamed = renameCustomTemplate(index, trimmed);
+    if (!renamed) return;
+    resetRenameState();
+    showToast(`${t('renamed_to')} ${renamed}`);
+  }
+
   function handleSaveAction() {
     if (!saveName.trim()) return;
     const exactMatchIndex = getExactSaveMatchIndex();
@@ -719,6 +805,7 @@
   function handleLoadCustomTemplate(index: number) {
     const tpl = engine.customTemplates[index];
     if (!tpl) return;
+    resetRenameState();
     guardEditorSwitch(() => openEditorDialog('load-custom', tpl, index));
   }
 
@@ -1170,14 +1257,44 @@
           {#each engine.customTemplates as ct, i}
             <div class="custom-item-card" title={getTemplateSummaryTitle(ct)}>
               <div class="custom-item-row">
-                <span class="custom-name">⭐ {ct.name}</span>
-                <div class="custom-actions">
-                  <button class="pv-btn-icon icon-btn" title={t('load_template')} onclick={() => handleLoadCustomTemplate(i)}>▶</button>
-                  <button class="pv-btn-icon icon-btn" title={t('share')} onclick={() => toggleShareMenu(i)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                  </button>
-                  <button class="pv-btn-icon pv-btn-icon-danger icon-btn danger" title={t('delete_tpl')} onclick={() => deleteConfirmIndex = i}>✕</button>
-                </div>
+                {#if renameIndex === i}
+                  <div class="custom-rename-box">
+                    <input
+                      type="text"
+                      class="pv-input pv-input-compact custom-rename-input"
+                      placeholder={t('tpl_name_placeholder')}
+                      bind:this={renameInput}
+                      bind:value={renameValue}
+                      oninput={handleRenameInput}
+                      onkeydown={(event: KeyboardEvent) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          handleRenameSave(i);
+                        } else if (event.key === 'Escape') {
+                          event.preventDefault();
+                          resetRenameState();
+                        }
+                      }}
+                    />
+                    {#if getRenameHint()}
+                      <span class="custom-rename-hint">{getRenameHint()}</span>
+                    {/if}
+                  </div>
+                  <div class="custom-actions custom-actions-visible">
+                    <button class="pv-btn-icon icon-btn" title={t('save')} onclick={() => handleRenameSave(i)}>✓</button>
+                    <button class="pv-btn-icon icon-btn" title={t('cancel')} onclick={resetRenameState}>✕</button>
+                  </div>
+                {:else}
+                  <span class="custom-name">⭐ {ct.name}</span>
+                  <div class="custom-actions" class:custom-actions-visible={shareMenuIndex === i || deleteConfirmIndex === i}>
+                    <button class="pv-btn-icon icon-btn" title={t('load_template')} onclick={() => handleLoadCustomTemplate(i)}>▶</button>
+                    <button class="pv-btn-icon icon-btn" title={t('rename_template')} onclick={() => openRenameTemplate(i)}>✎</button>
+                    <button class="pv-btn-icon icon-btn" title={t('share')} onclick={() => { resetRenameState(); toggleShareMenu(i); }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    </button>
+                    <button class="pv-btn-icon pv-btn-icon-danger icon-btn danger" title={t('delete_tpl')} onclick={() => { resetRenameState(); deleteConfirmIndex = i; }}>✕</button>
+                  </div>
+                {/if}
               </div>
               <div class="custom-item-meta">
                 <span class="custom-base">{ct.baseTemplateName ? t('based_on') + ' ' + getBaseDisplayName(ct) : t('custom_from_scratch')}</span>
@@ -1851,6 +1968,22 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .custom-rename-box {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: 4px;
+  }
+  .custom-rename-input {
+    width: 100%;
+    min-width: 0;
+  }
+  .custom-rename-hint {
+    font-size: 0.62rem;
+    color: var(--pv-text-muted);
+    line-height: 1.35;
+  }
   .custom-actions {
     display: flex;
     gap: 2px;
@@ -1859,6 +1992,7 @@
     transition: opacity 0.15s;
   }
   .custom-item-card:hover .custom-actions { opacity: 1; }
+  .custom-actions-visible { opacity: 1; }
   .custom-item-meta {
     display: flex;
     justify-content: space-between;
