@@ -1,6 +1,7 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
+  import ExpandPanel from '../common/ExpandPanel.svelte';
   import type { MissingMode } from '../../stores/engine.svelte';
   import { getTemplateEffectDiffs, getTemplateParamDiffGroups } from '../../services/templateDiff';
   import type { TemplateConfig } from '../../types/engine';
@@ -64,6 +65,7 @@
       label: getEffectDisplayLabel(item),
     }))
   );
+  let expandedComplexKeys = $state<Record<string, boolean>>({});
 
   function getPaletteDiff(): PaletteDiff[] {
     if (!currentConfig?.palette || !incomingConfig?.palette) return [];
@@ -76,6 +78,36 @@
   function hasMissingParams() {
     return paramDiffGroups.some(group => group.items.some(item => item.missing));
   }
+
+  function getEffectCardKey(index: number, effectType: string) {
+    return `${index}:${effectType}`;
+  }
+
+  function isComplexExpanded(index: number, effectType: string) {
+    return !!expandedComplexKeys[getEffectCardKey(index, effectType)];
+  }
+
+  function toggleComplexExpanded(index: number, effectType: string) {
+    const key = getEffectCardKey(index, effectType);
+    expandedComplexKeys = {
+      ...expandedComplexKeys,
+      [key]: !expandedComplexKeys[key],
+    };
+  }
+
+  function getComplexToggleLabel(count: number, expanded: boolean) {
+    return `${expanded ? t('collapse') : t('expand')} ${t('diff_effect_complex')} (${count})`;
+  }
+
+  function getComplexKindLabel(kind: 'array' | 'object') {
+    return kind === 'array' ? t('diff_effect_array') : t('diff_effect_object');
+  }
+
+  $effect(() => {
+    if (!visible) {
+      expandedComplexKeys = {};
+    }
+  });
 
   function handleConfirm() {
     if (requireName && !importName.trim()) return;
@@ -144,7 +176,7 @@
         <div class="diff-section">
           <span class="diff-section-label">{t('effects_list')}</span>
           <div class="diff-effect-list">
-            {#each effectDiffs as ed}
+            {#each effectDiffs as ed, index}
               <div class="diff-effect-card" class:added={ed.status === 'added'} class:removed={ed.status === 'removed'} class:modified={ed.status === 'modified'} class:unchanged={ed.status === 'unchanged'}>
                 <div class="diff-effect-header">
                   <span class="diff-effect-badge">{t(ed.status === 'added' ? 'diff_effect_added' : ed.status === 'removed' ? 'diff_effect_removed' : ed.status === 'modified' ? 'diff_effect_modified' : 'diff_effect_unchanged')}</span>
@@ -174,6 +206,42 @@
                       {/each}
                     </tbody>
                   </table>
+                {/if}
+                {#if ed.status === 'modified' && ed.complexConfigItems.length > 0}
+                  <button class="complex-toggle-btn" type="button" onclick={() => toggleComplexExpanded(index, ed.type)}>
+                    {getComplexToggleLabel(ed.complexConfigItems.length, isComplexExpanded(index, ed.type))}
+                  </button>
+                  <ExpandPanel visible={isComplexExpanded(index, ed.type)} padding="8px" gap="8px" marginTop="8px">
+                    <div class="complex-section-title">{t('diff_effect_complex')}</div>
+                    {#each ed.complexConfigItems as item}
+                      <div class="complex-item-card">
+                        <div class="complex-item-header">
+                          <span class="complex-item-name">{item.label}</span>
+                          <span class="complex-item-kind">{getComplexKindLabel(item.kind)}</span>
+                        </div>
+                        <div class="complex-summary-grid">
+                          <div class="complex-summary-col">
+                            <span class="complex-summary-label">{t('diff_current')}</span>
+                            <span class="complex-summary-value">{item.currentSummary}</span>
+                          </div>
+                          <div class="complex-summary-col">
+                            <span class="complex-summary-label">{t('diff_after')}</span>
+                            <span class="complex-summary-value">{item.incomingSummary}</span>
+                          </div>
+                        </div>
+                        <div class="complex-raw-grid">
+                          <div class="complex-raw-col">
+                            <div class="complex-raw-label">{t('diff_current')}</div>
+                            <pre class="complex-raw-pre">{item.currentRaw}</pre>
+                          </div>
+                          <div class="complex-raw-col">
+                            <div class="complex-raw-label">{t('diff_after')}</div>
+                            <pre class="complex-raw-pre">{item.incomingRaw}</pre>
+                          </div>
+                        </div>
+                      </div>
+                    {/each}
+                  </ExpandPanel>
                 {/if}
               </div>
             {/each}
@@ -411,6 +479,101 @@
     margin-top: 8px;
   }
 
+  .complex-toggle-btn {
+    margin-top: 8px;
+    border: 0;
+    background: transparent;
+    color: var(--pv-accent, #86a8ff);
+    font-size: 0.68rem;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .complex-toggle-btn:hover {
+    text-decoration: underline;
+  }
+
+  .complex-section-title {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--pv-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .complex-item-card {
+    border: 1px solid var(--pv-border);
+    border-radius: var(--pv-radius-sm);
+    background: rgba(255, 255, 255, 0.02);
+    padding: 8px;
+  }
+
+  .complex-item-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .complex-item-name {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--pv-text);
+  }
+
+  .complex-item-kind {
+    font-size: 0.62rem;
+    color: var(--pv-text-muted);
+    text-transform: uppercase;
+  }
+
+  .complex-summary-grid,
+  .complex-raw-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .complex-summary-grid {
+    margin-bottom: 8px;
+  }
+
+  .complex-summary-col,
+  .complex-raw-col {
+    min-width: 0;
+  }
+
+  .complex-summary-label,
+  .complex-raw-label {
+    display: block;
+    font-size: 0.62rem;
+    color: var(--pv-text-muted);
+    margin-bottom: 4px;
+  }
+
+  .complex-summary-value {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--pv-text-secondary);
+    line-height: 1.35;
+  }
+
+  .complex-raw-pre {
+    margin: 0;
+    padding: 8px;
+    max-height: 160px;
+    overflow: auto;
+    border-radius: var(--pv-radius-sm);
+    background: rgba(0, 0, 0, 0.18);
+    color: var(--pv-text-secondary);
+    font-size: 0.62rem;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+
   .diff-palette {
     display: flex;
     flex-direction: column;
@@ -532,5 +695,10 @@
 
   @media (max-width: 768px) {
     .diff-dialog { width: 90vw; }
+
+    .complex-summary-grid,
+    .complex-raw-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

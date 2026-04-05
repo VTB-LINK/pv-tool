@@ -51,7 +51,7 @@
     font-size: 0.7rem;
     font-weight: 500;
     color: var(--pv-text-secondary);
-    text-transform: uppercase;
+    text-transform: capitalize;
     letter-spacing: 0.5px;
   }
 

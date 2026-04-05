@@ -1,15 +1,19 @@
 <!-- VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE -->
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
+  import ColorValueControl from '../common/ColorValueControl.svelte';
   import Slider from '../common/Slider.svelte';
+  import StringArrayValueControl from '../common/StringArrayValueControl.svelte';
   import { t } from '../../i18n';
   import type { ConfigField } from '../../effects/v2/schema';
   import { resolveLocalized } from '../../effects/v2/schema';
+  import { getEditableStringArrayConfigEntries, getScalarConfigEntries } from '../../services/effectConfigFields';
 
   let {
     config = $bindable<Record<string, any>>({}),
     onchange = (_key: string, _value: any) => {},
     schema = undefined as ConfigField[] | undefined,
+    effectType = '',
   } = $props();
 
   // ── V2 schema mode ──
@@ -70,15 +74,14 @@
     return { min: 0, max: magnitude * 3, step: magnitude > 10 ? 1 : 0.1 };
   }
 
-  const paletteColors = ['$primary', '$secondary', '$accent', '$text', '$background'];
+  const paletteColors = ['$primary', '$secondary', '$accent', '$text', '$background', '$line'];
 
-  function sortedFields(cfg: Record<string, any>): [string, any][] {
-    return Object.entries(cfg).filter(([k, v]) => {
-      if (k.startsWith('_')) return false;
-      if (Array.isArray(v)) return false;
-      if (typeof v === 'object' && v !== null) return false;
-      return true;
-    });
+  function getDefaultPaletteValue(value: unknown): string {
+    return typeof value === 'string' && value.startsWith('$') ? value : '$primary';
+  }
+
+  function getDefaultCustomColor(value: unknown): string {
+    return typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value) ? value : '#ffffff';
   }
 
   function label(key: string): string {
@@ -114,37 +117,20 @@
 
           {:else if ft.kind === 'color'}
             <div class="field-row">
-              <span class="field-label">{resolveLocalized(field.label)}</span>
-              <div class="color-input-wrap">
-                {#if ft.paletteRef && (val as string).startsWith('$')}
-                  <select
-                    class="pv-select pv-select-compact pv-select-mono"
-                    value={val}
-                    onchange={(e: Event) => handleChange(field.key, (e.target as HTMLSelectElement).value)}
-                  >
-                    {#each paletteColors as pc}
-                      <option value={pc}>{pc}</option>
-                    {/each}
-                    <option value="">自定义颜色</option>
-                  </select>
-                {:else}
-                  <input
-                    type="color"
-                    value={val}
-                    oninput={(e: Event) => handleChange(field.key, (e.target as HTMLInputElement).value)}
-                    class="color-input"
-                  />
-                  <span class="color-hex">{val}</span>
-                  {#if ft.paletteRef}
-                    <button class="palette-switch" onclick={() => handleChange(field.key, '$primary')} title="使用调色板">🎨</button>
-                  {/if}
-                {/if}
-              </div>
+              <span class="field-label" title={resolveLocalized(field.label)}>{resolveLocalized(field.label)}</span>
+              <ColorValueControl
+                value={val as string}
+                allowPalette={Boolean(ft.paletteRef)}
+                paletteOptions={paletteColors}
+                defaultPaletteValue={getDefaultPaletteValue(ft.default)}
+                defaultCustomValue={getDefaultCustomColor(ft.default)}
+                onchange={(nextValue: string) => handleChange(field.key, nextValue)}
+              />
             </div>
 
           {:else if ft.kind === 'string' && ft.options}
             <div class="field-row">
-              <span class="field-label">{resolveLocalized(field.label)}</span>
+              <span class="field-label" title={resolveLocalized(field.label)}>{resolveLocalized(field.label)}</span>
               <select
                 class="pv-select pv-select-compact pv-select-mono"
                 value={val}
@@ -158,7 +144,7 @@
 
           {:else if ft.kind === 'string' || ft.kind === 'font'}
             <div class="field-row">
-              <span class="field-label">{resolveLocalized(field.label)}</span>
+              <span class="field-label" title={resolveLocalized(field.label)}>{resolveLocalized(field.label)}</span>
               <input
                 type="text"
                 class="pv-input pv-input-compact pv-control-grow"
@@ -168,13 +154,13 @@
             </div>
 
           {:else if ft.kind === 'boolean'}
-            <label class="pv-check-row toggle-field">
+            <label class="field-row toggle-field">
+              <span class="field-label" title={resolveLocalized(field.label)}>{resolveLocalized(field.label)}</span>
               <input
                 type="checkbox"
                 checked={val}
                 onchange={(e: Event) => handleChange(field.key, (e.target as HTMLInputElement).checked)}
               />
-              <span class="pv-check-text">{resolveLocalized(field.label)}</span>
             </label>
 
           {:else if ft.kind === 'vec2'}
@@ -200,37 +186,34 @@
       {/each}
     {/each}
 
+    {#each getEditableStringArrayConfigEntries(effectType, config) as arrayField}
+      <div class="field-card">
+        <span class="field-card-label">{arrayField.label}</span>
+        <StringArrayValueControl
+          value={arrayField.value}
+          options={arrayField.options}
+          allowCustom={arrayField.allowCustom}
+          onchange={(nextValue: string[]) => handleChange(arrayField.key, nextValue)}
+        />
+      </div>
+    {/each}
+
   {:else}
     <!-- ═══ V1 Heuristic fallback ═══ -->
-    {#each sortedFields(config) as [key, value]}
+    {#each getScalarConfigEntries(config) as [key, value]}
       {@const kind = detectKind(key, value)}
       <div class="field">
-        {#if kind === 'color'}
+        {#if kind === 'color' || kind === 'palette-ref'}
           <div class="field-row">
-            <span class="field-label">{label(key)}</span>
-            <div class="color-input-wrap">
-              <input
-                type="color"
-                value={value}
-                oninput={(e: Event) => handleChange(key, (e.target as HTMLInputElement).value)}
-                class="color-input"
-              />
-              <span class="color-hex">{value}</span>
-            </div>
-          </div>
-
-        {:else if kind === 'palette-ref'}
-          <div class="field-row">
-            <span class="field-label">{label(key)}</span>
-            <select
-              class="pv-select pv-select-compact pv-select-mono"
-              value={value}
-              onchange={(e: Event) => handleChange(key, (e.target as HTMLSelectElement).value)}
-            >
-              {#each paletteColors as pc}
-                <option value={pc}>{pc}</option>
-              {/each}
-            </select>
+            <span class="field-label" title={label(key)}>{label(key)}</span>
+            <ColorValueControl
+              value={value as string}
+              allowPalette={true}
+              paletteOptions={paletteColors}
+              defaultPaletteValue={getDefaultPaletteValue(value)}
+              defaultCustomValue={getDefaultCustomColor(value)}
+              onchange={(nextValue: string) => handleChange(key, nextValue)}
+            />
           </div>
 
         {:else if kind === 'number'}
@@ -257,18 +240,18 @@
           />
 
         {:else if kind === 'boolean'}
-          <label class="pv-check-row toggle-field">
+          <label class="field-row toggle-field">
+            <span class="field-label" title={label(key)}>{label(key)}</span>
             <input
               type="checkbox"
               checked={value}
               onchange={(e: Event) => handleChange(key, (e.target as HTMLInputElement).checked)}
             />
-            <span class="pv-check-text">{label(key)}</span>
           </label>
 
         {:else if kind === 'string'}
           <div class="field-row">
-            <span class="field-label">{label(key)}</span>
+            <span class="field-label" title={label(key)}>{label(key)}</span>
             <input
               type="text"
               class="pv-input pv-input-compact pv-control-grow"
@@ -280,7 +263,19 @@
       </div>
     {/each}
 
-    {#if sortedFields(config).length === 0}
+    {#each getEditableStringArrayConfigEntries(effectType, config) as arrayField}
+      <div class="field-card">
+        <span class="field-card-label">{arrayField.label}</span>
+        <StringArrayValueControl
+          value={arrayField.value}
+          options={arrayField.options}
+          allowCustom={arrayField.allowCustom}
+          onchange={(nextValue: string[]) => handleChange(arrayField.key, nextValue)}
+        />
+      </div>
+    {/each}
+
+    {#if getScalarConfigEntries(config).length === 0 && getEditableStringArrayConfigEntries(effectType, config).length === 0}
       <div class="empty-hint">{t('no_params')}</div>
     {/if}
   {/if}
@@ -332,53 +327,17 @@
     margin-top: 0;
   }
 
-  /* Color */
-  .color-input-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .color-input {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 28px;
-    height: 28px;
-    border: 1px solid var(--pv-border);
-    border-radius: var(--pv-radius-sm);
-    padding: 0;
-    cursor: pointer;
-    background: none;
-  }
-
-  .color-input::-webkit-color-swatch-wrapper { padding: 2px; }
-  .color-input::-webkit-color-swatch {
-    border-radius: 3px;
-    border: none;
-  }
-
-  .color-hex {
-    font-size: 0.65rem;
-    font-family: var(--pv-font-mono);
-    color: var(--pv-text-muted);
-  }
-
-  .palette-switch {
-    width: 22px;
-    height: 22px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    font-size: 0.7rem;
-    padding: 0;
-    opacity: 0.5;
-    transition: opacity 0.15s;
-  }
-  .palette-switch:hover { opacity: 1; }
-
   /* Toggle */
   .toggle-field {
-    text-transform: capitalize;
+    cursor: pointer;
+  }
+
+  .toggle-field input[type="checkbox"] {
+    flex-shrink: 0;
+    accent-color: var(--pv-accent);
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
   }
 
   .empty-hint {
@@ -386,5 +345,24 @@
     color: var(--pv-text-muted);
     text-align: center;
     padding: 8px 0;
+  }
+
+  /* Card layout for complex (array) fields */
+  .field-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    padding: 6px 8px;
+  }
+
+  .field-card-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--pv-text-secondary);
+    text-transform: capitalize;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 </style>

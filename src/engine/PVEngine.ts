@@ -8,6 +8,7 @@
 import * as PIXI from 'pixi.js';
 import type { TemplateConfig, UpdateContext, ColorPalette, LayerType, MotionTargetInfo, LyricLine, EffectEntry } from '../types/engine';
 import { createEffect, type EffectInstance } from '../effects/index';
+import { normalizeEffectConfig, normalizeEffectEntry, normalizeEffectEntries } from './effectCatalog';
 import { extractDominantColors } from './ColorExtractor';
 import { MediaOutlineRenderer } from './MediaOutline';
 import { GlitchFilter } from './GlitchFilter';
@@ -244,21 +245,29 @@ export class PVEngine {
 
     try {
       this.clearEffects();
-      this.currentTemplate = template;
-      this.palette = { ...template.palette };
+      const normalizedTemplate: TemplateConfig = {
+        ...template,
+        palette: { ...template.palette },
+        effects: normalizeEffectEntries(template.effects),
+        postfx: template.postfx ? { ...template.postfx } : undefined,
+        features: template.features ? { ...template.features } : undefined,
+      };
 
-      this._segmentDuration = template.segmentDuration ?? 3;
-      this.beat.bpm = template.bpm ?? 120;
-      this._beatReactivity = template.beatReactivity ?? 0.5;
-      this._animationSpeed = template.animationSpeed ?? 2;
-      this._motionIntensity = template.motionIntensity ?? 1;
-      this._effectOpacity = template.bgOpacity ?? 1;
+      this.currentTemplate = normalizedTemplate;
+      this.palette = { ...normalizedTemplate.palette };
+
+      this._segmentDuration = normalizedTemplate.segmentDuration ?? 3;
+      this.beat.bpm = normalizedTemplate.bpm ?? 120;
+      this._beatReactivity = normalizedTemplate.beatReactivity ?? 0.5;
+      this._animationSpeed = normalizedTemplate.animationSpeed ?? 2;
+      this._motionIntensity = normalizedTemplate.motionIntensity ?? 1;
+      this._effectOpacity = normalizedTemplate.bgOpacity ?? 1;
       this.bgFill.alpha = this._effectOpacity;
-      this._outlineEnabled = template.features?.mediaOutline ?? false;
-      this._autoExtractColorsEnabled = template.features?.autoExtractColors ?? false;
-      this._motionDetectionEnabled = template.features?.motionDetection ?? false;
-      this._invertMediaEnabled = template.features?.invertMedia ?? false;
-      this._thresholdMediaEnabled = template.features?.thresholdMedia ?? false;
+      this._outlineEnabled = normalizedTemplate.features?.mediaOutline ?? false;
+      this._autoExtractColorsEnabled = normalizedTemplate.features?.autoExtractColors ?? false;
+      this._motionDetectionEnabled = normalizedTemplate.features?.motionDetection ?? false;
+      this._invertMediaEnabled = normalizedTemplate.features?.invertMedia ?? false;
+      this._thresholdMediaEnabled = normalizedTemplate.features?.thresholdMedia ?? false;
       this.syncMotionDetector();
       this.syncInvertFilter();
 
@@ -274,7 +283,7 @@ export class PVEngine {
       }
       this.updateBgFill();
 
-      for (const entry of template.effects) {
+      for (const entry of normalizedTemplate.effects) {
         const layer = this.layers.get(entry.layer);
         if (!layer) continue;
 
@@ -291,12 +300,12 @@ export class PVEngine {
         }
       }
 
-      if (template.postfx) {
-        this._shake = template.postfx.shake ?? 0;
-        this._zoom = template.postfx.zoom ?? 0;
-        this._tilt = template.postfx.tilt ?? 0;
-        this.glitch = template.postfx.glitch ?? 0;
-        this.hueShift = template.postfx.hueShift ?? 0;
+      if (normalizedTemplate.postfx) {
+        this._shake = normalizedTemplate.postfx.shake ?? 0;
+        this._zoom = normalizedTemplate.postfx.zoom ?? 0;
+        this._tilt = normalizedTemplate.postfx.tilt ?? 0;
+        this.glitch = normalizedTemplate.postfx.glitch ?? 0;
+        this.hueShift = normalizedTemplate.postfx.hueShift ?? 0;
       } else {
         this._shake = 0;
         this._zoom = 0;
@@ -983,11 +992,12 @@ export class PVEngine {
   private rebuildEffectsFromCurrentTemplate(): void {
     if (!this.currentTemplate) return;
     this.clearEffects();
+    this.currentTemplate.effects = normalizeEffectEntries(this.currentTemplate.effects);
     for (const entry of this.currentTemplate.effects) {
       const layer = this.layers.get(entry.layer);
       if (!layer) continue;
 
-      const config = { ...entry.config };
+      const config = { ...normalizeEffectConfig(entry) };
       if (this.userText) {
         config._userText = this.textSegments[0] || this.userText;
       }
@@ -1179,18 +1189,19 @@ export class PVEngine {
   /** Add a new effect to the current template and instantiate it. */
   addEffect(entry: EffectEntry): void {
     if (!this.currentTemplate) return;
-    this.currentTemplate.effects.push(entry);
-    const layer = this.layers.get(entry.layer);
+    const normalizedEntry = normalizeEffectEntry(entry);
+    this.currentTemplate.effects.push(normalizedEntry);
+    const layer = this.layers.get(normalizedEntry.layer);
     if (!layer) return;
-    const config = { ...entry.config };
+    const config = { ...normalizedEntry.config };
     if (this.userText) {
       config._userText = this.textSegments[0] || this.userText;
     }
     try {
-      const effect = createEffect(entry.type, layer, config, this.palette);
+      const effect = createEffect(normalizedEntry.type, layer, config, this.palette);
       this.activeEffects.push(effect);
     } catch (err) {
-      console.warn(`[PVEngine] addEffect "${entry.type}" failed:`, err);
+      console.warn(`[PVEngine] addEffect "${normalizedEntry.type}" failed:`, err);
     }
     this.syncResolution();
   }
@@ -1221,6 +1232,7 @@ export class PVEngine {
     if (index < 0 || index >= this.activeEffects.length) return;
     // Update the template config
     this.currentTemplate.effects[index].config[key] = value;
+    this.currentTemplate.effects[index] = normalizeEffectEntry(this.currentTemplate.effects[index]);
     // Rebuild the single effect
     const entry = this.currentTemplate.effects[index];
     const layer = this.layers.get(entry.layer);

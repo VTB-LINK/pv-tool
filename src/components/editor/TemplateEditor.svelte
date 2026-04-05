@@ -24,6 +24,7 @@
     getEffectDisplayCategory,
     getEffectDisplayLabel,
     getEffectVersion,
+    normalizeEffectEntries,
     type EffectPreset,
   } from '../../engine/effectCatalog';
   import type { EffectEntry, ColorPalette, TemplateConfig } from '../../types/engine';
@@ -106,8 +107,8 @@
    */
   function computeEffectOrigins(): ('original' | 'modified' | 'new')[] {
     void effectsVersion;
-    const currentEffects = getCurrentEffects();
-    const baseEffects = engine.baseTemplateEffects;
+    const currentEffects = normalizeEffectEntries(getCurrentEffects());
+    const baseEffects = normalizeEffectEntries(engine.baseTemplateEffects);
 
     if (!baseEffects || baseEffects.length === 0) {
       return currentEffects.map(() => 'new');
@@ -200,9 +201,11 @@
   }
 
   function areEffectsEqual(left: EffectEntry[], right: EffectEntry[]): boolean {
-    if (left.length !== right.length) return false;
-    return left.every((effect, index) => {
-      const other = right[index];
+    const normalizedLeft = normalizeEffectEntries(left);
+    const normalizedRight = normalizeEffectEntries(right);
+    if (normalizedLeft.length !== normalizedRight.length) return false;
+    return normalizedLeft.every((effect, index) => {
+      const other = normalizedRight[index];
       if (!other) return false;
       return effect.type === other.type
         && effect.layer === other.layer
@@ -223,9 +226,10 @@
 
   function serializeTemplateForResetCheck(tpl: TemplateConfig | null): string {
     if (!tpl) return '';
+    const effects = normalizeEffectEntries(tpl.effects);
     return JSON.stringify({
       palette: tpl.palette,
-      effects: tpl.effects.map(effect => ({ type: effect.type, layer: effect.layer, config: effect.config })),
+      effects: effects.map(effect => ({ type: effect.type, layer: effect.layer, config: effect.config })),
       segmentDuration: tpl.segmentDuration,
       bpm: tpl.bpm,
       beatReactivity: tpl.beatReactivity,
@@ -277,6 +281,7 @@
       loadedBaselineConfig = baseline
         ? untrack(() => cloneTemplateConfig(baseline))
         : null;
+      activeEffectIndex = null;
     }
   });
 
@@ -997,6 +1002,7 @@
           {#if activeEffectIndex === i}
             <div class="effect-config-wrapper">
               <EffectConfigPane
+                effectType={effect.type}
                 config={effect.config}
                 schema={v2Registry.get(effect.type)?.meta?.fields}
                 onchange={(key: string, value: any) => handleConfigChange(i, key, value)}
