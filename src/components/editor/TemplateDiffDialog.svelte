@@ -154,6 +154,7 @@
     tabindex="0"
     aria-label={t('cancel')}
     onclick={() => onClose()}
+    onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onClose()}
   ></div>
   <div class="diff-dialog">
     {#if showImportName}
