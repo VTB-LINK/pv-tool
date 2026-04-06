@@ -492,6 +492,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         // Reset progress on track change
         this._npTime = 0;
         this._npPaused = false;
+        this.rebuildAllEffects();
       },
 
       onLyric: (lines) => {
@@ -520,6 +521,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         this._npPaused = false;
         this.lyricCursor = 0;
         this.lastLyricTime = -1;
+        this.rebuildAllEffects();
       },
     });
 
@@ -598,6 +600,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         this._nwcDuration = duration;
         this._nwcTime = 0;
         this._nwcPaused = false;
+        this.rebuildAllEffects();
       },
 
       onLyric: (text, playTime) => {
@@ -1187,6 +1190,21 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         try { layer.removeChildren().forEach(c => c.destroy()); } catch { /* safe */ }
       }
     }
+  }
+
+  /**
+   * Recreates all active effects.
+   * Useful when time resets (like track change in WesingCap) to ensure
+   * effect internal timers (like 'born') are synchronized with new time.
+   */
+  private rebuildAllEffects(): void {
+    if (!this.currentTemplate) return;
+    this.clearEffects();
+    this.currentTemplate.effects = normalizeEffectEntries(this.currentTemplate.effects);
+    for (const entry of this.currentTemplate.effects) {
+      this.activeEffects.push(this.createRuntimeEffect(entry));
+    }
+    this.syncResolution();
   }
 
   // ── Template Editor API ──
