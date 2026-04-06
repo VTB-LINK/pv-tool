@@ -386,6 +386,7 @@ export const en: Record<LocaleKey, string> = {
   'diff_confirm_reset': 'Confirm Reset',
   'diff_preview': 'Preview',
   'diff_preview_unavailable': 'Preview unavailable',
+  'diff_preview_loading': 'Loading...',
 
   // Unsaved changes
   'unsaved_changes_hint': 'You have unsaved changes to the current custom template. Switching will discard them.',

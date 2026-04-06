@@ -131,12 +131,22 @@
   </button>
 
   {#if !collapsed}
-    <div class="diff-preview-canvas-wrap">
-      <div class="diff-preview-canvas" bind:this={containerEl}></div>
-      {#if error}
-        <div class="diff-preview-error">{t('diff_preview_unavailable')}</div>
-      {/if}
-    </div>
+<div class="diff-preview-canvas-wrap">
+  <div 
+    class="diff-preview-canvas" 
+    class:is-ready={ready}
+    bind:this={containerEl}
+  >
+    {#if !ready}
+      <div class="diff-preview-skeleton">
+        <span class="diff-preview-loading">{t('diff_preview_loading')}</span>
+      </div>
+    {/if}
+  </div>
+  {#if error}
+    <div class="diff-preview-error">{t('diff_preview_unavailable')}</div>
+  {/if}
+</div>
   {/if}
 </div>
 
@@ -191,15 +201,58 @@
     margin-bottom: 8px;
   }
 
-  .diff-preview-canvas-wrap :global(canvas) {
+  .diff-preview-canvas {
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  .diff-preview-canvas.is-ready {
+    opacity: 1;
+  }
+
+  .diff-preview-canvas :global(canvas) {
     display: block;
     width: 100% !important;
     height: 100% !important;
   }
 
+  .diff-preview-skeleton {
+    width: 100%;
+    height: 100%;
+    background: rgba(40, 44, 52, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .diff-preview-loading {
+    font-size: 0.75rem;
+    color: var(--pv-text-muted);
+    animation: fadeInOut 1.5s infinite;
+  }
+
+  @keyframes fadeInOut {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes skeleton-pulse {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
   .diff-preview-canvas {
     width: 100%;
     height: 100%;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  .diff-preview-canvas.is-ready {
+    opacity: 1;
   }
 
   .diff-preview-error {

@@ -59,12 +59,19 @@
           }
         }}
         class="slider-input"
-        autofocus
+        use:actionHighlight
       />
     {:else}
       <span class="slider-value" role="button" tabindex="0" ondblclick={startEdit} onkeydown={(e) => e.key === 'Enter' && startEdit()}>{format(value)}</span>
     {/if}
   </div>
+
+  <script>
+    function actionHighlight(node: HTMLInputElement) {
+      node.focus();
+      node.select();
+    }
+  </script>
   <input
     type="range"
     {min}
