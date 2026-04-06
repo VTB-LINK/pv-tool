@@ -387,12 +387,13 @@ export const ja: Record<LocaleKey, string> = {
   'diff_confirm_reset': 'リセット確認',
   'diff_preview': 'プレビュー',
   'diff_preview_unavailable': 'プレビューは利用できません',
+  'diff_preview_loading': '読み込み中...',
 
   // Unsaved changes
-  'unsaved_changes_hint': '現在のカスタムテンプレートに未保存の変更があります。切り替えると失われます。',
+  'unsaved_changes_hint': '現在のカスタムテンプレートに未保存の変更がありま。切り替えると失われます。',
   'save_before_switch': '先に保存させて!',
   'discard_and_switch': '破棄して切替',
 
   // Footer
-  'agpl_footer': '本ミラーサイトは AGPL-3.0 ライセンスに基づいて運営されています。ソースコードと変更内容は <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub リポジトリ</a>をご覧ください。',
+  'agpl_footer': '本ミラーサイトは AGPL-3.0 ライセンスに基づいて運営されています。ソースコードと変更内容は <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub リポジトリ</a>をご覧ください。'
 };

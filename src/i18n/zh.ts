@@ -385,6 +385,7 @@ export const zh = {
   'diff_confirm_reset': '确认重置',
   'diff_preview': '预览',
   'diff_preview_unavailable': '预览不可用',
+  'diff_preview_loading': '载入中...',
 
   // Unsaved changes
   'unsaved_changes_hint': '当前自定义模板有未保存的修改，切换将丢失这些更改。',
