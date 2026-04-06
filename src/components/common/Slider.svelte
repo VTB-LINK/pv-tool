@@ -11,17 +11,59 @@
     oninput = (_v: number) => {},
   } = $props();
 
+  let isEditing = $state(false);
+  let editValue = $state(0);
+  let isCancelled = $state(false);
+
   function handleInput(e: Event) {
     const v = parseFloat((e.target as HTMLInputElement).value);
     value = v;
     oninput(v);
+  }
+
+  function startEdit() {
+    editValue = value;
+    isEditing = true;
+    isCancelled = false;
+    // Auto-select text after DOM updates
+    setTimeout(() => {
+      const input = document.querySelector('.slider-input') as HTMLInputElement;
+      input?.select();
+    }, 0);
+  }
+
+  function finishEdit() {
+    if (isCancelled) return;
+    value = editValue;
+    oninput(value);
+    isEditing = false;
   }
 </script>
 
 <div class="slider-control">
   <div class="slider-header">
     <span class="slider-label">{label}</span>
-    <span class="slider-value">{format(value)}</span>
+    {#if isEditing}
+      <input
+        type="number"
+        {min}
+        {max}
+        {step}
+        bind:value={editValue}
+        onblur={finishEdit}
+        onkeydown={(e) => {
+          if (e.key === 'Enter') finishEdit();
+          if (e.key === 'Escape') {
+            isCancelled = true;
+            isEditing = false;
+          }
+        }}
+        class="slider-input"
+        autofocus
+      />
+    {:else}
+      <span class="slider-value" role="button" tabindex="0" ondblclick={startEdit} onkeydown={(e) => e.key === 'Enter' && startEdit()}>{format(value)}</span>
+    {/if}
   </div>
   <input
     type="range"
@@ -86,6 +128,37 @@
     box-shadow: 0 0 8px var(--pv-accent-glow);
     cursor: pointer;
     transition: transform 0.15s var(--pv-ease), box-shadow 0.15s;
+  }
+
+  .slider-value {
+    font-size: 0.7rem;
+    font-family: var(--pv-font-mono);
+    color: var(--pv-accent);
+    min-width: 36px;
+    text-align: right;
+    cursor: pointer;
+  }
+
+  .slider-input {
+    width: 60px;
+    font-size: 0.7rem;
+    font-family: var(--pv-font-mono);
+    background: var(--pv-bg-surface);
+    color: var(--pv-accent);
+    border: 1px solid var(--pv-accent);
+    border-radius: 4px;
+    text-align: right;
+    outline: none;
+  }
+
+  /* Remove spin buttons */
+  .slider-input::-webkit-outer-spin-button,
+  .slider-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .slider-input {
+    -moz-appearance: textfield;
   }
 
   .slider::-webkit-slider-thumb:hover {

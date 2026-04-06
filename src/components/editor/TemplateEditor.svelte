@@ -947,7 +947,8 @@
   }
 
   function handleOverlayKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (editorDialogVisible) return;
+    if (event.key === 'Escape') {
       event.preventDefault();
       closeEditor();
     }
@@ -987,8 +988,8 @@
     <div class="editor-header">
       <h3 class="editor-title">🎨 {t('template_editor')}</h3>
       <div class="header-actions">
-        <button class="reset-btn" title={getResetTooltip(t('reset_template'), canResetTemplate())} disabled={!canResetTemplate()} onclick={handleResetTemplateClick}>↺ {t('reset_template')}</button>
-        <button class="close-btn" onclick={closeEditor}>✕</button>
+        <button class="reset-btn" type="button" title={getResetTooltip(t('reset_template'), canResetTemplate())} disabled={!canResetTemplate()} onclick={handleResetTemplateClick}>↺ {t('reset_template')}</button>
+        <button class="close-btn" type="button" onclick={closeEditor}>✕</button>
       </div>
     </div>
 
@@ -997,7 +998,7 @@
     <!-- Palette Section -->
     <Section label={t('palette')}>
       {#snippet action()}
-        <button class="section-reset-btn" title={getResetTooltip(t('reset_palette'), canResetPalette())} disabled={!canResetPalette()} onclick={handleResetPaletteClick}>↺ {t('reset_palette')}</button>
+        <button class="section-reset-btn" type="button" title={getResetTooltip(t('reset_palette'), canResetPalette())} disabled={!canResetPalette()} onclick={handleResetPaletteClick}>↺ {t('reset_palette')}</button>
       {/snippet}
       <div class="palette-row">
         {#each paletteKeys as key}
@@ -1083,7 +1084,7 @@
     <!-- Effects List -->
     <Section label={t('effects_list')}>
       {#snippet action()}
-        <button class="section-reset-btn" title={getResetTooltip(t('reset_effects'), canResetEffects())} disabled={!canResetEffects()} onclick={handleResetEffectsClick}>↺ {t('reset_effects')}</button>
+        <button class="section-reset-btn" type="button" title={getResetTooltip(t('reset_effects'), canResetEffects())} disabled={!canResetEffects()} onclick={handleResetEffectsClick}>↺ {t('reset_effects')}</button>
       {/snippet}
       <div class="effects-list">
         {#each getCurrentEffects() as effect, i}
