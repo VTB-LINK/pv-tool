@@ -8,6 +8,7 @@
   import type { TemplateConfig } from '../../types/engine';
   import { getEffectDisplayLabel } from '../../engine/effectCatalog';
   import { t } from '../../i18n';
+  import { onMount, onDestroy } from 'svelte';
 
   let {
     visible = false,
@@ -119,11 +120,31 @@
   }
 
   function handleOverlayKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (!visible) return;
+    
+    // Check if the target is an actionable input field (like the import name input)
+    // If so, let it handle its own keydown events (Enter/Escape)
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+    }
+
+    if (event.key === 'Escape') {
       event.preventDefault();
+      onClose();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      onConfirm({ missingMode, importName, importAction: confirmAction });
       onClose();
     }
   }
+
+  onMount(() => {
+    window.addEventListener('keydown', handleOverlayKeydown);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('keydown', handleOverlayKeydown);
+  });
 </script>
 
 {#if visible && currentConfig && incomingConfig}
@@ -133,7 +154,6 @@
     tabindex="0"
     aria-label={t('cancel')}
     onclick={() => onClose()}
-    onkeydown={handleOverlayKeydown}
   ></div>
   <div class="diff-dialog">
     {#if showImportName}

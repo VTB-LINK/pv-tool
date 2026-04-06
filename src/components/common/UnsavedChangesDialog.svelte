@@ -2,6 +2,7 @@
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
   import { t } from '../../i18n';
+  import { onMount, onDestroy } from 'svelte';
 
   type DialogPosition = 'center' | 'right';
   type ActionLayout = 'default' | 'primary-first';
@@ -31,6 +32,24 @@
   function handleCancel() {
     onCancel();
   }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (!visible) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onCancel();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      // For "primary-first" layout, "primary" is the first button (Save).
+      // For "default", "primary" is the second button.
+      // Based on the user request, "Overwrite" should be the Enter action.
+      // In TemplateEditor.svelte, "overwrite" is onSave (handleOverwriteConfirmOverwrite).
+      onSave();
+    }
+  }
+
+  onMount(() => window.addEventListener('keydown', handleKeyDown));
+  onDestroy(() => window.removeEventListener('keydown', handleKeyDown));
 </script>
 
 {#if visible}
