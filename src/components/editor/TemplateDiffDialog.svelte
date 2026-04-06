@@ -2,6 +2,7 @@
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
   import ExpandPanel from '../common/ExpandPanel.svelte';
+  import TemplateLivePreview from './TemplateLivePreview.svelte';
   import type { MissingMode } from '../../stores/engine.svelte';
   import { getTemplateEffectDiffs, getTemplateParamDiffGroups } from '../../services/templateDiff';
   import type { TemplateConfig } from '../../types/engine';
@@ -66,6 +67,7 @@
     }))
   );
   let expandedComplexKeys = $state<Record<string, boolean>>({});
+  let previewCollapsed = $state(false);
 
   function getPaletteDiff(): PaletteDiff[] {
     if (!currentConfig?.palette || !incomingConfig?.palette) return [];
@@ -106,6 +108,7 @@
   $effect(() => {
     if (!visible) {
       expandedComplexKeys = {};
+      previewCollapsed = false;
     }
   });
 
@@ -150,6 +153,15 @@
       {/if}
     {:else}
       <h3 class="diff-title">{title ?? (incomingConfig.name?.trim() ? (t('diff_title') + ': ' + (incomingConfig.nameKey ? t(incomingConfig.nameKey as any) : incomingConfig.name)) : t('diff_title'))}</h3>
+    {/if}
+
+    {#if incomingConfig}
+      <TemplateLivePreview
+        {incomingConfig}
+        {missingMode}
+        collapsed={previewCollapsed}
+        onToggleCollapse={() => previewCollapsed = !previewCollapsed}
+      />
     {/if}
 
     <div class="diff-scroll">
@@ -351,7 +363,7 @@
     transform: translate(-50%, -50%);
     z-index: 201;
     width: 380px;
-    max-height: 80vh;
+    max-height: 85vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;

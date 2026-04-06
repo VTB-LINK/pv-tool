@@ -385,6 +385,8 @@ export const ja: Record<LocaleKey, string> = {
   'diff_confirm_overwrite_import': '上書き導入',
   'diff_confirm_load': '切替確認',
   'diff_confirm_reset': 'リセット確認',
+  'diff_preview': 'プレビュー',
+  'diff_preview_unavailable': 'プレビューは利用できません',
 
   // Unsaved changes
   'unsaved_changes_hint': '現在のカスタムテンプレートに未保存の変更があります。切り替えると失われます。',

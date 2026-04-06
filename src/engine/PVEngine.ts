@@ -116,13 +116,17 @@ export class PVEngine {
     this.glitchFilter = new GlitchFilter();
   }
 
-  async init(parent: HTMLElement) {
-    this._nativeDPR = Math.min(window.devicePixelRatio || 1, 3);
-    this._currentResolution = this._nativeDPR;
-    this._resizeParent = parent;
+async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: number }) {
+      this._nativeDPR = Math.min(window.devicePixelRatio || 1, 3);
+      this._currentResolution = this._nativeDPR;
+      if (!options?.fixedWidth) {
+        this._resizeParent = parent;
+      }
 
-    await this.app.init({
-      resizeTo: parent,
+      await this.app.init({
+        resizeTo: options?.fixedWidth ? undefined : parent,
+        width: options?.fixedWidth,
+        height: options?.fixedHeight,
       backgroundColor: 0x000000,
       backgroundAlpha: 0,
       antialias: true,
@@ -1431,6 +1435,11 @@ export class PVEngine {
     this.stopNowPlaying();
     this.stopNwc();
     this.clearEffects();
-    this.app.destroy(true);
+    // Remove canvas from DOM first
+    if (this.app.canvas && this.app.canvas.parentNode) {
+      this.app.canvas.parentNode.removeChild(this.app.canvas);
+    }
+    // Pass false to options so it doesn't destroy shared textures
+    this.app.destroy(false, { children: true } as any);
   }
 }
