@@ -1264,6 +1264,35 @@ export function showToast(message: string, duration = 2000) {
   }, duration);
 }
 
+// ── Preview engine hydration ──
+
+/**
+ * Hydrate a secondary PVEngine with the current text/lyrics state and a resolved template.
+ * Used by the diff-dialog live preview. Does NOT touch media/audio — preview runs without media.
+ */
+export function hydratePreviewEngine(target: PVEngine, resolvedTpl: TemplateConfig): void {
+  // 1. Load the resolved template (effects + palette + params)
+  target.loadTemplate(cloneTemplate(resolvedTpl));
+
+  // 2. Sync text / lyrics to match the main engine's current display
+  if (_engine?.nowPlayingListening) {
+    // If NowPlaying is active, copy the track info
+    target.nowPlayingListening = true;
+  } else if (_engine?.wesingCapListening) {
+    // If WesingCap is active, copy it
+    target.wesingCapListening = true;
+  } else if (_embeddedLyricsSource === 'embedded' && _embeddedLyricsRaw) {
+    // Embedded lyrics active — apply them to the preview engine
+    applyEmbeddedLyricsToEngine(target, _embeddedLyricsRaw);
+  } else if (_embeddedLyricsSource === 'file' && _fileLyricsText) {
+    // External file lyrics active
+    applyFileLyricsToEngine(target, _fileLyricsText, _fileLyricsExt);
+  } else {
+    // Plain text mode — use the current text from the store
+    target.setText(_text.replace(/\r?\n/g, '/'));
+  }
+}
+
 // ── Read-only reactive getters (exported as $state) ──
 
 export const engine = {

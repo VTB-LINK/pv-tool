@@ -116,13 +116,17 @@ export class PVEngine {
     this.glitchFilter = new GlitchFilter();
   }
 
-  async init(parent: HTMLElement) {
-    this._nativeDPR = Math.min(window.devicePixelRatio || 1, 3);
-    this._currentResolution = this._nativeDPR;
-    this._resizeParent = parent;
+async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: number }) {
+      this._nativeDPR = Math.min(window.devicePixelRatio || 1, 3);
+      this._currentResolution = this._nativeDPR;
+      if (!options?.fixedWidth) {
+        this._resizeParent = parent;
+      }
 
-    await this.app.init({
-      resizeTo: parent,
+      await this.app.init({
+        resizeTo: options?.fixedWidth ? undefined : parent,
+        width: options?.fixedWidth,
+        height: options?.fixedHeight,
       backgroundColor: 0x000000,
       backgroundAlpha: 0,
       antialias: true,
@@ -488,6 +492,7 @@ export class PVEngine {
         // Reset progress on track change
         this._npTime = 0;
         this._npPaused = false;
+        this.rebuildAllEffects();
       },
 
       onLyric: (lines) => {
@@ -516,6 +521,7 @@ export class PVEngine {
         this._npPaused = false;
         this.lyricCursor = 0;
         this.lastLyricTime = -1;
+        this.rebuildAllEffects();
       },
     });
 
@@ -594,6 +600,7 @@ export class PVEngine {
         this._nwcDuration = duration;
         this._nwcTime = 0;
         this._nwcPaused = false;
+        this.rebuildAllEffects();
       },
 
       onLyric: (text, playTime) => {
@@ -1185,6 +1192,21 @@ export class PVEngine {
     }
   }
 
+  /**
+   * Recreates all active effects.
+   * Useful when time resets (like track change in WesingCap) to ensure
+   * effect internal timers (like 'born') are synchronized with new time.
+   */
+  private rebuildAllEffects(): void {
+    if (!this.currentTemplate) return;
+    this.clearEffects();
+    this.currentTemplate.effects = normalizeEffectEntries(this.currentTemplate.effects);
+    for (const entry of this.currentTemplate.effects) {
+      this.activeEffects.push(this.createRuntimeEffect(entry));
+    }
+    this.syncResolution();
+  }
+
   // ── Template Editor API ──
 
   /** Get the current template's effect entries (for editor display). */
@@ -1431,6 +1453,11 @@ export class PVEngine {
     this.stopNowPlaying();
     this.stopNwc();
     this.clearEffects();
-    this.app.destroy(true);
+    // Remove canvas from DOM first
+    if (this.app.canvas && this.app.canvas.parentNode) {
+      this.app.canvas.parentNode.removeChild(this.app.canvas);
+    }
+    // Pass false to options so it doesn't destroy shared textures
+    this.app.destroy(false, { children: true } as any);
   }
 }
