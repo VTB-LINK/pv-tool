@@ -13,7 +13,7 @@
     setAlphaMode, setShake, setZoom, setTilt, setGlitch, setHueShift,
     setSegmentDuration, setAnimationSpeed, setMotionIntensity, setEffectOpacity,
     setBpm, setBeatReactivity, loadShareCodeTemplate,
-    setMediaOutline, setAutoExtractColors, setMotionDetection, setInvertMedia, setThresholdMedia,
+    setMediaOutline, setAutoExtractColors, setMotionDetection, setInvertMedia, setThresholdMedia, setCanvasColor,
   } from './stores/engine.svelte';
   import { decodeShareCode } from './services/templateStore';
   import { t } from './i18n';
@@ -151,7 +151,10 @@
     if (params.get('bg') === '0') {
       setAlphaMode(true);
     }
-
+    if(params.get('bgcolor') !== null) {
+      console.log('setCanvasColor', params.get('bgcolor'));
+      setCanvasColor(params.get('bgcolor'));
+    }
     // Auto-connect NowPlaying / WesingCap (via props to ListenPanel)
     // New params (nwc, nwcws) take priority; fall back to legacy params only when new ones absent.
     if (params.get('np') === '1') autoStartNp = true;
