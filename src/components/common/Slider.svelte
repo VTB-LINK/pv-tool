@@ -38,6 +38,12 @@
     oninput(value);
     isEditing = false;
   }
+
+  /** Svelte action — must live in the component script, not in a nested `<script>` in markup. */
+  function actionHighlight(node: HTMLInputElement) {
+    node.focus();
+    node.select();
+  }
 </script>
 
 <div class="slider-control">
@@ -66,12 +72,6 @@
     {/if}
   </div>
 
-  <script>
-    function actionHighlight(node: HTMLInputElement) {
-      node.focus();
-      node.select();
-    }
-  </script>
   <input
     type="range"
     {min}
