@@ -54,14 +54,14 @@
     // Destroy any existing preview engine first
     destroyPreview();
 
+    // Yield to next frame so the dialog and skeleton can render first
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
+    // Re-check state after yield (user may have collapsed or closed the dialog)
+    if (!containerEl || !incomingConfig || collapsed) return;
+
     try {
       const eng = new PVEngine();
-      
-      // Inherit logical dimensions from main engine, if available
-      let fixedWidth: number | undefined;
-      let fixedHeight: number | undefined;
-      
-      // Removed manual resolution inheritance
       
       // Initialize with explicit resolution to avoid container-based scaling artifacts
       await eng.init(containerEl, { fixedWidth: 1920, fixedHeight: 1080 });
@@ -132,17 +132,16 @@
 
   {#if !collapsed}
 <div class="diff-preview-canvas-wrap">
+  {#if !ready && !error}
+    <div class="diff-preview-skeleton">
+      <span class="diff-preview-loading">{t('diff_preview_loading')}</span>
+    </div>
+  {/if}
   <div 
     class="diff-preview-canvas" 
     class:is-ready={ready}
     bind:this={containerEl}
-  >
-    {#if !ready}
-      <div class="diff-preview-skeleton">
-        <span class="diff-preview-loading">{t('diff_preview_loading')}</span>
-      </div>
-    {/if}
-  </div>
+  ></div>
   {#if error}
     <div class="diff-preview-error">{t('diff_preview_unavailable')}</div>
   {/if}
@@ -197,7 +196,8 @@
     aspect-ratio: 16 / 9;
     border-radius: var(--pv-radius-sm);
     overflow: hidden;
-    background: #000;
+    background: rgba(30, 30, 35, 0.6);
+    backdrop-filter: blur(4px);
     margin-bottom: 8px;
   }
 
@@ -219,13 +219,14 @@
   }
 
   .diff-preview-skeleton {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    inset: 0;
     background: rgba(40, 44, 52, 0.8);
     display: flex;
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(4px);
+    z-index: 1;
   }
 
   .diff-preview-loading {
@@ -237,22 +238,6 @@
   @keyframes fadeInOut {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 1; }
-  }
-
-  @keyframes skeleton-pulse {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-
-  .diff-preview-canvas {
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-  }
-
-  .diff-preview-canvas.is-ready {
-    opacity: 1;
   }
 
   .diff-preview-error {
