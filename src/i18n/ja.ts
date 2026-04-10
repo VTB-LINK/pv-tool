@@ -132,7 +132,6 @@ export const ja: Record<LocaleKey, string> = {
   'copy': 'コピー',
   'paste_code': 'シェアコードを貼り付け...',
 
-
   // Effect categories
   'ecat_背景': '背景',
   'ecat_几何装饰': 'ジオメトリ装飾',
