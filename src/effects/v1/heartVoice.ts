@@ -197,7 +197,7 @@ export class HeartVoice extends BaseEffect {
 
   private getTextWidth(text: string, fontSize: number): number {
     const style = new PIXI.TextStyle({
-      fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
+      fontFamily: this.config.fontFamily ?? '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
       fontSize: fontSize,
       fontWeight: 'bold',
     });
@@ -483,7 +483,7 @@ private async splitWordsBySlash(text: string): Promise<string[][]> {
       const color = isStyle1 ? style1Color : style2Color;
       
       const style = new PIXI.TextStyle({
-        fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
+        fontFamily: this.config.fontFamily ?? '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif',
         fontSize: size,
         fill: color,
         fontWeight: 'bold',
