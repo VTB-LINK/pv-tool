@@ -266,6 +266,20 @@
     mobileSheetVisible = mobileTab !== 'canvas';
   });
 
+  // Custom double-click detection — faster than native dblclick (300ms vs ~500ms)
+  // and immune to triple-click interference
+  let lastCanvasClick = 0;
+  function handleCanvasClick() {
+    if (isMobile) return;
+    const now = Date.now();
+    if (now - lastCanvasClick < 300) {
+      lastCanvasClick = 0;
+      panelsVisible = !panelsVisible;
+    } else {
+      lastCanvasClick = now;
+    }
+  }
+
   function requestTemplateActionsGuide(openEditor: boolean) {
     editorGuideToken += 1;
     editorGuideRequest = { token: editorGuideToken, target: 'template-actions' };
@@ -278,7 +292,7 @@
 
 <div class="app" class:panels-hidden={!panelsVisible} class:is-mobile={isMobile}>
   <!-- Canvas (always underneath) -->
-  <div class="canvas-area" bind:this={canvasContainer} role="presentation" ondblclick={() => { if (!isMobile) panelsVisible = !panelsVisible; }}></div>
+  <div class="canvas-area" bind:this={canvasContainer} role="presentation" onclick={handleCanvasClick}></div>
 
   {#if !isMobile}
     <!-- Desktop layout -->
