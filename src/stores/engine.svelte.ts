@@ -60,7 +60,7 @@ let _tilt = $state(0);
 let _glitch = $state(0);
 let _hueShift = $state(0);
 let _postFxLocked = $state(false);
-let _fontLocked = $state(false);
+let _fontLocked = $state(true);
 
 // Template features
 let _mediaOutline = $state(false);
@@ -1326,8 +1326,23 @@ export function showToast(message: string, duration = 2000) {
  * Used by the diff-dialog live preview. Does NOT touch media/audio — preview runs without media.
  */
 export function hydratePreviewEngine(target: PVEngine, resolvedTpl: TemplateConfig): void {
-  // 1. Load the resolved template (effects + palette + params)
-  target.loadTemplate(cloneTemplate(resolvedTpl));
+  // 1. Apply locked overrides into the template config before loading
+  const tpl = cloneTemplate(resolvedTpl);
+  if (_fontLocked && _fontFamily) {
+    tpl.fontFamily = _fontFamily;
+  }
+  if (_postFxLocked) {
+    tpl.postfx = {
+      shake: _shake,
+      zoom: _zoom,
+      tilt: _tilt,
+      glitch: _glitch,
+      hueShift: _hueShift,
+    };
+  }
+
+  // 2. Load the resolved template (effects + palette + params)
+  target.loadTemplate(tpl);
 
   // 2. Sync text / lyrics to match the main engine's current display
   if (_engine?.nowPlayingListening) {
