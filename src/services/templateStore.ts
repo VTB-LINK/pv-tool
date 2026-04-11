@@ -193,6 +193,11 @@ function applyRuntimeOverrides(template: TemplateConfig, params: URLSearchParams
   applyNumber('glitch', value => { next.postfx!.glitch = value; });
   applyNumber('hue', value => { next.postfx!.hueShift = value; });
 
+  const font = params.get('font');
+  if (font !== null) {
+    next.fontFamily = font || undefined;
+  }
+
   return next;
 }
 

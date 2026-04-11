@@ -19,6 +19,7 @@ import {
   encodeShareCode,
   decodeShareCode,
 } from '../services/templateStore';
+import { checkFontAvailable, parsePrimaryFont } from '../services/fontService';
 
 // ── Singleton engine instance ──
 let _engine: PVEngine | null = null;
@@ -59,6 +60,7 @@ let _tilt = $state(0);
 let _glitch = $state(0);
 let _hueShift = $state(0);
 let _postFxLocked = $state(false);
+let _fontLocked = $state(false);
 
 // Template features
 let _mediaOutline = $state(false);
@@ -96,6 +98,12 @@ let _fileLyricsExt = $state('');
 
 // Canvas color
 let _canvasColor = $state<string | null>(null);
+
+// Font family override
+let _fontFamily = $state<string | null>(null);
+
+// Pending font warning (for font-missing dialog)
+let _pendingFontWarning = $state<{ font: string; source: 'sharecode' | 'url' | 'template' } | null>(null);
 
 // Alpha/export
 let _alphaMode = $state(false);
@@ -139,6 +147,11 @@ function syncFromEngine() {
   _animationSpeed = _engine.animationSpeed;
   _motionIntensity = _engine.motionIntensity;
   _effectOpacity = _engine.effectOpacity;
+  if (_fontLocked) {
+    _engine.fontFamily = _fontFamily;
+  } else {
+    _fontFamily = _engine.fontFamily;
+  }
   _mediaOutline = _engine.mediaOutlineEnabled;
   _autoExtractColors = _engine.autoExtractColorsEnabled;
   _motionDetection = _engine.motionDetectionEnabled;
@@ -214,6 +227,7 @@ function serializeTemplateForDirtyCheck(tpl: TemplateConfig | null): string {
     animationSpeed: tpl.animationSpeed,
     motionIntensity: tpl.motionIntensity,
     bgOpacity: tpl.bgOpacity,
+    fontFamily: tpl.fontFamily,
     postfx: {
       shake: tpl.postfx?.shake ?? 0,
       zoom: tpl.postfx?.zoom ?? 0,
@@ -549,6 +563,10 @@ function buildCurrentTemplateSnapshot(name: string, options?: SaveTemplateOption
     tpl.bgOpacity = _effectOpacity;
   }
 
+  if (_fontFamily) {
+    tpl.fontFamily = _fontFamily;
+  }
+
   if (includePostfx) {
     tpl.postfx = {
       shake: _shake,
@@ -737,6 +755,9 @@ export function getCurrentTemplateConfig(): TemplateConfig | null {
   tpl.animationSpeed = _animationSpeed;
   tpl.motionIntensity = _motionIntensity;
   tpl.bgOpacity = _effectOpacity;
+  if (_fontFamily) {
+    tpl.fontFamily = _fontFamily;
+  }
   tpl.postfx = { shake: _shake, zoom: _zoom, tilt: _tilt, glitch: _glitch, hueShift: _hueShift };
   tpl.features = {
     mediaOutline: _mediaOutline,
@@ -872,6 +893,14 @@ export function loadTemplateWithOptions(tpl: TemplateConfig, opts: {
   _engine.loadTemplate(merged);
   setLoadedTemplateSnapshot(merged);
   syncFromEngine();
+
+  // Check font availability after loading
+  if (merged.fontFamily && !checkFontAvailable(merged.fontFamily)) {
+    const source = opts.builtinIndex !== undefined ? 'template' as const
+      : opts.customIndex !== undefined ? 'template' as const
+      : 'sharecode' as const;
+    setPendingFontWarning({ font: parsePrimaryFont(merged.fontFamily), source });
+  }
 }
 
 // ── Parameter setters ──
@@ -953,6 +982,19 @@ export function setThresholdMedia(v: boolean) {
 export function setCanvasColor(color: string | null) {
   _canvasColor = color;
   if (_engine) _engine.canvasColor = color;
+}
+
+export function setFontFamily(font: string | null) {
+  _fontFamily = font;
+  if (_engine) _engine.fontFamily = font;
+}
+
+export function setPendingFontWarning(warning: { font: string; source: 'sharecode' | 'url' | 'template' } | null) {
+  _pendingFontWarning = warning;
+}
+
+export function clearPendingFontWarning() {
+  _pendingFontWarning = null;
 }
 
 export function setAlphaMode(val: boolean) {
@@ -1256,6 +1298,15 @@ export function setPostFxLocked(v: boolean): void {
   _postFxLocked = v;
 }
 
+export function setFontLocked(v: boolean): void {
+  _fontLocked = v;
+}
+
+export function resetFont(): void {
+  const base = _resetBaselineSnapshot?.fontFamily ?? '';
+  setFontFamily(base);
+}
+
 // ── Toast ──
 
 export function showToast(message: string, duration = 2000) {
@@ -1326,6 +1377,7 @@ export const engine = {
   get glitch() { return _glitch; },
   get hueShift() { return _hueShift; },
   get postFxLocked() { return _postFxLocked; },
+  get fontLocked() { return _fontLocked; },
   get mediaOutline() { return _mediaOutline; },
   get autoExtractColors() { return _autoExtractColors; },
   get motionDetection() { return _motionDetection; },
@@ -1348,6 +1400,8 @@ export const engine = {
   get embeddedLyricsSource() { return _embeddedLyricsSource; },
   get hasFileLyrics() { return _fileLyricsText !== null; },
   get canvasColor() { return _canvasColor; },
+  get fontFamily() { return _fontFamily; },
+  get pendingFontWarning() { return _pendingFontWarning; },
   get alphaMode() { return _alphaMode; },
   get isRecording() { return _isRecording; },
   get recordingTime() { return _recordingTime; },

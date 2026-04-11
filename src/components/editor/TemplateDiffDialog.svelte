@@ -8,6 +8,7 @@
   import type { TemplateConfig } from '../../types/engine';
   import { getEffectDisplayLabel } from '../../engine/effectCatalog';
   import { t } from '../../i18n';
+  import { engine } from '../../stores/engine.svelte';
   import { onMount, onDestroy } from 'svelte';
 
   let {
@@ -302,7 +303,15 @@
           <div class="diff-param-groups">
             {#each paramDiffGroups as group}
               <div class="diff-param-group">
-                <div class="diff-param-group-title">{group.label}</div>
+                <div class="diff-param-group-title">
+                  {group.label}
+                  {#if group.id === 'font' && engine.fontLocked}
+                    <span class="lock-badge" title={t('font_lock')}>🔒</span>
+                  {/if}
+                  {#if group.id === 'postfx' && engine.postFxLocked}
+                    <span class="lock-badge" title={t('postfx_lock')}>🔒</span>
+                  {/if}
+                </div>
                 <table class="diff-table">
                   <colgroup>
                     <col class="param-col-label" />
@@ -702,6 +711,14 @@
     font-weight: 600;
     color: var(--pv-text);
     margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .lock-badge {
+    font-size: 0.65rem;
+    opacity: 0.8;
   }
 
   .diff-table {
