@@ -16,7 +16,7 @@ import { BeatProvider } from './BeatProvider';
 import { MotionDetector } from './MotionDetector';
 import { NowPlayingProvider } from '../services/NowPlayingService';
 import type { NowPlayingTrack } from '../services/NowPlayingService';
-import { WesingCapProvider } from '../services/WesingCapService';
+import { NxpcProvider } from '../services/NxpcService';
 
 const EFFECT_LAYERS: LayerType[] = ['background', 'decoration', 'text', 'overlay'];
 
@@ -98,18 +98,19 @@ export class PVEngine {
   private _npTrack: NowPlayingTrack | null = null;
   private _npSavedUserText: string | null = null;
 
-  // Nexus WesingCap state
-  private nwcProvider: WesingCapProvider | null = null;
-  private _nwcActive = false;
-  private _nwcPaused = false;
-  private _nwcTime = 0;
-  private _nwcDuration = 0;
-  private _nwcSongTitle = '';
-  private _nwcSavedUserText: string | null = null;
-  private _nwcWsUrl: string | undefined = undefined;
+  // Nexus-PlayerCap (NXPC) state
+  private nxpcProvider: NxpcProvider | null = null;
+  private _nxpcActive = false;
+  private _nxpcPaused = false;
+  private _nxpcTime = 0;
+  private _nxpcDuration = 0;
+  private _nxpcSongTitle = '';
+  private _nxpcSavedUserText: string | null = null;
+  private _nxpcHost: string | undefined = undefined;
+  private _nxpcPlayer = '';
 
-  /** Called when the WesingCap WebSocket disconnects unexpectedly. */
-  onNwcDisconnect?: () => void;
+  /** Called when the NXPC WebSocket disconnects unexpectedly. */
+  onNxpcDisconnect?: () => void;
 
   constructor() {
     this.app = new PIXI.Application();
@@ -172,12 +173,12 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
             this._npTime += dt;
           }
           this._time = this._npTime;
-        } else if (this._nwcActive) {
-          // In Nexus WesingCap mode, advance time locally when not paused
-          if (!this._nwcPaused) {
-            this._nwcTime += dt;
+        } else if (this._nxpcActive) {
+          // In NXPC mode, advance time locally when not paused
+          if (!this._nxpcPaused) {
+            this._nxpcTime += dt;
           }
-          this._time = this._nwcTime;
+          this._time = this._nxpcTime;
         } else if (this.beat.isAudioMode) {
           this._time = this.beat.currentTime;
         } else {
@@ -225,8 +226,8 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     if (this._npActive) {
       this._npTime = this._time;
     }
-    if (this._nwcActive) {
-      this._nwcTime = this._time;
+    if (this._nxpcActive) {
+      this._nxpcTime = this._time;
     } else if (this.beat.isAudioMode) {
       this.beat.seek(this._time);
     }
@@ -393,8 +394,8 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
   }
 
   private getDisplayText(time: number): string {
-    // In NWC mode, display text is driven entirely by lyric_update pushes
-    if (this._nwcActive) {
+    // In NXPC mode, display text is driven entirely by lyric_update pushes
+    if (this._nxpcActive) {
       const segIdx = this.textSegments.length > 1
         ? Math.floor(time / this._segmentDuration) % this.textSegments.length
         : 0;
@@ -465,8 +466,8 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     this._nowPlayingListening = val;
 
     if (val) {
-      // Mutual exclusion: stop WesingCap if active
-      if (this._nwcActive) this.stopNwc();
+      // Mutual exclusion: stop NXPC if active
+      if (this._nxpcActive) this.stopNxpc();
       this.startNowPlaying();
     } else {
       this.stopNowPlaying();
@@ -560,78 +561,91 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     this.rebuildAllEffects();
   }
 
-  // --- Nexus WesingCap integration ---
-  set wesingCapWsUrl(url: string | undefined) { this._nwcWsUrl = url; }
-  get wesingCapWsUrl(): string | undefined { return this._nwcWsUrl; }
+  // --- Nexus-PlayerCap (NXPC) integration ---
+  set nxpcHost(host: string | undefined) { this._nxpcHost = host; }
+  get nxpcHost(): string | undefined { return this._nxpcHost; }
 
-  set wesingCapListening(val: boolean) {
-    if (this._nwcActive === val) return;
+  set nxpcPlayer(player: string) {
+    const p = player || '';
+    if (this._nxpcPlayer === p) return;
+    this._nxpcPlayer = p;
+    // Propagate to running provider so it reconnects with the new endpoint
+    if (this.nxpcProvider) {
+      this.nxpcProvider.player = p;
+    }
+  }
+  get nxpcPlayer(): string { return this._nxpcPlayer; }
+
+  set nxpcListening(val: boolean) {
+    if (this._nxpcActive === val) return;
     if (val) {
       // Mutual exclusion: stop NowPlaying if active
       if (this._nowPlayingListening) {
         this._nowPlayingListening = false;
         this.stopNowPlaying();
       }
-      this.startNwc();
+      this.startNxpc();
     } else {
-      this.stopNwc();
+      this.stopNxpc();
     }
   }
-  get wesingCapListening() { return this._nwcActive; }
+  get nxpcListening() { return this._nxpcActive; }
 
-  get wesingCapSongTitle(): string {
-    return this._nwcActive ? this._nwcSongTitle : '';
+  get nxpcSongTitle(): string {
+    return this._nxpcActive ? this._nxpcSongTitle : '';
   }
 
-  private startNwc(): void {
-    if (this.nwcProvider) return;
+  private startNxpc(): void {
+    if (this.nxpcProvider) return;
 
-    this._nwcActive = true;
-    this._nwcPaused = false;
-    this._nwcTime = 0;
-    this._nwcDuration = 0;
-    this._nwcSongTitle = '';
-    this._nwcSavedUserText = this.userText;
+    this._nxpcActive = true;
+    this._nxpcPaused = false;
+    this._nxpcTime = 0;
+    this._nxpcDuration = 0;
+    this._nxpcSongTitle = '';
+    this._nxpcSavedUserText = this.userText;
+    this.userText = '';
+    this.textSegments = [''];
 
-    this.nwcProvider = new WesingCapProvider({
+    this.nxpcProvider = new NxpcProvider({
       onSongInfo: (name, _singer, title) => {
-        this._nwcSongTitle = title || name;
+        this._nxpcSongTitle = title || name;
       },
 
       onAllLyrics: (_lines, duration) => {
-        this._nwcDuration = duration;
-        this._nwcTime = 0;
-        this._nwcPaused = false;
+        this._nxpcDuration = duration;
+        this._nxpcTime = 0;
+        this._nxpcPaused = false;
         this.rebuildAllEffects();
       },
 
       onLyric: (text, playTime) => {
-        this._nwcTime = playTime;
-        this._nwcPaused = false;
+        this._nxpcTime = playTime;
+        this._nxpcPaused = false;
         this.userText = text;
         this.textSegments = [text];
       },
 
       onLyricClear: () => {
         this.clearLyricTimeline();
-        this._nwcTime = 0;
-        this._nwcDuration = 0;
-        this._nwcPaused = true;
-        this._nwcSongTitle = '';
+        this._nxpcTime = 0;
+        this._nxpcDuration = 0;
+        this._nxpcPaused = true;
+        this._nxpcSongTitle = '';
         this.userText = '';
         this.textSegments = [''];
       },
 
       onPauseState: (isPaused) => {
-        this._nwcPaused = isPaused;
+        this._nxpcPaused = isPaused;
       },
 
       onIdle: () => {
         this.clearLyricTimeline();
-        this._nwcTime = 0;
-        this._nwcDuration = 0;
-        this._nwcPaused = true;
-        this._nwcSongTitle = '';
+        this._nxpcTime = 0;
+        this._nxpcDuration = 0;
+        this._nxpcPaused = true;
+        this._nxpcSongTitle = '';
         this.userText = '';
         this.textSegments = [''];
       },
@@ -639,38 +653,38 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       onStatus: (status) => {
         if (status === 'standby' || status === 'waiting_process' || status === 'waiting_song') {
           this.clearLyricTimeline();
-          this._nwcTime = 0;
-          this._nwcDuration = 0;
-          this._nwcPaused = true;
-          this._nwcSongTitle = '';
+          this._nxpcTime = 0;
+          this._nxpcDuration = 0;
+          this._nxpcPaused = true;
+          this._nxpcSongTitle = '';
           this.userText = '';
           this.textSegments = [''];
         }
       },
 
       onDisconnect: () => {
-        this.stopNwc();
-        this.onNwcDisconnect?.();
+        this.stopNxpc();
+        this.onNxpcDisconnect?.();
       },
-    }, this._nwcWsUrl);
+    }, this._nxpcHost, this._nxpcPlayer);
 
-    this.nwcProvider.connect();
+    this.nxpcProvider.connect();
   }
 
-  private stopNwc(): void {
-    if (this.nwcProvider) {
-      this.nwcProvider.destroy();
-      this.nwcProvider = null;
+  private stopNxpc(): void {
+    if (this.nxpcProvider) {
+      this.nxpcProvider.destroy();
+      this.nxpcProvider = null;
     }
-    this._nwcActive = false;
-    this._nwcPaused = false;
-    this._nwcTime = 0;
-    this._nwcDuration = 0;
-    this._nwcSongTitle = '';
+    this._nxpcActive = false;
+    this._nxpcPaused = false;
+    this._nxpcTime = 0;
+    this._nxpcDuration = 0;
+    this._nxpcSongTitle = '';
 
     this.clearLyricTimeline();
-    const saved = this._nwcSavedUserText;
-    this._nwcSavedUserText = null;
+    const saved = this._nxpcSavedUserText;
+    this._nxpcSavedUserText = null;
     if (saved !== null) {
       this.userText = saved;
       this.textSegments = saved
@@ -1203,7 +1217,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
 
   /**
    * Recreates all active effects.
-   * Useful when time resets (like track change in WesingCap) to ensure
+   * Useful when time resets (like track change in NXPC) to ensure
    * effect internal timers (like 'born') are synchronized with new time.
    */
   private rebuildAllEffects(): void {
@@ -1428,10 +1442,10 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     return Math.max(this.textSegments.length * this._segmentDuration, this._segmentDuration);
   }
 
-  private computeDurationInfo(): { duration: number; source: 'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text' } {
-    const candidates: Array<{ source: 'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text'; duration: number }> = [
+  private computeDurationInfo(): { duration: number; source: 'nowPlaying' | 'nxpc' | 'audio' | 'lyrics' | 'media' | 'text' } {
+    const candidates: Array<{ source: 'nowPlaying' | 'nxpc' | 'audio' | 'lyrics' | 'media' | 'text'; duration: number }> = [
       { source: 'nowPlaying', duration: this._npActive && this._npDuration > 0 ? this._npDuration : 0 },
-      { source: 'wesingcap', duration: this._nwcActive && this._nwcDuration > 0 ? this._nwcDuration : 0 },
+      { source: 'nxpc', duration: this._nxpcActive && this._nxpcDuration > 0 ? this._nxpcDuration : 0 },
       { source: 'audio', duration: Number.isFinite(this.beat.duration) && this.beat.duration > 0 ? this.beat.duration : 0 },
       { source: 'lyrics', duration: this.getLyricsDuration() },
       { source: 'media', duration: this.getMediaDuration() },
@@ -1454,13 +1468,13 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     return this.computeDurationInfo().duration;
   }
 
-  get timelineDurationSource(): 'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text' {
+  get timelineDurationSource(): 'nowPlaying' | 'nxpc' | 'audio' | 'lyrics' | 'media' | 'text' {
     return this.computeDurationInfo().source;
   }
 
   destroy() {
     this.stopNowPlaying();
-    this.stopNwc();
+    this.stopNxpc();
     this.clearEffects();
     // Remove canvas from DOM first
     if (this.app.canvas && this.app.canvas.parentNode) {

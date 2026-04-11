@@ -16,12 +16,14 @@
 
   let {
     autoStartNp = false,
-    autoStartNwc = false,
-    autoNwcWsAddr = '',
+    autoStartNxpc = false,
+    autoNxpcHost = '',
+    autoNxpcPlayer = '',
   }: {
     autoStartNp?: boolean;
-    autoStartNwc?: boolean;
-    autoNwcWsAddr?: string;
+    autoStartNxpc?: boolean;
+    autoNxpcHost?: string;
+    autoNxpcPlayer?: string;
   } = $props();
 
   function formatRecTime(ms: number): string {
@@ -149,8 +151,8 @@
     </Section>
   {/if}
 
-  <!-- Live MODE (NowPlaying / WesingCap + Copy URL) -->
-  <ListenPanel {autoStartNp} {autoStartNwc} {autoNwcWsAddr} />
+  <!-- Live MODE (NowPlaying / NXPC + Copy URL) -->
+  <ListenPanel {autoStartNp} {autoStartNxpc} {autoNxpcHost} {autoNxpcPlayer} />
 
   <!-- Export -->
   <Section label={t('export')}>

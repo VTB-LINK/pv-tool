@@ -2,6 +2,8 @@
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
   import ExpandPanel from '../common/ExpandPanel.svelte';
+  import SelectMenu from '../common/SelectMenu.svelte';
+  import type { SelectMenuOption } from '../common/options';
   import Section from '../common/Section.svelte';
   import { engine, showToast } from '../../stores/engine.svelte';
   import { getCurrentTemplateConfig } from '../../stores/engine.svelte';
@@ -12,26 +14,37 @@
     type NowPlayingTrack,
   } from '../../services/NowPlayingService';
   import {
-    testWesingCapConnection,
-  } from '../../services/WesingCapService';
+    testNxpcConnection,
+    fetchPlayerSupport,
+  } from '../../services/NxpcService';
   import { onDestroy } from 'svelte';
 
   // Props for auto-connecting from URL params
-  let { autoStartNp = false, autoStartNwc = false, autoNwcWsAddr = '' } = $props();
+  let { autoStartNp = false, autoStartNxpc = false, autoNxpcHost = '', autoNxpcPlayer = '' } = $props();
 
   // NowPlaying state
   let npActive = $state(false);
   let npConnecting = $state(false);
 
-  // WesingCap state
-  let nwcActive = $state(false);
-  let nwcConnecting = $state(false);
-  let nwcWsAddr = $state('ws://localhost:8765/ws');
-  let nwcShowSettings = $state(false);
+  // NXPC state
+  let nxpcActive = $state(false);
+  let nxpcConnecting = $state(false);
+  let nxpcHost = $state('localhost:8765');
+  let nxpcSelectedPlayer = $state('');
+  let nxpcPlayers = $state<string[]>([]);
+  let nxpcPlayerDropdownOpen = $state(false);
+  let playerOptions = $derived<SelectMenuOption[]>([
+    { value: '', label: t('nwc_player_root') },
+    ...nxpcPlayers.map(p => ({ value: p, label: p })),
+  ]);
+  let playerSelectedLabel = $derived(
+    nxpcSelectedPlayer || t('nwc_player_root')
+  );
+  let nxpcShowSettings = $state(false);
 
   // Derived from engine state
   let npTrack = $derived<NowPlayingTrack | null>(engine.instance?.nowPlayingTrack ?? null);
-  let nwcSongName = $derived(engine.instance?.wesingCapSongTitle ?? '');
+  let nxpcSongName = $derived(engine.instance?.nxpcSongTitle ?? '');
 
   // Auto-start from URL params (triggered by props after engine init)
   $effect(() => {
@@ -41,9 +54,10 @@
   });
 
   $effect(() => {
-    if (autoStartNwc && !nwcActive && !nwcConnecting) {
-      if (autoNwcWsAddr) nwcWsAddr = autoNwcWsAddr;
-      toggleWesingCap();
+    if (autoStartNxpc && !nxpcActive && !nxpcConnecting) {
+      if (autoNxpcHost) nxpcHost = autoNxpcHost;
+      if (autoNxpcPlayer) nxpcSelectedPlayer = autoNxpcPlayer;
+      toggleNxpc();
     }
   });
 
@@ -56,11 +70,11 @@
       npActive = false;
       return;
     }
-    // Mutual exclusion: deactivate WesingCap if active
-    if (nwcActive) {
-      eng.onNwcDisconnect = undefined;
-      eng.wesingCapListening = false;
-      nwcActive = false;
+    // Mutual exclusion: deactivate NXPC if active
+    if (nxpcActive) {
+      eng.onNxpcDisconnect = undefined;
+      eng.nxpcListening = false;
+      nxpcActive = false;
     }
     npConnecting = true;
     const ok = await testNowPlayingConnection();
@@ -73,14 +87,14 @@
     npActive = true;
   }
 
-  async function toggleWesingCap() {
+  async function toggleNxpc() {
     const eng = engine.instance;
     if (!eng) return;
 
-    if (nwcActive) {
-      eng.onNwcDisconnect = undefined;
-      eng.wesingCapListening = false;
-      nwcActive = false;
+    if (nxpcActive) {
+      eng.onNxpcDisconnect = undefined;
+      eng.nxpcListening = false;
+      nxpcActive = false;
       return;
     }
     // Mutual exclusion: deactivate NowPlaying if active
@@ -88,27 +102,44 @@
       eng.nowPlayingListening = false;
       npActive = false;
     }
-    nwcConnecting = true;
-    eng.wesingCapWsUrl = nwcWsAddr;
-    const ok = await testWesingCapConnection(nwcWsAddr);
-    nwcConnecting = false;
+    nxpcConnecting = true;
+    eng.nxpcHost = nxpcHost;
+    eng.nxpcPlayer = nxpcSelectedPlayer;
+    const ok = await testNxpcConnection(nxpcHost);
+    nxpcConnecting = false;
     if (!ok) {
       showToast(t('nwc_fail_title'));
       return;
     }
-    eng.wesingCapListening = true;
-    nwcActive = true;
-    eng.onNwcDisconnect = () => {
-      nwcActive = false;
+    // Fetch available players after successful connection test
+    const players = await fetchPlayerSupport(nxpcHost);
+    nxpcPlayers = players;
+    eng.nxpcListening = true;
+    nxpcActive = true;
+    eng.onNxpcDisconnect = () => {
+      nxpcActive = false;
       showToast(t('nwc_disconnected'));
     };
   }
 
-  function saveNwcSettings() {
+  function saveNxpcSettings() {
     const eng = engine.instance;
-    if (eng) eng.wesingCapWsUrl = nwcWsAddr;
-    nwcShowSettings = false;
+    if (eng) {
+      eng.nxpcHost = nxpcHost;
+      eng.nxpcPlayer = nxpcSelectedPlayer;
+    }
+    nxpcShowSettings = false;
     showToast(t('nwc_saved'));
+  }
+
+  function onPlayerChange(value: string) {
+    nxpcSelectedPlayer = value;
+    nxpcPlayerDropdownOpen = false;
+    const eng = engine.instance;
+    if (!eng || !nxpcActive) return;
+    // Update player on the running provider — it will reconnect internally
+    // without tearing down the engine state (avoids flashing template text).
+    eng.nxpcPlayer = nxpcSelectedPlayer;
   }
 
   // URL copy options
@@ -118,7 +149,7 @@
   let urlOptListen = $state(true);
   let urlOptPostFx = $state(true);
   let urlOptFeatures = $state(true);
-   const wesingCapLogoUrl = `${import.meta.env.BASE_URL}metabox5.svg`;
+  const nxpcLogoUrl = `${import.meta.env.BASE_URL}metabox5.svg`;
 
   /** Build a URL that restores the current state for OBS browser source */
   async function copyObsUrl() {
@@ -154,16 +185,15 @@
     // Optional: listen state
     if (urlOptListen) {
       if (npActive) params.set('np', '1');
-      if (nwcActive) {
-        params.set('nwc', '1');
-        // Also emit old param name for backward compat with legacy pv-tool
-        params.set('metabox-nexus-wesingcap', '1');
-        // Include custom WS address if not default
-        if (nwcWsAddr && nwcWsAddr !== 'ws://localhost:8765/ws') {
-          params.set('nwcws', nwcWsAddr);
-          // Also emit old-format param (host:port only) for backward compat
-          const hostPort = nwcWsAddr.replace(/^ws:\/\//, '').replace(/\/ws\/?$/, '');
-          if (hostPort) params.set('metabox-nexus-wesingcap-addr', hostPort);
+      if (nxpcActive) {
+        params.set('nxpc', '1');
+        // Include custom host if not default
+        if (nxpcHost && nxpcHost !== 'localhost:8765') {
+          params.set('nxpchost', nxpcHost);
+        }
+        // Include selected player if not root
+        if (nxpcSelectedPlayer) {
+          params.set('nxpcplayer', nxpcSelectedPlayer);
         }
       }
     }
@@ -209,9 +239,9 @@
     const eng = engine.instance;
     if (eng) {
       if (npActive) eng.nowPlayingListening = false;
-      if (nwcActive) {
-        eng.onNwcDisconnect = undefined;
-        eng.wesingCapListening = false;
+      if (nxpcActive) {
+        eng.onNxpcDisconnect = undefined;
+        eng.nxpcListening = false;
       }
     }
   });
@@ -243,39 +273,50 @@
       {/if}
     </div>
 
-    <!-- WesingCap -->
+    <!-- NXPC (Nexus-PlayerCap) -->
     <div class="service-row">
-      <button class="pv-btn listen-btn" class:active={nwcActive} onclick={toggleWesingCap} disabled={nwcConnecting}>
-        {#if nwcConnecting}
+      <button class="pv-btn listen-btn" class:active={nxpcActive} onclick={toggleNxpc} disabled={nxpcConnecting}>
+        {#if nxpcConnecting}
           <span class="service-label">
             <span class="service-emoji" aria-hidden="true">⏳</span>
             <span>{t('listen_wesingcap')}...</span>
           </span>
-        {:else if nwcActive}
+        {:else if nxpcActive}
           <span class="service-label">
             <span class="service-emoji" aria-hidden="true">✅</span>
             <span>{t('listen_wesingcap')}</span>
           </span>
         {:else}
           <span class="service-label">
-              <img src={wesingCapLogoUrl} alt="" aria-hidden="true" class="service-logo" />
+              <img src={nxpcLogoUrl} alt="" aria-hidden="true" class="service-logo" />
             <span>{t('listen_wesingcap')}</span>
           </span>
         {/if}
       </button>
-      {#if nwcSongName}
+      {#if nxpcSongName}
         <div class="track-info">
-          <span class="track-title">{nwcSongName}</span>
+          <span class="track-title">{nxpcSongName}</span>
         </div>
       {/if}
-      <button class="pv-btn-link settings-btn" onclick={() => nwcShowSettings = !nwcShowSettings}>
+      <button class="pv-btn-link settings-btn" onclick={() => nxpcShowSettings = !nxpcShowSettings}>
         ⚙ {t('nwc_settings_title')}
       </button>
-      <ExpandPanel visible={nwcShowSettings}>
+      <ExpandPanel visible={nxpcShowSettings}>
         {#snippet children()}
           <span class="form-label">{t('nwc_ws_addr')}</span>
-          <input type="text" class="pv-input pv-input-compact pv-input-mono pv-input-surface pv-control-full" bind:value={nwcWsAddr} placeholder={t('nwc_ws_addr_placeholder')} />
-          <button class="pv-btn pv-btn-xs pv-btn-outline-accent save-btn" onclick={saveNwcSettings}>{t('nwc_save')}</button>
+          <input type="text" class="pv-input pv-input-compact pv-input-mono pv-input-surface pv-control-full" bind:value={nxpcHost} placeholder={t('nwc_ws_addr_placeholder')} />
+          {#if nxpcPlayers.length > 0}
+            <span class="form-label">{t('nwc_player_label')}</span>
+            <SelectMenu
+              items={playerOptions}
+              selectedLabel={playerSelectedLabel}
+              selectedValue={nxpcSelectedPlayer}
+              bind:open={nxpcPlayerDropdownOpen}
+              ariaLabel={t('nwc_player_label')}
+              onSelect={onPlayerChange}
+            />
+          {/if}
+          <button class="pv-btn pv-btn-xs pv-btn-outline-accent save-btn" onclick={saveNxpcSettings}>{t('nwc_save')}</button>
         {/snippet}
       </ExpandPanel>
     </div>

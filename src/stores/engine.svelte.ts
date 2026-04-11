@@ -1348,9 +1348,9 @@ export function hydratePreviewEngine(target: PVEngine, resolvedTpl: TemplateConf
   if (_engine?.nowPlayingListening) {
     // If NowPlaying is active, copy the track info
     target.nowPlayingListening = true;
-  } else if (_engine?.wesingCapListening) {
-    // If WesingCap is active, copy it
-    target.wesingCapListening = true;
+  } else if (_engine?.nxpcListening) {
+    // If NXPC is active, copy it
+    target.nxpcListening = true;
   } else if (_embeddedLyricsSource === 'embedded' && _embeddedLyricsRaw) {
     // Embedded lyrics active — apply them to the preview engine
     applyEmbeddedLyricsToEngine(target, _embeddedLyricsRaw);
