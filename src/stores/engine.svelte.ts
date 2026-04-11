@@ -1044,11 +1044,11 @@ export function clearAudio() {
 
 export function toggleAudio() {
   if (!_engine) return;
-  if (_engine.beat.paused) {
-    _engine.beat.resume();
+  if (_engine.paused) {
+    _engine.resume();
     _audioPaused = false;
   } else {
-    _engine.beat.pause();
+    _engine.pause();
     _audioPaused = true;
   }
 }
@@ -1244,8 +1244,12 @@ export function toggleRecording(): void {
 // ── Post FX Reset ──
 
 export function resetPostFx(): void {
-  setShake(0); setZoom(0); setTilt(0);
-  setGlitch(0); setHueShift(0);
+  const base = _resetBaselineSnapshot?.postfx;
+  setShake(base?.shake ?? 0);
+  setZoom(base?.zoom ?? 0);
+  setTilt(base?.tilt ?? 0);
+  setGlitch(base?.glitch ?? 0);
+  setHueShift(base?.hueShift ?? 0);
 }
 
 export function setPostFxLocked(v: boolean): void {

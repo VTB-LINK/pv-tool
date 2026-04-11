@@ -394,6 +394,18 @@ export const zh = {
 
   // Footer
   'agpl_footer': '本镜像站基于 AGPL-3.0 协议运行。源代码及修改详情请见 <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub 仓库</a>。',
+
+  // Keyboard shortcuts
+  'keyboard_shortcuts': '快捷键',
+  'shortcut_key': '按键',
+  'shortcut_action': '功能',
+  'shortcut_toggle_panels': '显示/隐藏面板',
+  'shortcut_toggle_recording': '开始/停止录制',
+  'shortcut_toggle_play': '播放/暂停',
+  'shortcut_toggle_editor': '打开/关闭模板编辑器',
+  'shortcut_next_template': '下一个模板',
+  'shortcut_prev_template': '上一个模板',
+  'shortcut_reset_postfx': '重置后处理效果',
 } as const;
 
 export type LocaleKey = keyof typeof zh;

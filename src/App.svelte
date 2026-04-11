@@ -76,6 +76,11 @@
     void ensureTemplateEditorLoaded();
   }
 
+  function toggleEditorPanel() {
+    editorOpen = !editorOpen;
+    if (editorOpen) void ensureTemplateEditorLoaded();
+  }
+
   onMount(async () => {
     await initEngine(canvasContainer);
     ready = true;
@@ -243,7 +248,7 @@
       togglePanels: () => { panelsVisible = !panelsVisible; },
       toggleRecording,
       togglePlay: toggleAudio,
-      openEditor: openEditorPanel,
+      openEditor: toggleEditorPanel,
       nextTemplate: () => {
         const idx = engine.currentTemplateIndex;
         if (idx < templates.length - 1) selectTemplate(idx + 1);
@@ -261,6 +266,20 @@
     mobileSheetVisible = mobileTab !== 'canvas';
   });
 
+  // Custom double-click detection — faster than native dblclick (300ms vs ~500ms)
+  // and immune to triple-click interference
+  let lastCanvasClick = 0;
+  function handleCanvasClick() {
+    if (isMobile) return;
+    const now = Date.now();
+    if (now - lastCanvasClick < 300) {
+      lastCanvasClick = 0;
+      panelsVisible = !panelsVisible;
+    } else {
+      lastCanvasClick = now;
+    }
+  }
+
   function requestTemplateActionsGuide(openEditor: boolean) {
     editorGuideToken += 1;
     editorGuideRequest = { token: editorGuideToken, target: 'template-actions' };
@@ -273,7 +292,7 @@
 
 <div class="app" class:panels-hidden={!panelsVisible} class:is-mobile={isMobile}>
   <!-- Canvas (always underneath) -->
-  <div class="canvas-area" bind:this={canvasContainer}></div>
+  <div class="canvas-area" bind:this={canvasContainer} role="presentation" onclick={handleCanvasClick}></div>
 
   {#if !isMobile}
     <!-- Desktop layout -->
@@ -350,6 +369,10 @@
 
   .panels-desktop :global(> *) {
     pointer-events: auto;
+  }
+
+  .panels-desktop.hidden :global(> *) {
+    pointer-events: none;
   }
 
   /* ── Mobile ── */

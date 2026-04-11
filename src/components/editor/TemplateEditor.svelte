@@ -760,6 +760,8 @@
   }
 
   function openEditorDialog(mode: EditorDialogMode, incoming: TemplateConfig, customIndex: number | null = null) {
+    // Blur the triggering button so it doesn't intercept Enter key events
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     editorDialogMode = mode;
     editorDialogIncoming = incoming;
     editorDialogImportName = getInitialImportName(mode, incoming);

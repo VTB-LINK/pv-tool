@@ -394,5 +394,17 @@ export const ja: Record<LocaleKey, string> = {
   'discard_and_switch': '破棄して切替',
 
   // Footer
-  'agpl_footer': '本ミラーサイトは AGPL-3.0 ライセンスに基づいて運営されています。ソースコードと変更内容は <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub リポジトリ</a>をご覧ください。'
+  'agpl_footer': '本ミラーサイトは AGPL-3.0 ライセンスに基づいて運営されています。ソースコードと変更内容は <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub リポジトリ</a>をご覧ください。',
+
+  // Keyboard shortcuts
+  'keyboard_shortcuts': 'ショートカット',
+  'shortcut_key': 'キー',
+  'shortcut_action': '機能',
+  'shortcut_toggle_panels': 'パネル表示切替',
+  'shortcut_toggle_recording': '録画開始/停止',
+  'shortcut_toggle_play': '再生/一時停止',
+  'shortcut_toggle_editor': 'テンプレートエディタ切替',
+  'shortcut_next_template': '次のテンプレート',
+  'shortcut_prev_template': '前のテンプレート',
+  'shortcut_reset_postfx': 'ポスト FX をリセット',
 };

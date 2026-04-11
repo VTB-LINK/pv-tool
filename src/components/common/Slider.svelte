@@ -25,18 +25,13 @@
     editValue = value;
     isEditing = true;
     isCancelled = false;
-    // Auto-select text after DOM updates
-    setTimeout(() => {
-      const input = document.querySelector('.slider-input') as HTMLInputElement;
-      input?.select();
-    }, 0);
   }
 
   function finishEdit() {
-    if (isCancelled) return;
+    if (isCancelled || !isEditing) return;
+    isEditing = false;
     value = editValue;
     oninput(value);
-    isEditing = false;
   }
 
   /** Svelte action — must live in the component script, not in a nested `<script>` in markup. */
@@ -110,6 +105,7 @@
     color: var(--pv-accent);
     min-width: 36px;
     text-align: right;
+    cursor: pointer;
   }
 
   .slider {
@@ -135,15 +131,6 @@
     box-shadow: 0 0 8px var(--pv-accent-glow);
     cursor: pointer;
     transition: transform 0.15s var(--pv-ease), box-shadow 0.15s;
-  }
-
-  .slider-value {
-    font-size: 0.7rem;
-    font-family: var(--pv-font-mono);
-    color: var(--pv-accent);
-    min-width: 36px;
-    text-align: right;
-    cursor: pointer;
   }
 
   .slider-input {

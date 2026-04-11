@@ -395,4 +395,16 @@ export const en: Record<LocaleKey, string> = {
 
   // Footer
   'agpl_footer': 'This mirror runs under the AGPL-3.0 license. Source code and modifications are available on <a href="https://github.com/VTB-LINK/pv-tool" target="_blank" rel="noopener noreferrer">GitHub</a>.',
+
+  // Keyboard shortcuts
+  'keyboard_shortcuts': 'Shortcuts',
+  'shortcut_key': 'Key',
+  'shortcut_action': 'Action',
+  'shortcut_toggle_panels': 'Toggle panel visibility',
+  'shortcut_toggle_recording': 'Start/stop recording',
+  'shortcut_toggle_play': 'Play/pause',
+  'shortcut_toggle_editor': 'Toggle template editor',
+  'shortcut_next_template': 'Next template',
+  'shortcut_prev_template': 'Previous template',
+  'shortcut_reset_postfx': 'Reset post-fx to baseline',
 };
