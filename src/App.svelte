@@ -357,6 +357,10 @@
     pointer-events: auto;
   }
 
+  .panels-desktop.hidden :global(> *) {
+    pointer-events: none;
+  }
+
   /* ── Mobile ── */
   .mobile-sheet {
     position: fixed;

@@ -122,8 +122,7 @@
   function handleOverlayKeydown(event: KeyboardEvent) {
     if (!visible) return;
     
-    // Check if the target is an actionable input field (like the import name input)
-    // If so, let it handle its own keydown events (Enter/Escape)
+    // Let input fields handle their own keydown events
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
         return;
     }
@@ -133,8 +132,7 @@
       onClose();
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      onConfirm({ missingMode, importName, importAction: confirmAction });
-      onClose();
+      handleConfirm();
     }
   }
 
