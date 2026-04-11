@@ -76,6 +76,11 @@
     void ensureTemplateEditorLoaded();
   }
 
+  function toggleEditorPanel() {
+    editorOpen = !editorOpen;
+    if (editorOpen) void ensureTemplateEditorLoaded();
+  }
+
   onMount(async () => {
     await initEngine(canvasContainer);
     ready = true;
@@ -243,7 +248,7 @@
       togglePanels: () => { panelsVisible = !panelsVisible; },
       toggleRecording,
       togglePlay: toggleAudio,
-      openEditor: openEditorPanel,
+      openEditor: toggleEditorPanel,
       nextTemplate: () => {
         const idx = engine.currentTemplateIndex;
         if (idx < templates.length - 1) selectTemplate(idx + 1);

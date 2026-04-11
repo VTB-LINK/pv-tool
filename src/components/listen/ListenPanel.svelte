@@ -323,10 +323,6 @@
     gap: 4px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--pv-border);
-    margin-bottom: 6px;
-  }
-
-  .service-row:last-of-type {
     margin-bottom: 8px;
   }
 

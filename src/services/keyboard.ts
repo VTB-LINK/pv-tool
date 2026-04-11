@@ -22,26 +22,38 @@ interface ShortcutDef {
   shift?: boolean;
   alt?: boolean;
   action: keyof KeyboardActions;
-  description: string;
+  /** i18n key for the shortcut description (e.g. 'shortcut_toggle_panels') */
+  descriptionKey: string;
 }
 
 const SHORTCUTS: ShortcutDef[] = [
-  { key: 'h', action: 'togglePanels', description: 'Toggle panel visibility' },
-  { key: 'r', ctrl: true, action: 'toggleRecording', description: 'Start/stop recording' },
-  { key: ' ', action: 'togglePlay', description: 'Play/pause audio' },
-  { key: 'e', action: 'openEditor', description: 'Open template editor' },
-  { key: 'ArrowRight', action: 'nextTemplate', description: 'Next template' },
-  { key: 'ArrowLeft', action: 'prevTemplate', description: 'Previous template' },
-  { key: '0', action: 'resetPostFx', description: 'Reset all post-fx to zero' },
+  { key: 'h', action: 'togglePanels', descriptionKey: 'shortcut_toggle_panels' },
+  { key: 'r', ctrl: true, action: 'toggleRecording', descriptionKey: 'shortcut_toggle_recording' },
+  { key: ' ', action: 'togglePlay', descriptionKey: 'shortcut_toggle_play' },
+  { key: 'e', action: 'openEditor', descriptionKey: 'shortcut_toggle_editor' },
+  { key: 'ArrowRight', action: 'nextTemplate', descriptionKey: 'shortcut_next_template' },
+  { key: 'ArrowLeft', action: 'prevTemplate', descriptionKey: 'shortcut_prev_template' },
+  { key: '0', action: 'resetPostFx', descriptionKey: 'shortcut_reset_postfx' },
 ];
 
+const KEY_DISPLAY: Record<string, string> = {
+  ' ': 'Space',
+  'ArrowRight': '→',
+  'ArrowLeft': '←',
+  'ArrowUp': '↑',
+  'ArrowDown': '↓',
+};
+
 /** Get all available shortcut definitions for help display. */
-export function getShortcutList(): { key: string; description: string; modifiers?: string }[] {
-  return SHORTCUTS.map(s => ({
-    key: s.key === ' ' ? 'Space' : s.key,
-    description: s.description,
-    modifiers: [s.ctrl && 'Ctrl', s.shift && 'Shift', s.alt && 'Alt'].filter(Boolean).join('+') || undefined,
-  }));
+export function getShortcutList(): { keyParts: string[]; descriptionKey: string }[] {
+  return SHORTCUTS.map(s => {
+    const parts: string[] = [];
+    if (s.ctrl) parts.push('Ctrl');
+    if (s.shift) parts.push('Shift');
+    if (s.alt) parts.push('Alt');
+    parts.push(KEY_DISPLAY[s.key] ?? s.key);
+    return { keyParts: parts, descriptionKey: s.descriptionKey };
+  });
 }
 
 /**
