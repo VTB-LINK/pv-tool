@@ -557,9 +557,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         this.textSegments = [''];
       }
     }
-    if (this.currentTemplate) {
-      this.loadTemplate(this.currentTemplate);
-    }
+    this.rebuildAllEffects();
   }
 
   // --- Nexus WesingCap integration ---
@@ -683,9 +681,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         this.textSegments = [''];
       }
     }
-    if (this.currentTemplate) {
-      this.loadTemplate(this.currentTemplate);
-    }
+    this.rebuildAllEffects();
   }
 
   private updateBgFill() {
