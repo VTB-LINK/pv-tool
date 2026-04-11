@@ -278,7 +278,7 @@
 
 <div class="app" class:panels-hidden={!panelsVisible} class:is-mobile={isMobile}>
   <!-- Canvas (always underneath) -->
-  <div class="canvas-area" bind:this={canvasContainer}></div>
+  <div class="canvas-area" bind:this={canvasContainer} role="presentation" ondblclick={() => { if (!isMobile) panelsVisible = !panelsVisible; }}></div>
 
   {#if !isMobile}
     <!-- Desktop layout -->
