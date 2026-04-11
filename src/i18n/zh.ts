@@ -224,7 +224,7 @@ export const zh = {
 
   // Hint messages
   'hint_press': '按',
-  'hint_hide_panels': '键隐藏面板',
+  'hint_hide_panels': '或双击画面隐藏面板',
 
   // Modal messages
   'modal_confirm': '确定',

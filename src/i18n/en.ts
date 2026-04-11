@@ -225,7 +225,7 @@ export const en: Record<LocaleKey, string> = {
 
   // Hint messages
   'hint_press': 'Press',
-  'hint_hide_panels': 'to hide panels',
+  'hint_hide_panels': 'or double-click to hide panels',
 
   // Modal messages
   'modal_confirm': 'OK',

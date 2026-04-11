@@ -225,7 +225,7 @@ export const ja: Record<LocaleKey, string> = {
 
   // Hint messages
   'hint_press': '押す',
-  'hint_hide_panels': 'でパネルを非表示にする',
+  'hint_hide_panels': 'またはダブルクリックでパネルを非表示にする',
 
   // Modal messages
   'modal_confirm': 'OK',
