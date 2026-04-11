@@ -258,17 +258,19 @@ export const en: Record<LocaleKey, string> = {
   'url_opt_postfx': 'Include FX & Rhythm Params',
   'url_opt_features': 'Include Feature Toggles',
 
-  // WesingCap
-  'listen_wesingcap': 'Listen Nexus WesingCap',
+  // Nexus-PlayerCap (NXPC)
+  'listen_wesingcap': 'Listen Nexus-PlayerCap',
   'listen_wesingcap_tip': '',
-  'nwc_fail_title': 'Listen failed: Nexus WesingCap service not detected!',
-  'nwc_fail_body': 'Metabox Nexus WesingCap reads lyrics from WeSing desktop app. Learn more:',
-  'nwc_settings_title': 'Nexus WesingCap Settings',
-  'nwc_ws_addr': 'WebSocket Address',
+  'nwc_fail_title': 'Listen failed: Nexus-PlayerCap service not detected!',
+  'nwc_fail_body': 'Metabox Nexus-PlayerCap reads lyrics from music players. Learn more:',
+  'nwc_settings_title': 'Nexus-PlayerCap Settings',
+  'nwc_ws_addr': 'Service Address',
   'nwc_ws_addr_placeholder': 'Default localhost:8765',
   'nwc_save': 'Save',
   'nwc_saved': 'Saved',
-  'nwc_disconnected': 'Nexus WesingCap disconnected',
+  'nwc_disconnected': 'Nexus-PlayerCap disconnected',
+  'nwc_player_label': 'Player',
+  'nwc_player_root': '(Default)',
 
   // Template Editor
   'template_editor': 'Template Editor',
@@ -356,7 +358,7 @@ export const en: Record<LocaleKey, string> = {
   // Duration source
   'duration_source_label': 'Duration Source',
   'duration_source_nowplaying': 'NowPlaying',
-  'duration_source_wesingcap': 'Nexus WesingCap',
+  'duration_source_nxpc': 'Nexus-PlayerCap',
   'duration_source_audio': 'Audio',
   'duration_source_lyrics': 'Lyrics',
   'duration_source_media': 'Media',

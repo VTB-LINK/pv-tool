@@ -76,8 +76,9 @@
 
   // URL param auto-start flags for ListenPanel
   let autoStartNp = $state(false);
-  let autoStartNwc = $state(false);
-  let autoNwcWsAddr = $state('');
+  let autoStartNxpc = $state(false);
+  let autoNxpcHost = $state('');
+  let autoNxpcPlayer = $state('');
 
   async function ensureTemplateEditorLoaded() {
     if (TemplateEditorComponent) return;
@@ -174,22 +175,41 @@
       setAlphaMode(true);
     }
 
-    // Auto-connect NowPlaying / WesingCap (via props to ListenPanel)
-    // New params (nwc, nwcws) take priority; fall back to legacy params only when new ones absent.
+    // Auto-connect NowPlaying / NXPC (via props to ListenPanel)
+    // Prefer nxpc param; fall back to nwc then legacy metabox-nexus-wesingcap.
     if (params.get('np') === '1') autoStartNp = true;
-    const nwcEnable = params.has('nwc') ? params.get('nwc') === '1'
+    const nxpcEnable = params.has('nxpc') ? params.get('nxpc') === '1'
+      : params.has('nwc') ? params.get('nwc') === '1'
       : params.get('metabox-nexus-wesingcap') === '1';
-    if (nwcEnable) {
-      autoStartNwc = true;
-      const nwcws = params.get('nwcws');
-      if (nwcws) {
-        autoNwcWsAddr = nwcws;
+    if (nxpcEnable) {
+      autoStartNxpc = true;
+      // New-style params: nxpchost / nxpcplayer
+      const nxpchost = params.get('nxpchost');
+      if (nxpchost) {
+        autoNxpcHost = nxpchost;
       } else {
-        const legacyAddr = params.get('metabox-nexus-wesingcap-addr');
-        if (legacyAddr && legacyAddr !== '0') {
-          autoNwcWsAddr = 'ws://' + decodeURIComponent(legacyAddr) + '/ws';
+        // Fall back to legacy nwcws (full ws:// URL) → extract host
+        const nwcws = params.get('nwcws');
+        if (nwcws) {
+          try {
+            const u = new URL(nwcws);
+            autoNxpcHost = u.host;
+            const seg = u.pathname.replace(/^\//, '').replace(/\/ws$/, '');
+            if (seg && seg !== 'ws') autoNxpcPlayer = seg;
+          } catch {
+            autoNxpcHost = nwcws.replace(/^wss?:\/\//, '').replace(/\/.*$/, '');
+          }
+        } else {
+          // Fall back to legacy metabox-nexus-wesingcap-addr (host:port)
+          const legacyAddr = params.get('metabox-nexus-wesingcap-addr');
+          if (legacyAddr && legacyAddr !== '0') {
+            autoNxpcHost = decodeURIComponent(legacyAddr);
+          }
         }
       }
+      // Explicit player param (prefer nxpcplayer, fall back to nwcplayer)
+      const playerParam = params.get('nxpcplayer') ?? params.get('nwcplayer');
+      if (playerParam) autoNxpcPlayer = playerParam;
     }
 
     // Apply explicit URL runtime params first.
@@ -324,7 +344,7 @@
         onRequestTemplateGuide={() => requestTemplateActionsGuide(true)}
         {flashEditBtn}
       />
-      <RightPanel {autoStartNp} {autoStartNwc} {autoNwcWsAddr} />
+      <RightPanel {autoStartNp} {autoStartNxpc} {autoNxpcHost} {autoNxpcPlayer} />
     </div>
 
     <BottomBar {ready} visible={panelsVisible} />

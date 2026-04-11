@@ -257,17 +257,19 @@ export const zh = {
   'url_opt_postfx': '包含后期与节奏参数',
   'url_opt_features': '包含功能开关',
 
-  // WesingCap
-  'listen_wesingcap': '监听 Nexus WesingCap',
-  'listen_wesingcap_tip': '需要运行 Metabox Nexus WesingCap 服务，自动获取全民K歌正在播放的歌词',
-  'nwc_fail_title': '监听失败：未检测到 Nexus WesingCap 服务运行！',
-  'nwc_fail_body': 'Metabox Nexus WesingCap 是一款读取全民K歌桌面端正在播放歌曲歌词的工具。您可通过该链接了解详情：',
-  'nwc_settings_title': 'Nexus WesingCap 设置',
-  'nwc_ws_addr': 'WebSocket 地址',
+  // Nexus-PlayerCap (NXPC)
+  'listen_wesingcap': '监听 Nexus-PlayerCap',
+  'listen_wesingcap_tip': '需要运行 Metabox Nexus-PlayerCap 服务，自动获取播放器正在播放的歌曲歌词',
+  'nwc_fail_title': '监听失败：未检测到 Nexus-PlayerCap 服务运行！',
+  'nwc_fail_body': 'Metabox Nexus-PlayerCap 是一款读取播放器正在播放歌曲歌词的工具。您可通过该链接了解详情：',
+  'nwc_settings_title': 'Nexus-PlayerCap 设置',
+  'nwc_ws_addr': '服务地址',
   'nwc_ws_addr_placeholder': '默认 localhost:8765',
   'nwc_save': '保存',
   'nwc_saved': '已保存',
-  'nwc_disconnected': 'Nexus WesingCap 连接已断开',
+  'nwc_disconnected': 'Nexus-PlayerCap 连接已断开',
+  'nwc_player_label': '播放器',
+  'nwc_player_root': '（默认）',
 
   // Template Editor
   'template_editor': '模板编辑器 Template Editor',
@@ -355,7 +357,7 @@ export const zh = {
   // Duration source
   'duration_source_label': '时长来源',
   'duration_source_nowplaying': 'NowPlaying',
-  'duration_source_wesingcap': 'Nexus WesingCap',
+  'duration_source_nxpc': 'Nexus-PlayerCap',
   'duration_source_audio': '音乐 Audio',
   'duration_source_lyrics': '歌词 Lyrics',
   'duration_source_media': '媒体 Media',

@@ -9,7 +9,7 @@
 
   let currentTime = $state(0);
   let totalTime = $state(0);
-  let durationSource = $state<'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text'>('text');
+  let durationSource = $state<'nowPlaying' | 'nxpc' | 'audio' | 'lyrics' | 'media' | 'text'>('text');
   let seekValue = $state(0);
   let isSeeking = $state(false);
   let isPaused = $state(false);
@@ -25,9 +25,9 @@
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 
-  function sourceLabel(source: 'nowPlaying' | 'wesingcap' | 'audio' | 'lyrics' | 'media' | 'text'): string {
+  function sourceLabel(source: 'nowPlaying' | 'nxpc' | 'audio' | 'lyrics' | 'media' | 'text'): string {
     if (source === 'nowPlaying') return t('duration_source_nowplaying');
-    if (source === 'wesingcap') return t('duration_source_wesingcap');
+    if (source === 'nxpc') return t('duration_source_nxpc');
     if (source === 'audio') return t('duration_source_audio');
     if (source === 'lyrics') return t('duration_source_lyrics');
     if (source === 'media') return t('duration_source_media');

@@ -257,18 +257,20 @@ export const ja: Record<LocaleKey, string> = {
   'url_opt_postfx': 'FX・リズムパラメータを含む',
   'url_opt_features': '機能切替を含む',
 
-  // WesingCap
+  // Nexus-PlayerCap (NXPC)
   'listen_nowplaying': 'NowPlayingを監視',
-  'listen_wesingcap': 'Nexus WesingCap を監視',
+  'listen_wesingcap': 'Nexus-PlayerCap を監視',
   'listen_wesingcap_tip': '',
-  'nwc_fail_title': '接続失敗：Nexus WesingCapサービスが検出されません！',
-  'nwc_fail_body': 'Metabox Nexus WesingCapは全民K歌デスクトップアプリから歌詞を取得するツールです。詳細はこちら：',
-  'nwc_settings_title': 'Nexus WesingCap 設定',
-  'nwc_ws_addr': 'WebSocket アドレス',
+  'nwc_fail_title': '接続失敗：Nexus-PlayerCapサービスが検出されません！',
+  'nwc_fail_body': 'Metabox Nexus-PlayerCapはプレーヤーから歌詞を取得するツールです。詳細はこちら：',
+  'nwc_settings_title': 'Nexus-PlayerCap 設定',
+  'nwc_ws_addr': 'サービスアドレス',
   'nwc_ws_addr_placeholder': 'デフォルト localhost:8765',
   'nwc_save': '保存',
   'nwc_saved': '保存しました',
-  'nwc_disconnected': 'Nexus WesingCap の接続が切断されました',
+  'nwc_disconnected': 'Nexus-PlayerCap の接続が切断されました',
+  'nwc_player_label': 'プレーヤー',
+  'nwc_player_root': '（デフォルト）',
 
   // Template Editor
   'template_editor': 'テンプレートエディター Template Editor',
@@ -356,7 +358,7 @@ export const ja: Record<LocaleKey, string> = {
   // Duration source
   'duration_source_label': '長さの参照元',
   'duration_source_nowplaying': 'NowPlaying',
-  'duration_source_wesingcap': 'Nexus WesingCap',
+  'duration_source_nxpc': 'Nexus-PlayerCap',
   'duration_source_audio': '音楽 Audio',
   'duration_source_lyrics': '歌詞 Lyrics',
   'duration_source_media': 'メディア Media',
