@@ -23,7 +23,7 @@ export interface ParamDiffItem {
 }
 
 export interface ParamDiffGroup {
-  id: 'template' | 'rhythm' | 'postfx' | 'features';
+  id: 'template' | 'font' | 'rhythm' | 'postfx' | 'features';
   label: string;
   items: ParamDiffItem[];
 }
@@ -274,6 +274,15 @@ export function getTemplateParamDiffGroups(currentConfig: TemplateConfig | null,
     missing: incomingConfig.bgOpacity === undefined,
   });
 
+  const fontItems: ParamDiffItem[] = [];
+  pushIfChanged(fontItems, {
+    key: 'fontFamily',
+    label: t('font_family'),
+    current: currentConfig.fontFamily ?? '—',
+    incoming: incomingConfig.fontFamily === undefined ? '—' : (incomingConfig.fontFamily || '—'),
+    missing: incomingConfig.fontFamily === undefined,
+  });
+
   const rhythmItems: ParamDiffItem[] = [];
   pushIfChanged(rhythmItems, {
     key: 'bpm',
@@ -328,6 +337,7 @@ export function getTemplateParamDiffGroups(currentConfig: TemplateConfig | null,
 
   const groups: ParamDiffGroup[] = [
     { id: 'template', label: t('diff_group_template'), items: templateItems },
+    { id: 'font', label: t('diff_group_font'), items: fontItems },
     { id: 'rhythm', label: t('diff_group_rhythm'), items: rhythmItems },
     { id: 'postfx', label: t('diff_group_postfx'), items: postfxItems },
     { id: 'features', label: t('diff_group_features'), items: featureItems },

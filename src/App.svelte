@@ -8,12 +8,14 @@
   import Toast from './components/common/Toast.svelte';
   import MobileNav from './components/mobile/MobileNav.svelte';
   import MobileSheet from './components/mobile/MobileSheet.svelte';
+  import FontMissingDialog from './components/common/FontMissingDialog.svelte';
   import {
     engine, initEngine, selectTemplate, toggleRecording, resetPostFx, toggleAudio,
     setAlphaMode, setShake, setZoom, setTilt, setGlitch, setHueShift,
     setSegmentDuration, setAnimationSpeed, setMotionIntensity, setEffectOpacity,
     setBpm, setBeatReactivity, loadShareCodeTemplate,
     setMediaOutline, setAutoExtractColors, setMotionDetection, setInvertMedia, setThresholdMedia,
+    setFontFamily, clearPendingFontWarning, showToast,
   } from './stores/engine.svelte';
   import { decodeShareCode } from './services/templateStore';
   import { t } from './i18n';
@@ -41,12 +43,24 @@
   let flashEditBtn = $state(false);
   let editorWasOpen = false;
 
+  // Font missing dialog
+  let fontMissingVisible = $state(false);
+
   $effect(() => {
     if (editorWasOpen && !editorOpen && engine.isCustomMode) {
       flashEditBtn = true;
       setTimeout(() => { flashEditBtn = false; }, 2000);
     }
     editorWasOpen = editorOpen;
+  });
+
+  // Show font missing dialog when warning appears and panels visible
+  $effect(() => {
+    if (engine.pendingFontWarning && panelsVisible) {
+      fontMissingVisible = true;
+    } else if (engine.pendingFontWarning && !panelsVisible) {
+      showToast(`${engine.pendingFontWarning.font} — ${t('font_missing_title')}`);
+    }
   });
 
   // Mobile state
@@ -135,6 +149,9 @@
       if (glitch !== null) setGlitch(parseFloat(glitch));
       const hue = params.get('hue');
       if (hue !== null) setHueShift(parseFloat(hue));
+
+      const font = params.get('font');
+      if (font !== null) setFontFamily(font || null);
     }
 
     // Restore template
@@ -245,7 +262,12 @@
     if (!ready) return;
     cleanupKeyboard?.();
     cleanupKeyboard = bindKeyboard({
-      togglePanels: () => { panelsVisible = !panelsVisible; },
+      togglePanels: () => {
+        panelsVisible = !panelsVisible;
+        if (panelsVisible && engine.pendingFontWarning) {
+          fontMissingVisible = true;
+        }
+      },
       toggleRecording,
       togglePlay: toggleAudio,
       openEditor: toggleEditorPanel,
@@ -321,6 +343,14 @@
   {/if}
 
   <Toast />
+  <FontMissingDialog
+    visible={fontMissingVisible}
+    fontName={engine.pendingFontWarning?.font ?? ''}
+    source={engine.pendingFontWarning?.source ?? 'template'}
+    onKeep={() => { fontMissingVisible = false; clearPendingFontWarning(); }}
+    onReplace={() => { fontMissingVisible = false; clearPendingFontWarning(); }}
+    onReset={() => { fontMissingVisible = false; clearPendingFontWarning(); setFontFamily(null); }}
+  />
   {#if editorOpen || TemplateEditorComponent}
     {#if TemplateEditorComponent}
       <TemplateEditorComponent

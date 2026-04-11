@@ -269,7 +269,6 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 0 2px;
     margin-bottom: 4px;
     flex-wrap: nowrap;
   }

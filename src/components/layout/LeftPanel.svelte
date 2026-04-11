@@ -4,6 +4,7 @@
   import SegmentedControl from '../common/SegmentedControl.svelte';
   import Section from '../common/Section.svelte';
   import SelectMenu from '../common/SelectMenu.svelte';
+  import FontSelectMenu from '../common/FontSelectMenu.svelte';
   import Slider from '../common/Slider.svelte';
   import UnsavedChangesDialog from '../common/UnsavedChangesDialog.svelte';
   import TemplateDiffDialog from '../editor/TemplateDiffDialog.svelte';
@@ -11,12 +12,14 @@
   import {
     engine, selectTemplate, selectCustomTemplate, enterCustomMode,
     setText, setSegmentDuration, setAnimationSpeed, setMotionIntensity,
-    setEffectOpacity, setBpm, setBeatReactivity, setCanvasColor,
+    setEffectOpacity, setBpm, setBeatReactivity, setCanvasColor, setFontFamily, setFontLocked, resetFont,
     loadMedia, loadAudio, loadLyrics, selectLyricsSource,
     clearMedia, clearAudio, clearLyrics, showToast,
     captureEditingSessionSnapshot, getCurrentTemplateConfig, loadTemplateWithOptions,
-    restoreEditingSessionSnapshot,
+    restoreEditingSessionSnapshot, getResetBaselineConfig,
   } from '../../stores/engine.svelte';
+  import { isLocalFontApiSupported, getLocalFontInfos, parsePrimaryFont, getLocalizedFontName } from '../../services/fontService';
+  import type { FontInfo } from '../../services/fontService';
   import type { MissingMode } from '../../stores/engine.svelte';
   import { templates } from '../../templates';
   import { t } from '../../i18n';
@@ -41,6 +44,14 @@
 
   // Edit button flash animation
   let editBtnFlashing = $state(false);
+
+  // Font selector state
+  let fontDropdownOpen = $state(false);
+  let localFonts = $state<FontInfo[]>([]);
+  let localFontsLoaded = $state(false);
+  let fontCustomMode = $state(false);
+  let fontCustomInput = $state('');
+  let fontCustomTimer: ReturnType<typeof setTimeout>;
 
   // Diff dialog for template selection (builtin & custom)
   let diffVisible = $state(false);
@@ -189,6 +200,60 @@
     return tpl.name;
   }
 
+  // ── Font selector logic ──
+  let fontSelectedValue = $derived(
+    fontCustomMode ? '__custom__'
+    : engine.fontFamily ? engine.fontFamily
+    : ''
+  );
+
+  function getFontSelectedLabel(): string {
+    if (fontCustomMode) return t('font_custom_input');
+    if (engine.fontFamily) {
+      const primary = parsePrimaryFont(engine.fontFamily);
+      return getLocalizedFontName(primary);
+    }
+    return t('follow_template');
+  }
+
+  function handleFontPick(val: string) {
+    fontDropdownOpen = false;
+    if (val === '__custom__') {
+      fontCustomMode = true;
+      fontCustomInput = engine.fontFamily ?? '';
+      return;
+    }
+    fontCustomMode = false;
+    setFontFamily(val || null);
+  }
+
+  async function handleLoadLocalFonts() {
+    const fonts = await getLocalFontInfos(true);
+    localFonts = fonts;
+    localFontsLoaded = true;
+    if (fonts.length === 0) {
+      showToast(t('load_local_fonts') + ' — 0');
+    }
+  }
+
+  function handleFontCustomInput() {
+    clearTimeout(fontCustomTimer);
+    fontCustomTimer = setTimeout(() => {
+      setFontFamily(fontCustomInput.trim() || null);
+    }, 400);
+  }
+
+  function canResetFont(): boolean {
+    const base = getResetBaselineConfig();
+    return (engine.fontFamily ?? '') !== (base?.fontFamily ?? '');
+  }
+
+  function handleResetFont() {
+    if (!canResetFont()) return;
+    resetFont();
+    showToast(t('font_reset'));
+  }
+
   async function handleMediaFile(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -247,6 +312,46 @@
           {/if}
         </button>
       {/each}
+    </div>
+  </Section>
+
+  <!-- Font Family -->
+  <Section label={t('font_family')} open={false}>
+    <div class="font-row">
+      <div class="font-select">
+        <FontSelectMenu
+          fonts={localFonts}
+          selectedLabel={getFontSelectedLabel()}
+          selectedValue={fontSelectedValue}
+          bind:open={fontDropdownOpen}
+          ariaLabel={t('font_family')}
+          onSelect={handleFontPick}
+        />
+      </div>
+      {#if isLocalFontApiSupported()}
+        <button class="pv-btn pv-btn-sm btn btn-sm font-load-btn" onclick={handleLoadLocalFonts} title={t('load_local_fonts')}>
+          {localFontsLoaded ? '🔄' : '📂'}
+        </button>
+      {/if}
+    </div>
+    {#if fontCustomMode}
+      <input
+        class="pv-input pv-control-full font-custom-input"
+        type="text"
+        placeholder='"Noto Sans JP", sans-serif'
+        bind:value={fontCustomInput}
+        oninput={handleFontCustomInput}
+      />
+    {/if}
+    <div class="font-actions">
+      <label class="pv-check-row pv-check-row-md toggle-row">
+        <input type="checkbox" checked={engine.fontLocked} onchange={(e: Event) => setFontLocked((e.target as HTMLInputElement).checked)} />
+        <span class="pv-check-text" title={t('font_lock')}>🔒 {t('font_lock')}</span>
+      </label>
+      <button class="pv-btn pv-btn-sm btn btn-sm font-reset-btn"
+        title={canResetFont() ? `⚠ ${t('font_reset')}` : undefined}
+        disabled={!canResetFont()}
+        onclick={handleResetFont}>↺ {t('font_reset')}</button>
     </div>
   </Section>
 
@@ -487,6 +592,62 @@
     color: var(--pv-text-secondary);
     background: linear-gradient(135deg, #222 50%, #666 50%);
     border-radius: 4px;
+  }
+
+  /* Font selector */
+  .font-row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .font-select {
+    flex: 1;
+    min-width: 0;
+  }
+  .font-load-btn {
+    flex-shrink: 0;
+    font-size: 0.85rem !important;
+    min-width: 42px;
+    padding: 0 10px !important;
+    border-radius: var(--pv-radius-sm) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .font-custom-input {
+    margin-top: 6px;
+    font-size: 0.78rem;
+  }
+
+  .font-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .font-actions .toggle-row {
+    flex: 1;
+    min-width: 0;
+  }
+  .font-actions .toggle-row span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .font-reset-btn {
+    flex-shrink: 0;
+    font-size: 0.7rem !important;
+    padding: 3px 8px !important;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .font-reset-btn:hover { opacity: 1; }
+  .font-reset-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   /* File row */

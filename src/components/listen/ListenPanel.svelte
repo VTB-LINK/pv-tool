@@ -192,6 +192,10 @@
       params.set('thresholdmedia', engine.thresholdMedia ? '1' : '0');
     }
 
+    if (engine.fontFamily) {
+      params.set('font', engine.fontFamily);
+    }
+
     const url = base + '?' + params.toString();
     try {
       await navigator.clipboard.writeText(url);

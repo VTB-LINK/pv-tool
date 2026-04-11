@@ -81,6 +81,7 @@ export class PVEngine {
   private _resizeParent: HTMLElement | null = null;
   private _loading = false;
   private _bgColorOverride: string | null = null;
+  private _fontFamilyOverride: string | null = null;
   private _tick = 0;
   private _playbackTime = 0;
   private _paused = false;
@@ -265,6 +266,9 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       this._beatReactivity = normalizedTemplate.beatReactivity ?? 0.5;
       this._animationSpeed = normalizedTemplate.animationSpeed ?? 2;
       this._motionIntensity = normalizedTemplate.motionIntensity ?? 1;
+      if (normalizedTemplate.fontFamily) {
+        this._fontFamilyOverride = normalizedTemplate.fontFamily;
+      }
       this._effectOpacity = normalizedTemplate.bgOpacity ?? 1;
       this.bgFill.alpha = this._effectOpacity;
       this._outlineEnabled = normalizedTemplate.features?.mediaOutline ?? false;
@@ -828,6 +832,12 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
   }
   get canvasColor() { return this._bgColorOverride; }
 
+  set fontFamily(font: string | null) {
+    this._fontFamilyOverride = font;
+    this.rebuildEffectsFromCurrentTemplate();
+  }
+  get fontFamily() { return this._fontFamilyOverride; }
+
   set hueShift(degrees: number) {
     this._hueShift = degrees;
     this.hueFilter.matrix = [1,0,0,0,0, 0,1,0,0,0, 0,0,1,0,0, 0,0,0,1,0];
@@ -1004,6 +1014,9 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     const config = { ...normalizeEffectConfig(entry) };
     if (this.userText) {
       config._userText = this.textSegments[0] || this.userText;
+    }
+    if (this._fontFamilyOverride) {
+      config.fontFamily = this._fontFamilyOverride;
     }
 
     try {
