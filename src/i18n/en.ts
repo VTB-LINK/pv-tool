@@ -79,6 +79,9 @@ export const en: Record<LocaleKey, string> = {
   'listen_now_playing': 'Listen Now Playing',
 
   // Color swatch titles
+  'canvas_custom': 'Custom',
+  'canvas_custom_color': 'Custom Canvas Color',
+  'canvas_transparent': 'Transparent',
   'white': 'White',
   'black': 'Black',
   'blue': 'Blue',
@@ -253,6 +256,7 @@ export const en: Record<LocaleKey, string> = {
   'copy_obs_url': 'Copy OBS Browser Source URL',
   'copy_obs_url_hint': 'Auto-hide panels / transparent BG / save template, listen state, feature toggles, and runtime params',
   'url_opt_alpha': 'Transparent Background',
+  'url_opt_bg': 'Custom Background',
   'url_opt_template': 'Include Current Template',
   'url_opt_listen': 'Include Listen State',
   'url_opt_postfx': 'Include FX & Rhythm Params',

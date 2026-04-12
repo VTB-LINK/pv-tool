@@ -144,7 +144,7 @@
 
   // URL copy options
   let urlOptionsOpen = $state(false);
-  let urlOptAlpha = $state(true);
+  let urlOptBg = $state(true);
   let urlOptTemplate = $state(true);
   let urlOptListen = $state(true);
   let urlOptPostFx = $state(true);
@@ -159,8 +159,16 @@
     // Always hide panels for OBS
     params.set('panel', '0');
 
-    // Optional: transparent background
-    if (urlOptAlpha) params.set('bg', '0');
+    // Optional: canvas background
+    if (urlOptBg) {
+      if (engine.alphaMode) {
+        params.set('bg', '0');
+      } else if (engine.canvasColor) {
+        // Strip '#' prefix, serialize as RRGGBB or RRGGBBAA
+        const raw = engine.canvasColor.replace('#', '');
+        params.set('bg', raw);
+      }
+    }
 
     // Optional: current template
     if (urlOptTemplate) {
@@ -328,8 +336,8 @@
     <ExpandPanel visible={urlOptionsOpen}>
       {#snippet children()}
         <label class="pv-check-row">
-          <input type="checkbox" bind:checked={urlOptAlpha} />
-          <span class="pv-check-text">{t('url_opt_alpha')}</span>
+          <input type="checkbox" bind:checked={urlOptBg} />
+          <span class="pv-check-text">{t('url_opt_bg')}</span>
         </label>
         <label class="pv-check-row">
           <input type="checkbox" bind:checked={urlOptTemplate} />

@@ -2,6 +2,7 @@
 <!-- Licensed under AGPL-3.0. -->
 <script lang="ts">
   import { t } from '../../i18n';
+  import ColorPickerAlpha from './ColorPickerAlpha.svelte';
 
   type ColorMode = 'palette' | 'custom';
 
@@ -31,6 +32,7 @@
 
   let lastPaletteValue = $state('$primary');
   let lastCustomValue = $state('#ffffff');
+  let pickerOpen = $state(false);
 
   $effect(() => {
     if (isPaletteRef(defaultPaletteValue) && !isPaletteRef(lastPaletteValue)) {
@@ -74,6 +76,17 @@
     lastCustomValue = nextValue;
     emit(nextValue);
   }
+
+  /** Normalize 3/4/6/8 digit hex to 8-digit #RRGGBBAA */
+  function normalizeToHex8(hex: string): string {
+    if (!hex.startsWith('#')) return '#ffffffff';
+    const h = hex.slice(1);
+    if (h.length === 3) return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}ff`;
+    if (h.length === 4) return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}`;
+    if (h.length === 6) return `#${h}ff`;
+    if (h.length === 8) return hex;
+    return '#ffffffff';
+  }
 </script>
 
 <div class="color-value-control">
@@ -89,13 +102,18 @@
   {/if}
 
   {#if !allowPalette || mode === 'custom'}
-    <input
-      type="color"
-      value={customValue}
-      oninput={(e: Event) => handleCustomChange((e.target as HTMLInputElement).value)}
-      class="color-input"
-    />
+    <button
+      class="color-trigger"
+      style="background:{customValue}"
+      onclick={() => pickerOpen = !pickerOpen}
+      title={customValue}
+    ></button>
     <span class="color-hex">{customValue}</span>
+    <ColorPickerAlpha
+      value={normalizeToHex8(customValue)}
+      onchange={handleCustomChange}
+      bind:open={pickerOpen}
+    />
   {:else}
     <select
       class="pv-select pv-select-compact pv-select-mono palette-select"
@@ -116,6 +134,7 @@
     justify-content: flex-end;
     flex-wrap: wrap;
     gap: 6px;
+    position: relative;
   }
 
   .color-mode-select {
@@ -127,7 +146,7 @@
     min-width: 92px;
   }
 
-  .color-input {
+  .color-trigger {
     -webkit-appearance: none;
     appearance: none;
     width: 28px;
@@ -136,14 +155,12 @@
     border-radius: var(--pv-radius-sm);
     padding: 0;
     cursor: pointer;
-    background: none;
+    flex-shrink: 0;
   }
 
-  .color-input::-webkit-color-swatch-wrapper { padding: 2px; }
-
-  .color-input::-webkit-color-swatch {
-    border-radius: 3px;
-    border: none;
+  .color-trigger:hover {
+    border-color: var(--pv-border-hover);
+    transform: scale(1.05);
   }
 
   .color-hex {
