@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "jieba-wasm": "^2.4.0",
-    "pixi.js": "^8.16.0"
+    "pixi.js": "^8.16.0",
+    "vanilla-colorful": "^0.7.2"
   }
 }

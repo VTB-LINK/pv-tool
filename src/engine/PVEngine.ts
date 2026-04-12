@@ -46,6 +46,7 @@ export class PVEngine {
   private _srtTimeline: { startMs: number; endMs: number; text: string }[] | null = null;
   private _effectOpacity = 1;
   private _alphaMode = false;
+  private _canvasAlpha = 1;
   private _hueShift = 0;
   private _nowPlayingListening = false;
   private hueFilter: PIXI.ColorMatrixFilter;
@@ -292,6 +293,16 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       }
       this.updateBgFill();
 
+      // Enforce visibility based on current alphaMode / canvasAlpha
+      const bgLayer = this.layers.get('background');
+      if (this._alphaMode || this._canvasAlpha === 0) {
+        this.bgFill.visible = false;
+        if (bgLayer) bgLayer.visible = false;
+      } else {
+        this.bgFill.visible = true;
+        if (bgLayer) bgLayer.visible = true;
+      }
+
       for (const entry of normalizedTemplate.effects) {
         this.activeEffects.push(this.createRuntimeEffect(entry));
       }
@@ -449,14 +460,20 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     this._alphaMode = val;
     const bgLayer = this.layers.get('background');
     if (val) {
+      this._canvasAlpha = 0;
       this.bgFill.visible = false;
       if (bgLayer) bgLayer.visible = false;
-      this.app.renderer.background.alpha = 0;
     } else {
+      // Restore alpha from override if present
+      if (this._bgColorOverride && this._bgColorOverride.length === 9) {
+        this._canvasAlpha = parseInt(this._bgColorOverride.slice(7, 9), 16) / 255;
+      } else {
+        this._canvasAlpha = 1;
+      }
       this.bgFill.visible = true;
       if (bgLayer) bgLayer.visible = true;
-      this.app.renderer.background.alpha = 1;
     }
+    this.updateBgFill();
   }
   get alphaMode() { return this._alphaMode; }
 
@@ -700,12 +717,16 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
 
   private updateBgFill() {
     if (!this.bgFill) return;
+    // PixiJS v8: setting background.color resets alpha to 1 via Color.setValue().
+    // Always force alpha = 0 so bgFill is the sole color source.
+    this.app.renderer.background.alpha = 0;
     const w = this.app.screen.width;
     const h = this.app.screen.height;
     const pad = Math.max(w, h) * 0.5;
     this.bgFill.clear();
     this.bgFill.rect(-pad, -pad, w + pad * 2, h + pad * 2);
-    this.bgFill.fill({ color: this.palette.background });
+    this.bgFill.fill({ color: this.palette.background, alpha: this._canvasAlpha });
+    this.bgFill.alpha = this._effectOpacity;
   }
 
   private getMediaSprite(): PIXI.Sprite | null {
@@ -831,13 +852,34 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
   set canvasColor(color: string | null) {
     this._bgColorOverride = color;
     if (color) {
-      this.palette.background = color;
-      this.app.renderer.background.color = new PIXI.Color(color).toNumber();
+      // Parse 8-digit hex: extract RGB and alpha
+      const rgb = color.length === 9 ? color.slice(0, 7) : color;
+      let alpha = 1;
+      if (color.length === 9) {
+        alpha = parseInt(color.slice(7, 9), 16) / 255;
+      }
+      this._canvasAlpha = alpha;
+      this.palette.background = rgb;
+      this.app.renderer.background.color = new PIXI.Color(rgb).toNumber();
+      // renderer.background.alpha stays 0; bgFill is the sole color source
       this.updateBgFill();
+      // Show/hide background layers based on alpha
+      const bgLayer = this.layers.get('background');
+      if (alpha === 0) {
+        this.bgFill.visible = false;
+        if (bgLayer) bgLayer.visible = false;
+      } else {
+        this.bgFill.visible = !this._alphaMode;
+        if (bgLayer) bgLayer.visible = !this._alphaMode;
+      }
     } else if (this.currentTemplate) {
+      this._canvasAlpha = this._alphaMode ? 0 : 1;
       this.palette.background = this.currentTemplate.palette.background;
       this.app.renderer.background.color = new PIXI.Color(this.palette.background).toNumber();
       this.updateBgFill();
+      const bgLayer = this.layers.get('background');
+      this.bgFill.visible = !this._alphaMode;
+      if (bgLayer) bgLayer.visible = !this._alphaMode;
     }
   }
   get canvasColor() { return this._bgColorOverride; }

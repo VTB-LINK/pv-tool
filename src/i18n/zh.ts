@@ -77,6 +77,9 @@ export const zh = {
   'listen_now_playing': '监听 Now Playing',
 
   // Color swatch titles
+  'canvas_custom': '自定义',
+  'canvas_custom_color': '自定义画布色',
+  'canvas_transparent': '透明',
   'white': '白',
   'black': '黑',
   'blue': '蓝',
@@ -252,6 +255,7 @@ export const zh = {
   'copy_obs_url': '复制 OBS 浏览器源 URL',
   'copy_obs_url_hint': '自动隐藏面板 / 透明背景 / 保存当前模板、监听状态、功能开关与运行参数',
   'url_opt_alpha': '透明背景',
+  'url_opt_bg': '自定义背景',
   'url_opt_template': '包含当前模板',
   'url_opt_listen': '包含监听状态',
   'url_opt_postfx': '包含后期与节奏参数',

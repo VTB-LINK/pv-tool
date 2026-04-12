@@ -8,11 +8,12 @@
   import Slider from '../common/Slider.svelte';
   import UnsavedChangesDialog from '../common/UnsavedChangesDialog.svelte';
   import TemplateDiffDialog from '../editor/TemplateDiffDialog.svelte';
+  import ColorPickerAlpha from '../common/ColorPickerAlpha.svelte';
   import type { SegmentedControlOption, SelectMenuOption } from '../common/options';
   import {
     engine, selectTemplate, selectCustomTemplate, enterCustomMode,
     setText, setSegmentDuration, setAnimationSpeed, setMotionIntensity,
-    setEffectOpacity, setBpm, setBeatReactivity, setCanvasColor, setFontFamily, setFontLocked, resetFont,
+    setEffectOpacity, setBpm, setBeatReactivity, setCanvasColor, setAlphaMode, setFontFamily, setFontLocked, resetFont,
     loadMedia, loadAudio, loadLyrics, selectLyricsSource,
     clearMedia, clearAudio, clearLyrics, showToast,
     captureEditingSessionSnapshot, getCurrentTemplateConfig, loadTemplateWithOptions,
@@ -158,6 +159,35 @@
     { value: 'file', label: t('use_file') },
   ]);
 
+  // Canvas color: custom picker state
+  let customCanvasColor = $state('#ff000080');
+  let customPickerOpen = $state(false);
+  let isCustomCanvasActive = $state(false);
+  let isTransparentActive = $derived(engine.alphaMode);
+  // Remember the last non-zero alpha so we can restore it when alphaMode is toggled off
+  let lastNonZeroAlpha = 'ff';
+
+  // When engine.canvasColor is reset externally (e.g. template switch), sync UI state
+  $effect(() => {
+    if (engine.canvasColor === null && !engine.alphaMode) {
+      isCustomCanvasActive = false;
+      customPickerOpen = false;
+    }
+  });
+
+  // Sync custom color picker when alphaMode is toggled externally (e.g. export checkbox)
+  $effect(() => {
+    if (isCustomCanvasActive && customPickerOpen) {
+      if (engine.alphaMode) {
+        // Set picker to fully transparent
+        customCanvasColor = customCanvasColor.slice(0, 7) + '00';
+      } else {
+        // Restore previous alpha
+        customCanvasColor = customCanvasColor.slice(0, 7) + lastNonZeroAlpha;
+      }
+    }
+  });
+
   const canvasColors = [
     { color: null, label: 'A', title: t('follow_template') },
     { color: '#ffffff', title: t('white') },
@@ -167,6 +197,45 @@
     { color: '#EEDD11', title: t('yellow') },
     { color: '#f5c6d0', title: t('pink') },
   ];
+
+  function handleCustomCanvasClick() {
+    customPickerOpen = !customPickerOpen;
+    if (!customPickerOpen) return;
+    isCustomCanvasActive = true;
+    setAlphaMode(false);
+    applyCustomCanvasColor(customCanvasColor);
+  }
+
+  function handleTransparentClick() {
+    isCustomCanvasActive = false;
+    customPickerOpen = false;
+    setAlphaMode(true);
+    setCanvasColor(null);
+  }
+
+  function handlePresetClick(color: string | null) {
+    isCustomCanvasActive = false;
+    customPickerOpen = false;
+    setAlphaMode(false);
+    setCanvasColor(color);
+  }
+
+  function applyCustomCanvasColor(hex8: string) {
+    customCanvasColor = hex8;
+    // Extract alpha from 8-digit hex
+    const alphaByte = parseInt(hex8.slice(7, 9), 16);
+    const alpha = alphaByte / 255;
+    if (alpha > 0) {
+      lastNonZeroAlpha = hex8.slice(7, 9);
+    }
+    // Set alpha mode FIRST, then canvas color — otherwise alphaMode setter resets alpha to 1
+    if (alpha === 0) {
+      setAlphaMode(true);
+    } else {
+      setAlphaMode(false);
+    }
+    setCanvasColor(hex8);
+  }
 
   function getSelectedTemplateLabel(): string {
     if (engine.isCustomMode) return t('custom');
@@ -299,20 +368,59 @@
   <!-- Canvas Color -->
   <Section label={t('canvas_color')}>
     <div class="color-swatches">
-      {#each canvasColors as swatch}
+      <div class="swatch-row">
+        <!-- A: Follow template -->
         <button
           class="swatch"
-          class:active={engine.canvasColor === swatch.color}
-          title={swatch.title}
-          style={swatch.color ? `background:${swatch.color}` : ''}
-          onclick={() => setCanvasColor(swatch.color)}
+          class:active={engine.canvasColor === null && !isCustomCanvasActive && !isTransparentActive}
+          title={t('follow_template')}
+          onclick={() => handlePresetClick(null)}
         >
-          {#if !swatch.color}
-            <span class="swatch-auto">A</span>
-          {/if}
+          <span class="swatch-auto">A</span>
         </button>
-      {/each}
+
+        <!-- Custom color -->
+        <button
+          class="swatch"
+          class:active={isCustomCanvasActive}
+          title={t('canvas_custom')}
+          style="background:{customCanvasColor}"
+          onclick={handleCustomCanvasClick}
+        >
+          <span class="swatch-emoji">🎨</span>
+        </button>
+
+        <!-- Transparent -->
+        <button
+          class="swatch swatch-checker"
+          class:active={isTransparentActive && !isCustomCanvasActive}
+          title={t('canvas_transparent')}
+          onclick={handleTransparentClick}
+        >
+          <span class="swatch-label">◇</span>
+        </button>
+      </div>
+
+      <div class="swatch-row">
+        <!-- Preset colors -->
+        {#each canvasColors.slice(1) as swatch}
+          <button
+            class="swatch"
+            class:active={engine.canvasColor === swatch.color && !isCustomCanvasActive && !isTransparentActive}
+            title={swatch.title}
+            style="background:{swatch.color}"
+            onclick={() => handlePresetClick(swatch.color)}
+          ></button>
+        {/each}
+      </div>
     </div>
+
+    <!-- Custom color picker popup -->
+    <ColorPickerAlpha
+      value={customCanvasColor}
+      onchange={applyCustomCanvasColor}
+      bind:open={customPickerOpen}
+    />
   </Section>
 
   <!-- Font Family -->
@@ -555,8 +663,13 @@
   /* Color swatches */
   .color-swatches {
     display: flex;
+    flex-direction: column;
     gap: 6px;
-    flex-wrap: wrap;
+  }
+
+  .swatch-row {
+    display: flex;
+    gap: 6px;
   }
 
   .swatch {
@@ -592,6 +705,42 @@
     color: var(--pv-text-secondary);
     background: linear-gradient(135deg, #222 50%, #666 50%);
     border-radius: 4px;
+    pointer-events: none;
+  }
+
+  .swatch-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--pv-text-secondary);
+    border-radius: 4px;
+    pointer-events: none;
+  }
+
+  .swatch-emoji {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+
+  /* Checkerboard pattern for transparent swatch */
+  .swatch-checker {
+    background-image:
+      linear-gradient(45deg, #808080 25%, transparent 25%),
+      linear-gradient(-45deg, #808080 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #808080 75%),
+      linear-gradient(-45deg, transparent 75%, #808080 75%) !important;
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0;
   }
 
   /* Font selector */

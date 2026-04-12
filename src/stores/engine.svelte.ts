@@ -312,6 +312,11 @@ export function selectTemplate(index: number) {
   _isCustomMode = false;
   _customDirty = false;
   _loadedCustomIndex = -1;
+  // Reset canvas color override so new template's palette takes effect
+  _canvasColor = null;
+  _engine.canvasColor = null;
+  _alphaMode = false;
+  _engine.alphaMode = false;
   const tpl = templates[index];
   _baseTemplateName = tpl.nameKey ?? tpl.name;
   _baseTemplateEffects = normalizeEffectEntries(tpl.effects);
@@ -870,6 +875,11 @@ export function loadTemplateWithOptions(tpl: TemplateConfig, opts: {
 
   _isCustomMode = false;
   _customDirty = false;
+  // Reset canvas color override so new template's palette takes effect
+  _canvasColor = null;
+  if (_engine) _engine.canvasColor = null;
+  _alphaMode = false;
+  if (_engine) _engine.alphaMode = false;
 
   if (opts.builtinIndex !== undefined && opts.builtinIndex >= 0) {
     // Switching to a built-in template
