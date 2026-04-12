@@ -292,16 +292,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         this.app.renderer.background.color = new PIXI.Color(this.palette.background).toNumber();
       }
       this.updateBgFill();
-
-      // Enforce visibility based on current alphaMode / canvasAlpha
-      const bgLayer = this.layers.get('background');
-      if (this._alphaMode || this._canvasAlpha === 0) {
-        this.bgFill.visible = false;
-        if (bgLayer) bgLayer.visible = false;
-      } else {
-        this.bgFill.visible = true;
-        if (bgLayer) bgLayer.visible = true;
-      }
+      this.syncBgVisibility();
 
       for (const entry of normalizedTemplate.effects) {
         this.activeEffects.push(this.createRuntimeEffect(entry));
@@ -458,11 +449,8 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
 
   set alphaMode(val: boolean) {
     this._alphaMode = val;
-    const bgLayer = this.layers.get('background');
     if (val) {
       this._canvasAlpha = 0;
-      this.bgFill.visible = false;
-      if (bgLayer) bgLayer.visible = false;
     } else {
       // Restore alpha from override if present
       if (this._bgColorOverride && this._bgColorOverride.length === 9) {
@@ -470,10 +458,9 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       } else {
         this._canvasAlpha = 1;
       }
-      this.bgFill.visible = true;
-      if (bgLayer) bgLayer.visible = true;
     }
     this.updateBgFill();
+    this.syncBgVisibility();
   }
   get alphaMode() { return this._alphaMode; }
 
@@ -729,6 +716,27 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     this.bgFill.alpha = this._effectOpacity;
   }
 
+  /**
+   * Centralized background visibility logic.
+   * - alphaMode ON or canvasAlpha === 0 → everything hidden (fully transparent)
+   * - 0 < canvasAlpha < 1 → bgFill visible (semi-transparent), bgLayer hidden
+   *   (background effects draw opaque and would cover the semi-transparent fill)
+   * - canvasAlpha === 1 → bgFill visible, bgLayer visible (normal)
+   */
+  private syncBgVisibility() {
+    const bgLayer = this.layers.get('background');
+    if (this._alphaMode || this._canvasAlpha === 0) {
+      this.bgFill.visible = false;
+      if (bgLayer) bgLayer.visible = false;
+    } else if (this._canvasAlpha < 1) {
+      this.bgFill.visible = true;
+      if (bgLayer) bgLayer.visible = false;
+    } else {
+      this.bgFill.visible = true;
+      if (bgLayer) bgLayer.visible = true;
+    }
+  }
+
   private getMediaSprite(): PIXI.Sprite | null {
     const layer = this.layers.get('media');
     return (layer?.children[0] as PIXI.Sprite) ?? null;
@@ -861,25 +869,14 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       this._canvasAlpha = alpha;
       this.palette.background = rgb;
       this.app.renderer.background.color = new PIXI.Color(rgb).toNumber();
-      // renderer.background.alpha stays 0; bgFill is the sole color source
       this.updateBgFill();
-      // Show/hide background layers based on alpha
-      const bgLayer = this.layers.get('background');
-      if (alpha === 0) {
-        this.bgFill.visible = false;
-        if (bgLayer) bgLayer.visible = false;
-      } else {
-        this.bgFill.visible = !this._alphaMode;
-        if (bgLayer) bgLayer.visible = !this._alphaMode;
-      }
+      this.syncBgVisibility();
     } else if (this.currentTemplate) {
       this._canvasAlpha = this._alphaMode ? 0 : 1;
       this.palette.background = this.currentTemplate.palette.background;
       this.app.renderer.background.color = new PIXI.Color(this.palette.background).toNumber();
       this.updateBgFill();
-      const bgLayer = this.layers.get('background');
-      this.bgFill.visible = !this._alphaMode;
-      if (bgLayer) bgLayer.visible = !this._alphaMode;
+      this.syncBgVisibility();
     }
   }
   get canvasColor() { return this._bgColorOverride; }
