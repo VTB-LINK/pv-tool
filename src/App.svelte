@@ -153,6 +153,17 @@
 
       const font = params.get('font');
       if (font !== null) setFontFamily(font || null);
+
+      // Background: bg=0 (transparent) or bg=RRGGBB / bg=RRGGBBAA (custom color)
+      const bgParam = params.get('bg');
+      if (bgParam === '0') {
+        setAlphaMode(true);
+      } else if (bgParam && /^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(bgParam)) {
+        const hex8 = bgParam.length === 6 ? `#${bgParam}ff` : `#${bgParam}`;
+        setCanvasColor(hex8);
+        const alpha = parseInt(hex8.slice(7, 9), 16) / 255;
+        if (alpha === 0) setAlphaMode(true);
+      }
     }
 
     // Restore template
@@ -168,17 +179,6 @@
           selectTemplate(idx);
         }
       }
-    }
-
-    // Background: bg=0 (transparent) or bg=RRGGBB / bg=RRGGBBAA (custom color)
-    const bgParam = params.get('bg');
-    if (bgParam === '0') {
-      setAlphaMode(true);
-    } else if (bgParam && /^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(bgParam)) {
-      const hex8 = bgParam.length === 6 ? `#${bgParam}ff` : `#${bgParam}`;
-      setCanvasColor(hex8);
-      const alpha = parseInt(hex8.slice(7, 9), 16) / 255;
-      if (alpha === 0) setAlphaMode(true);
     }
 
     // Auto-connect NowPlaying / NXPC (via props to ListenPanel)
