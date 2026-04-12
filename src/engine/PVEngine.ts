@@ -868,13 +868,17 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       }
       this._canvasAlpha = alpha;
       this.palette.background = rgb;
-      this.app.renderer.background.color = new PIXI.Color(rgb).toNumber();
+      if (!this._alphaMode) {
+        this.app.renderer.background.color = new PIXI.Color(rgb).toNumber();
+      }
       this.updateBgFill();
       this.syncBgVisibility();
     } else if (this.currentTemplate) {
       this._canvasAlpha = this._alphaMode ? 0 : 1;
       this.palette.background = this.currentTemplate.palette.background;
-      this.app.renderer.background.color = new PIXI.Color(this.palette.background).toNumber();
+      if (!this._alphaMode) {
+        this.app.renderer.background.color = new PIXI.Color(this.palette.background).toNumber();
+      }
       this.updateBgFill();
       this.syncBgVisibility();
     }
