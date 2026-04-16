@@ -1,9 +1,5 @@
-// Modified by VTB-LIVE on 2026-04-11
-// Copyright (c) 2026 VTB-LIVE (Modifications)
-//
-// Original Work:
-// PV Tool — Copyright (c) 2026 DanteAlighieri13210914
-// Licensed under AGPL-3.0. For commercial use, see COMMERCIAL.md
+// VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE
+// Licensed under AGPL-3.0.
 
 // Manages WebSocket connection to Metabox Nexus-PlayerCap (NXPC) service
 // and provides lyric, song info, and playback state data to the engine.

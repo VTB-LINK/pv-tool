@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "lint": "eslint src/"
+    "lint": "eslint src/ && node scripts/check-svelte-headers.mjs"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.3",
