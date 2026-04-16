@@ -162,15 +162,37 @@
   // Canvas color: custom picker state
   let customCanvasColor = $state('#ff000080');
   let customPickerOpen = $state(false);
-  let isCustomCanvasActive = $state(false);
   let isTransparentActive = $derived(engine.alphaMode);
   // Remember the last non-zero alpha so we can restore it when alphaMode is toggled off
   let lastNonZeroAlpha = 'ff';
 
-  // When engine.canvasColor is reset externally (e.g. template switch), sync UI state
+  // Extract the RGB-only portion (#RRGGBB) from a canvas color for preset matching
+  const PRESET_COLORS = ['#ffffff', '#000000', '#1122ee', '#8b1a1a', '#eedd11', '#f5c6d0'];
+  function canvasColorRgb(c: string | null): string | null {
+    if (!c) return null;
+    return c.slice(0, 7).toLowerCase();
+  }
+  function isPresetColor(c: string | null): boolean {
+    const rgb = canvasColorRgb(c);
+    return rgb !== null && PRESET_COLORS.includes(rgb);
+  }
+  // Derive: custom canvas is active when engine has a canvasColor that isn't a preset
+  let isCustomCanvasActive = $derived(
+    engine.canvasColor !== null && !isPresetColor(engine.canvasColor) && !engine.alphaMode
+  );
+
+  // Sync customCanvasColor from engine when canvasColor changes externally
+  // (URL load, sharecode, custom template load)
+  $effect(() => {
+    const cc = engine.canvasColor;
+    if (cc && !isPresetColor(cc)) {
+      customCanvasColor = cc;
+    }
+  });
+
+  // When engine.canvasColor is reset externally (e.g. template switch), close picker
   $effect(() => {
     if (engine.canvasColor === null && !engine.alphaMode) {
-      isCustomCanvasActive = false;
       customPickerOpen = false;
     }
   });
@@ -179,10 +201,8 @@
   $effect(() => {
     if (isCustomCanvasActive && customPickerOpen) {
       if (engine.alphaMode) {
-        // Set picker to fully transparent
         customCanvasColor = customCanvasColor.slice(0, 7) + '00';
       } else {
-        // Restore previous alpha
         customCanvasColor = customCanvasColor.slice(0, 7) + lastNonZeroAlpha;
       }
     }
@@ -201,20 +221,17 @@
   function handleCustomCanvasClick() {
     customPickerOpen = !customPickerOpen;
     if (!customPickerOpen) return;
-    isCustomCanvasActive = true;
     setAlphaMode(false);
     applyCustomCanvasColor(customCanvasColor);
   }
 
   function handleTransparentClick() {
-    isCustomCanvasActive = false;
     customPickerOpen = false;
     setAlphaMode(true);
     setCanvasColor(null);
   }
 
   function handlePresetClick(color: string | null) {
-    isCustomCanvasActive = false;
     customPickerOpen = false;
     setAlphaMode(false);
     setCanvasColor(color);
@@ -406,7 +423,7 @@
         {#each canvasColors.slice(1) as swatch}
           <button
             class="swatch"
-            class:active={engine.canvasColor === swatch.color && !isCustomCanvasActive && !isTransparentActive}
+            class:active={canvasColorRgb(engine.canvasColor) === canvasColorRgb(swatch.color) && !isCustomCanvasActive && !isTransparentActive}
             title={swatch.title}
             style="background:{swatch.color}"
             onclick={() => handlePresetClick(swatch.color)}

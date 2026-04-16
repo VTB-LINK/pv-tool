@@ -48,6 +48,8 @@ export interface TemplateConfig {
     thresholdMedia?: boolean;
   };
   fontFamily?: string;
+  /** Custom canvas color override (#RRGGBB or #RRGGBBAA) */
+  canvasColor?: string;
   /** Name (or nameKey) of the builtin template this was based on, if any */
   baseTemplateName?: string;
   /** Timestamp (ms) of last modification */

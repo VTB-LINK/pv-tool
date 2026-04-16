@@ -572,6 +572,10 @@ function buildCurrentTemplateSnapshot(name: string, options?: SaveTemplateOption
     tpl.fontFamily = _fontFamily;
   }
 
+  if (_canvasColor) {
+    tpl.canvasColor = _canvasColor;
+  }
+
   if (includePostfx) {
     tpl.postfx = {
       shake: _shake,
@@ -660,6 +664,8 @@ export function loadCustomTemplateIntoEditor(index: number) {
   _customDirty = false;
   _loadedCustomIndex = index;
   applyBaseReference(ct);
+  // Restore canvasColor saved with the custom template
+  setCanvasColor(ct.canvasColor ?? null);
   _engine.loadTemplate(cloneTemplate(ct));
   syncFromEngine();
 }
@@ -763,6 +769,9 @@ export function getCurrentTemplateConfig(): TemplateConfig | null {
   if (_fontFamily) {
     tpl.fontFamily = _fontFamily;
   }
+  if (_canvasColor) {
+    tpl.canvasColor = _canvasColor;
+  }
   tpl.postfx = { shake: _shake, zoom: _zoom, tilt: _tilt, glitch: _glitch, hueShift: _hueShift };
   tpl.features = {
     mediaOutline: _mediaOutline,
@@ -782,6 +791,8 @@ export function loadShareCodeTemplate(tpl: TemplateConfig) {
   _customDirty = false;
   _loadedCustomIndex = -1;
   applyBaseReference(tpl);
+  // Restore canvasColor from sharecode (or reset if absent / old sharecode)
+  setCanvasColor(tpl.canvasColor ?? null);
   _engine.loadTemplate(cloneTemplate(tpl));
   setLoadedTemplateSnapshot(tpl);
   syncFromEngine();
@@ -875,9 +886,8 @@ export function loadTemplateWithOptions(tpl: TemplateConfig, opts: {
 
   _isCustomMode = false;
   _customDirty = false;
-  // Reset canvas color override so new template's palette takes effect
-  _canvasColor = null;
-  if (_engine) _engine.canvasColor = null;
+  // Restore canvasColor from the merged template, or reset
+  setCanvasColor(merged.canvasColor ?? null);
   _alphaMode = false;
   if (_engine) _engine.alphaMode = false;
 
@@ -999,7 +1009,7 @@ export function setCanvasColor(color: string | null) {
   if (color && color.length === 9) {
     alpha = parseInt(color.slice(7, 9), 16) / 255;
   }
-  if (alpha < 1) {
+  if (alpha < 1 || _alphaMode) {
     document.body.style.background = 'transparent';
     document.documentElement.style.background = 'transparent';
   } else {
