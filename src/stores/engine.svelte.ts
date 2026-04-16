@@ -992,6 +992,20 @@ export function setThresholdMedia(v: boolean) {
 export function setCanvasColor(color: string | null) {
   _canvasColor = color;
   if (_engine) _engine.canvasColor = color;
+  // When canvas alpha < 1, page CSS must be transparent so the semi-transparent
+  // canvas content is not composited onto the opaque CSS background (#0a0a0f).
+  // This affects both browser preview and OBS browser source.
+  let alpha = 1;
+  if (color && color.length === 9) {
+    alpha = parseInt(color.slice(7, 9), 16) / 255;
+  }
+  if (alpha < 1) {
+    document.body.style.background = 'transparent';
+    document.documentElement.style.background = 'transparent';
+  } else {
+    document.body.style.background = '';
+    document.documentElement.style.background = '';
+  }
 }
 
 export function setFontFamily(font: string | null) {

@@ -704,8 +704,9 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
 
   private updateBgFill() {
     if (!this.bgFill) return;
-    // PixiJS v8: setting background.color resets alpha to 1 via Color.setValue().
-    // Always force alpha = 0 so bgFill is the sole color source.
+    // renderer.background is NEVER visible (alpha always 0, bgFill is sole color source).
+    // Must also be black to avoid premultiplied alpha color bleeding in WebGL.
+    this.app.renderer.background.color = 0x000000;
     this.app.renderer.background.alpha = 0;
     const w = this.app.screen.width;
     const h = this.app.screen.height;
@@ -1044,6 +1045,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       this.app.renderer.background.color = new PIXI.Color(this.palette.background).toNumber();
     }
     this.updateBgFill();
+    this.syncBgVisibility();
   }
 
   private rebuildEffectsFromCurrentTemplate(): void {
