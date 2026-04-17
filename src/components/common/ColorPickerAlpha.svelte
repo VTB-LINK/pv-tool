@@ -25,13 +25,13 @@
   } = $props();
 
   let popoverEl: HTMLDivElement | undefined = $state();
-  let hexInputText = $state(value.replace('#', ''));
+  let hexInputText = $state('');
   let hexInputEl: HTMLInputElement | undefined = $state();
   // Track whether the last change came from the text input to avoid overwriting it
   let inputIsSource = false;
 
   // Sync input text when value changes from picker (not from input)
-  $effect(() => {
+  $effect.pre(() => {
     const v = value.replace('#', '');
     if (!inputIsSource) {
       hexInputText = v;
