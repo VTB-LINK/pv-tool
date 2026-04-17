@@ -369,7 +369,7 @@
       eng.swapEffects(index, newIndex);
       effectsVersion++;
       markEditorDirty();
-      activeEffectIndex = newIndex;
+      if (activeEffectIndex === index) activeEffectIndex = newIndex;
     } catch (err) {
       console.warn('[TemplateEditor] moveEffect failed:', err);
     }
