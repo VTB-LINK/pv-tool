@@ -76,6 +76,8 @@
       eng.onNxpcDisconnect = undefined;
       eng.nxpcListening = false;
       nxpcActive = false;
+      nxpcPlayers = [];
+      nxpcSelectedPlayer = '';
     }
     npConnecting = true;
     const ok = await testNowPlayingConnection();
@@ -100,6 +102,8 @@
       eng.onNxpcDisconnect = undefined;
       eng.nxpcListening = false;
       nxpcActive = false;
+      nxpcPlayers = [];
+      nxpcSelectedPlayer = '';
       return;
     }
     // Mutual exclusion: deactivate NowPlaying if active
@@ -124,6 +128,8 @@
     nxpcActive = true;
     eng.onNxpcDisconnect = () => {
       nxpcActive = false;
+      nxpcPlayers = [];
+      nxpcSelectedPlayer = '';
       showToast(t('nwc_disconnected'));
     };
   }
