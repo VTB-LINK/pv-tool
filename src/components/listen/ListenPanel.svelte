@@ -66,6 +66,7 @@
     if (!eng) return;
 
     if (npActive) {
+      eng.onNowPlayingDisconnect = undefined;
       eng.nowPlayingListening = false;
       npActive = false;
       return;
@@ -85,6 +86,10 @@
     }
     eng.nowPlayingListening = true;
     npActive = true;
+    eng.onNowPlayingDisconnect = () => {
+      npActive = false;
+      showToast(t('np_fail_title'));
+    };
   }
 
   async function toggleNxpc() {
@@ -99,6 +104,7 @@
     }
     // Mutual exclusion: deactivate NowPlaying if active
     if (npActive) {
+      eng.onNowPlayingDisconnect = undefined;
       eng.nowPlayingListening = false;
       npActive = false;
     }
@@ -246,7 +252,10 @@
   onDestroy(() => {
     const eng = engine.instance;
     if (eng) {
-      if (npActive) eng.nowPlayingListening = false;
+      if (npActive) {
+        eng.onNowPlayingDisconnect = undefined;
+        eng.nowPlayingListening = false;
+      }
       if (nxpcActive) {
         eng.onNxpcDisconnect = undefined;
         eng.nxpcListening = false;

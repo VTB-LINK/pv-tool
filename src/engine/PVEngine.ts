@@ -113,6 +113,9 @@ export class PVEngine {
   /** Called when the NXPC WebSocket disconnects unexpectedly. */
   onNxpcDisconnect?: () => void;
 
+  /** Called when the NowPlaying WebSocket disconnects unexpectedly. */
+  onNowPlayingDisconnect?: () => void;
+
   constructor() {
     this.app = new PIXI.Application();
     this.hueFilter = new PIXI.ColorMatrixFilter();
@@ -532,12 +535,17 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         this.lastLyricTime = -1;
         this.rebuildAllEffects();
       },
+
+      onDisconnect: () => {
+        this.stopNowPlaying(false);
+        this.onNowPlayingDisconnect?.();
+      },
     });
 
     this.npProvider.connect();
   }
 
-  private stopNowPlaying(): void {
+  private stopNowPlaying(restoreText = true): void {
     if (this.npProvider) {
       this.npProvider.destroy();
       this.npProvider = null;
@@ -550,17 +558,23 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
 
     // Restore the original user text
     this.clearLyricTimeline();
-    const saved = this._npSavedUserText;
-    this._npSavedUserText = null;
-    if (saved !== null) {
-      this.userText = saved;
-      this.textSegments = saved
-        .split('/')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-      if (this.textSegments.length === 0) {
-        this.textSegments = [''];
+    if (restoreText) {
+      const saved = this._npSavedUserText;
+      this._npSavedUserText = null;
+      if (saved !== null) {
+        this.userText = saved;
+        this.textSegments = saved
+          .split('/')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        if (this.textSegments.length === 0) {
+          this.textSegments = [''];
+        }
       }
+    } else {
+      this._npSavedUserText = null;
+      this.userText = '';
+      this.textSegments = [''];
     }
     this.rebuildAllEffects();
   }
@@ -667,7 +681,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       },
 
       onDisconnect: () => {
-        this.stopNxpc();
+        this.stopNxpc(false);
         this.onNxpcDisconnect?.();
       },
     }, this._nxpcHost, this._nxpcPlayer);
@@ -675,7 +689,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     this.nxpcProvider.connect();
   }
 
-  private stopNxpc(): void {
+  private stopNxpc(restoreText = true): void {
     if (this.nxpcProvider) {
       this.nxpcProvider.destroy();
       this.nxpcProvider = null;
@@ -687,17 +701,23 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     this._nxpcSongTitle = '';
 
     this.clearLyricTimeline();
-    const saved = this._nxpcSavedUserText;
-    this._nxpcSavedUserText = null;
-    if (saved !== null) {
-      this.userText = saved;
-      this.textSegments = saved
-        .split('/')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-      if (this.textSegments.length === 0) {
-        this.textSegments = [''];
+    if (restoreText) {
+      const saved = this._nxpcSavedUserText;
+      this._nxpcSavedUserText = null;
+      if (saved !== null) {
+        this.userText = saved;
+        this.textSegments = saved
+          .split('/')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        if (this.textSegments.length === 0) {
+          this.textSegments = [''];
+        }
       }
+    } else {
+      this._nxpcSavedUserText = null;
+      this.userText = '';
+      this.textSegments = [''];
     }
     this.rebuildAllEffects();
   }

@@ -30,6 +30,8 @@ export interface NowPlayingCallbacks {
   onPauseState: (isPaused: boolean) => void;
   onProgress: (progressMs: number) => void;
   onReplay: () => void;
+  /** Called once when the connection drops unexpectedly after having been established. */
+  onDisconnect?: () => void;
 }
 
 /**
@@ -54,6 +56,8 @@ export class NowPlayingProvider {
   private callbacks: NowPlayingCallbacks;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private _active = false;
+  /** True after at least one successful ws.onopen, reset to false after disconnect fires. */
+  private _connectedOnce = false;
 
   constructor(callbacks: NowPlayingCallbacks) {
     this.callbacks = callbacks;
@@ -96,6 +100,7 @@ export class NowPlayingProvider {
     }
 
     this.ws.onopen = () => {
+      this._connectedOnce = true;
       console.log('[NowPlaying] WebSocket connected');
     };
 
@@ -115,6 +120,10 @@ export class NowPlayingProvider {
     this.ws.onclose = () => {
       console.warn('[NowPlaying] WebSocket closed');
       this.ws = null;
+      if (this._connectedOnce) {
+        this._connectedOnce = false;
+        this.callbacks.onDisconnect?.();
+      }
       this.scheduleReconnect();
     };
   }
