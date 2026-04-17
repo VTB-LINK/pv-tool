@@ -106,6 +106,7 @@
     // Hide panels for OBS (apply before any async restore work)
     if (params.get('panel') === '0') {
       panelsVisible = false;
+      if (engine.instance) engine.instance.obsMode = true;
     }
 
     // URL restore priority:

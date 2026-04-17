@@ -110,6 +110,9 @@ export class PVEngine {
   private _nxpcHost: string | undefined = undefined;
   private _nxpcPlayer = '';
 
+  /** When true, disconnect clears text instead of restoring saved text. */
+  obsMode = false;
+
   /** Called when the NXPC WebSocket disconnects unexpectedly. */
   onNxpcDisconnect?: () => void;
 
@@ -537,7 +540,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       },
 
       onDisconnect: () => {
-        this.stopNowPlaying(false);
+        this.stopNowPlaying(!this.obsMode);
         this.onNowPlayingDisconnect?.();
       },
     });
@@ -681,7 +684,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       },
 
       onDisconnect: () => {
-        this.stopNxpc(false);
+        this.stopNxpc(!this.obsMode);
         this.onNxpcDisconnect?.();
       },
     }, this._nxpcHost, this._nxpcPlayer);
