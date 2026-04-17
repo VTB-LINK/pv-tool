@@ -318,7 +318,7 @@
       if (!map.has(displayCategory)) map.set(displayCategory, []);
       map.get(displayCategory)!.push({ ...item, index: i, displayLabel, version });
     });
-    return Array.from(map.entries()).map(([name, items]) => ({ name, items }));
+    return Array.from(map.entries()).map(([name, items]) => ({ name, items: items.sort((a, b) => b.version - a.version) }));
   }
 
   // ── Actions ──
