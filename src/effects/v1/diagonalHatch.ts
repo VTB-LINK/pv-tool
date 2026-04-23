@@ -29,7 +29,8 @@ export class DiagonalHatch extends BaseEffect {
     const canvas = document.createElement('canvas');
     canvas.width = tileSize;
     canvas.height = tileSize;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d')!
+    ctx.save();
     ctx.strokeStyle = color;
     ctx.globalAlpha = alpha;
     ctx.lineWidth = lineWidth;
@@ -37,9 +38,11 @@ export class DiagonalHatch extends BaseEffect {
     ctx.moveTo(0, tileSize);
     ctx.lineTo(tileSize, 0);
     ctx.stroke();
+    ctx.restore();
 
     const tex = PIXI.Texture.from(canvas);
     if (this.tiling) {
+      this.tiling.texture.destroy(true);
       this.tiling.texture = tex;
     } else {
       this.tiling = new PIXI.TilingSprite({ texture: tex, width: 1920, height: 1080 });

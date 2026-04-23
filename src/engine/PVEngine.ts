@@ -73,6 +73,9 @@ export class PVEngine {
   private _invertMediaEnabled = false;
   private _thresholdMediaEnabled = false;
 
+  private _onContextLost: ((e: Event) => void) | null = null;
+  private _onContextRestored: (() => void) | null = null;
+
   readonly beat = new BeatProvider();
   private _beatReactivity = 0.5;
 
@@ -144,6 +147,18 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       preserveDrawingBuffer: true,
     });
     parent.appendChild(this.app.canvas);
+
+    // WebGL context loss recovery – essential for long-running sessions (OBS CEF etc.)
+    this._onContextLost = (e: Event) => {
+      e.preventDefault();
+      console.warn('[PVEngine] WebGL context lost — awaiting restore');
+    };
+    this._onContextRestored = () => {
+      console.warn('[PVEngine] WebGL context restored — rebuilding effects');
+      this.rebuildAllEffects();
+    };
+    this.app.canvas.addEventListener('webglcontextlost', this._onContextLost);
+    this.app.canvas.addEventListener('webglcontextrestored', this._onContextRestored);
 
     // Media layer at the very bottom
     const mediaLayer = new PIXI.Container();
@@ -1478,7 +1493,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     this.app.stage.scale.set(1 + this._zoom * 0.5);
     this.app.stage.rotation = this._tilt * 0.3;
 
-    this.glitchFilter.time = time;
+    this.glitchFilter.time = time % 600;
   }
 
   get canvas(): HTMLCanvasElement {
@@ -1544,6 +1559,13 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     this.stopNowPlaying();
     this.stopNxpc();
     this.clearEffects();
+    // Remove WebGL context loss listeners
+    if (this._onContextLost) {
+      this.app.canvas.removeEventListener('webglcontextlost', this._onContextLost);
+    }
+    if (this._onContextRestored) {
+      this.app.canvas.removeEventListener('webglcontextrestored', this._onContextRestored);
+    }
     // Remove canvas from DOM first
     if (this.app.canvas && this.app.canvas.parentNode) {
       this.app.canvas.parentNode.removeChild(this.app.canvas);

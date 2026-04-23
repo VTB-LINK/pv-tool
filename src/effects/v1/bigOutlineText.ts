@@ -24,17 +24,20 @@ export class BigOutlineText extends BaseEffect {
   private chars: CharItem[] = [];
   private built = false;
   private lastText = '';
+  private lastConfigKey = '';
 
   protected setup(): void {}
 
   private build(text: string, sw: number, sh: number): void {
-    if (this.built && text === this.lastText) return;
+    const configKey = `${this.config.color}|${this.config.strokeColor}|${this.config.fontSize}|${this.config.fontFamily}`;
+    if (this.built && text === this.lastText && configKey === this.lastConfigKey) return;
 
     for (const c of this.chars) c.text.destroy();
     this.chars = [];
     this.container.removeChildren();
     this.built = true;
     this.lastText = text;
+    this.lastConfigKey = configKey;
 
     if (!text) return;
 
