@@ -12,6 +12,7 @@ import { resolveColor } from '../../types/engine';
 
 interface CharCard {
   container: PIXI.Container;
+  glowTex: PIXI.Texture;
   targetX: number;
   targetY: number;
   targetScale: number;
@@ -33,6 +34,7 @@ export class GlowTextCards extends BaseEffect {
 
   private rebuild(text: string, ctx: UpdateContext): void {
     for (const c of this.cards) {
+      c.glowTex.destroy(true);
       this.container.removeChild(c.container);
       c.container.destroy({ children: true });
     }
@@ -140,6 +142,7 @@ export class GlowTextCards extends BaseEffect {
         this.container.addChild(cardContainer);
         this.cards.push({
           container: cardContainer,
+          glowTex,
           targetX,
           targetY,
           targetScale,
@@ -183,7 +186,10 @@ export class GlowTextCards extends BaseEffect {
   }
 
   destroy(): void {
-    for (const c of this.cards) c.container.destroy({ children: true });
+    for (const c of this.cards) {
+      c.glowTex.destroy(true);
+      c.container.destroy({ children: true });
+    }
     this.cards = [];
     super.destroy();
   }

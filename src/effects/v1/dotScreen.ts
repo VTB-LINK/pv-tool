@@ -36,14 +36,17 @@ export class DotScreen extends BaseEffect {
     canvas.height = tileSize;
     const ctx = canvas.getContext('2d')!;
 
+    ctx.save();
     ctx.fillStyle = color;
     ctx.globalAlpha = alpha;
     ctx.beginPath();
     ctx.arc(tileSize / 2, tileSize / 2, dotRadius, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 
     const tex = PIXI.Texture.from(canvas);
     if (this.tiling) {
+      this.tiling.texture.destroy(true);
       this.tiling.texture = tex;
     } else {
       this.tiling = new PIXI.TilingSprite({ texture: tex, width: 1920, height: 1080 });

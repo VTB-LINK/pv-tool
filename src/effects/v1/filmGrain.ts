@@ -71,4 +71,11 @@ export class FilmGrain extends BaseEffect {
     this.tiling.height = ctx.screenHeight;
     this.tiling.alpha = this.config.alpha ?? 0.08;
   }
+
+  destroy(): void {
+    this.texture.destroy(true);
+    this.canvas.width = 0;
+    this.canvas.height = 0;
+    super.destroy();
+  }
 }

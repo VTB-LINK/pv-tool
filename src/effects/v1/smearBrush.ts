@@ -244,4 +244,13 @@ export class SmearBrush extends BaseEffect {
     h = h ^ (h >> 16);
     return (h & 0x7fffffff) / 0x7fffffff;
   }
+
+  destroy(): void {
+    if (this.noiseSprite?.texture) {
+      this.noiseSprite.texture.destroy(true);
+    }
+    this.noiseCanvas.width = 0;
+    this.noiseCanvas.height = 0;
+    super.destroy();
+  }
 }
