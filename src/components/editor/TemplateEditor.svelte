@@ -411,7 +411,10 @@
 
   function handleFeatureChange(feature: 'mediaOutline' | 'autoExtractColors' | 'motionDetection' | 'invertMedia' | 'thresholdMedia', checked: boolean) {
     if (feature === 'mediaOutline') setMediaOutline(checked);
-    else if (feature === 'autoExtractColors') setAutoExtractColors(checked);
+    else if (feature === 'autoExtractColors') {
+      setAutoExtractColors(checked);
+      effectsVersion++;  // force palette UI to re-read engine colors
+    }
     else if (feature === 'motionDetection') setMotionDetection(checked);
     else if (feature === 'invertMedia') setInvertMedia(checked);
     else if (feature === 'thresholdMedia') setThresholdMedia(checked);

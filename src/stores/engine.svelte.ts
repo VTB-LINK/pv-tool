@@ -65,6 +65,7 @@ let _fontLocked = $state(true);
 // Template features
 let _mediaOutline = $state(false);
 let _autoExtractColors = $state(false);
+let _paletteBeforeAutoExtract: import('../types/engine').ColorPalette | null = null;
 let _motionDetection = $state(false);
 let _invertMedia = $state(false);
 let _thresholdMedia = $state(false);
@@ -972,8 +973,25 @@ export function setMediaOutline(v: boolean) {
 }
 
 export function setAutoExtractColors(v: boolean) {
-  _autoExtractColors = v;
-  if (_engine) _engine.autoExtractColorsEnabled = v;
+  if (_engine) {
+    if (v && !_autoExtractColors) {
+      // Snapshot current palette before extraction so we can restore on uncheck
+      _paletteBeforeAutoExtract = _engine.currentPalette ? { ..._engine.currentPalette } : null;
+    }
+    _autoExtractColors = v;
+    _engine.autoExtractColorsEnabled = v;
+    if (!v && _paletteBeforeAutoExtract) {
+      // Restore the palette that was active before auto-extract was enabled
+      const cur = getCurrentTemplateConfig();
+      if (cur) {
+        _engine.loadTemplate({ ...cur, palette: { ..._paletteBeforeAutoExtract } });
+      }
+      _paletteBeforeAutoExtract = null;
+    }
+    syncFromEngine();
+  } else {
+    _autoExtractColors = v;
+  }
 }
 
 export function setMotionDetection(v: boolean) {
