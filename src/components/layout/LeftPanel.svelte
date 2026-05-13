@@ -468,12 +468,12 @@
         oninput={handleFontCustomInput}
       />
     {/if}
-    <div class="font-actions">
+    <div class="pv-section-actions">
       <label class="pv-check-row pv-check-row-md toggle-row">
         <input type="checkbox" checked={engine.fontLocked} onchange={(e: Event) => setFontLocked((e.target as HTMLInputElement).checked)} />
         <span class="pv-check-text" title={t('font_lock')}>🔒 {t('font_lock')}</span>
       </label>
-      <button class="pv-btn pv-btn-sm btn btn-sm font-reset-btn"
+      <button class="pv-btn pv-btn-sm btn btn-sm pv-section-reset-btn"
         title={canResetFont() ? `⚠ ${t('font_reset')}` : undefined}
         disabled={!canResetFont()}
         onclick={handleResetFont}>↺ {t('font_reset')}</button>
@@ -783,37 +783,6 @@
   .font-custom-input {
     margin-top: 6px;
     font-size: 0.78rem;
-  }
-
-  .font-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: nowrap;
-  }
-  .font-actions .toggle-row {
-    flex: 1;
-    min-width: 0;
-  }
-  .font-actions .toggle-row span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .font-reset-btn {
-    flex-shrink: 0;
-    font-size: 0.7rem !important;
-    padding: 3px 8px !important;
-    opacity: 0.7;
-    transition: opacity 0.15s;
-    white-space: nowrap;
-  }
-  .font-reset-btn:hover { opacity: 1; }
-  .font-reset-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-    pointer-events: none;
   }
 
   /* File row */

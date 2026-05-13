@@ -212,6 +212,44 @@ html, body {
   white-space: nowrap;
 }
 
+/* ── Section Actions (lock + reset row) ── */
+.pv-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.pv-section-actions .toggle-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.pv-section-actions .toggle-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pv-section-reset-btn {
+  flex-shrink: 0;
+  font-size: 0.7rem !important;
+  padding: 3px 8px !important;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.pv-section-reset-btn:hover {
+  opacity: 1;
+}
+
+.pv-section-reset-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ── Shared Buttons ── */
 .pv-btn {
   padding: 6px 14px;

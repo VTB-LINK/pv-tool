@@ -19,7 +19,7 @@ export class MediaOutlineRenderer {
   private tick = 0;
 
   constructor(sourceW: number, sourceH: number) {
-    const maxDim = 280;
+    const maxDim = 780;
     const scale = Math.min(maxDim / Math.max(sourceW, sourceH), 1);
     this.w = Math.round(sourceW * scale);
     this.h = Math.round(sourceH * scale);
@@ -43,38 +43,63 @@ export class MediaOutlineRenderer {
     this.tick++;
     if (this.tick % 3 !== 0) return;
 
-    this.srcCtx.drawImage(source, 0, 0, this.w, this.h);
-    const imgData = this.srcCtx.getImageData(0, 0, this.w, this.h);
+    const w = this.w;
+    const h = this.h;
+
+    this.srcCtx.drawImage(source, 0, 0, w, h);
+    const imgData = this.srcCtx.getImageData(0, 0, w, h);
     const src = imgData.data;
 
-    const edgeMap = new Float32Array(this.w * this.h);
-    for (let y = 1; y < this.h - 1; y++) {
-      for (let x = 1; x < this.w - 1; x++) {
-        const gray = (ox: number, oy: number) => {
-          const i = ((y + oy) * this.w + (x + ox)) * 4;
-          return src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114;
-        };
-        const gx = -gray(-1, -1) - 2 * gray(-1, 0) - gray(-1, 1)
-                   + gray(1, -1) + 2 * gray(1, 0) + gray(1, 1);
-        const gy = -gray(-1, -1) - 2 * gray(0, -1) - gray(1, -1)
-                   + gray(-1, 1) + 2 * gray(0, 1) + gray(1, 1);
-        edgeMap[y * this.w + x] = Math.sqrt(gx * gx + gy * gy);
+    // Convert to grayscale
+    const gray = new Float32Array(w * h);
+    for (let i = 0, j = 0; i < src.length; i += 4, j++) {
+      gray[j] = src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114;
+    }
+
+    // 3×3 Gaussian blur to suppress noise before edge detection
+    // Kernel: [1 2 1; 2 4 2; 1 2 1] / 16
+    const blurred = new Float32Array(w * h);
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const idx = y * w + x;
+        blurred[idx] = (
+          gray[idx - w - 1]     + 2 * gray[idx - w] + gray[idx - w + 1] +
+          2 * gray[idx - 1]     + 4 * gray[idx]     + 2 * gray[idx + 1] +
+          gray[idx + w - 1]     + 2 * gray[idx + w] + gray[idx + w + 1]
+        ) / 16;
       }
     }
 
-    const outImg = this.outCtx.createImageData(this.w, this.h);
-    const out = outImg.data;
-    const threshold = 90;
+    // Sobel edge detection on blurred grayscale
+    const edgeMap = new Float32Array(w * h);
+    for (let y = 2; y < h - 2; y++) {
+      for (let x = 2; x < w - 2; x++) {
+        const g = (ox: number, oy: number) => blurred[(y + oy) * w + (x + ox)];
+        const gx = -g(-1, -1) - 2 * g(-1, 0) - g(-1, 1)
+                   + g(1, -1) + 2 * g(1, 0) + g(1, 1);
+        const gy = -g(-1, -1) - 2 * g(0, -1) - g(1, -1)
+                   + g(-1, 1) + 2 * g(0, 1) + g(1, 1);
+        edgeMap[y * w + x] = Math.sqrt(gx * gx + gy * gy);
+      }
+    }
 
-    for (let y = 1; y < this.h - 1; y++) {
-      for (let x = 1; x < this.w - 1; x++) {
-        const e = edgeMap[y * this.w + x];
-        if (e > threshold) {
-          const idx = (y * this.w + x) * 4;
+    // Smoothstep alpha mapping with soft threshold
+    const outImg = this.outCtx.createImageData(w, h);
+    const out = outImg.data;
+    const lo = 60;   // edges below this are invisible
+    const hi = 180;  // edges above this are fully opaque
+
+    for (let y = 2; y < h - 2; y++) {
+      for (let x = 2; x < w - 2; x++) {
+        const e = edgeMap[y * w + x];
+        if (e > lo) {
+          const t = Math.min(Math.max((e - lo) / (hi - lo), 0), 1);
+          const s = t * t * (3 - 2 * t); // smoothstep
+          const idx = (y * w + x) * 4;
           out[idx] = 0;
           out[idx + 1] = 0;
           out[idx + 2] = 0;
-          out[idx + 3] = Math.min(e * 1.5, 220);
+          out[idx + 3] = Math.round(s * 200);
         }
       }
     }

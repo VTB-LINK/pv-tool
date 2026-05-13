@@ -119,19 +119,17 @@
       format={(v: number) => `${v.toFixed(0)}°`}
       oninput={setHueShift}
     />
+    <div class="pv-section-actions">
+      <label class="pv-check-row pv-check-row-md toggle-row">
+        <input type="checkbox" checked={engine.postFxLocked} onchange={(e: Event) => setPostFxLocked((e.target as HTMLInputElement).checked)} />
+        <span class="pv-check-text" title={t('postfx_lock')}>🔒 {t('postfx_lock')}</span>
+      </label>
+      <button class="pv-btn pv-btn-sm btn btn-sm pv-section-reset-btn"
+        title={getResetTooltip(t('postfx_reset'), canResetPostFx())}
+        disabled={!canResetPostFx()}
+        onclick={handleResetPostFxClick}>↺ {t('postfx_reset')}</button>
+    </div>
   </Section>
-
-  <!-- Post FX actions -->
-  <div class="postfx-actions">
-    <label class="pv-check-row pv-check-row-md toggle-row">
-      <input type="checkbox" checked={engine.postFxLocked} onchange={(e: Event) => setPostFxLocked((e.target as HTMLInputElement).checked)} />
-      <span class="pv-check-text" title={t('postfx_lock')}>🔒 {t('postfx_lock')}</span>
-    </label>
-    <button class="pv-btn pv-btn-sm btn btn-sm reset-btn"
-      title={getResetTooltip(t('postfx_reset'), canResetPostFx())}
-      disabled={!canResetPostFx()}
-      onclick={handleResetPostFxClick}>↺ {t('postfx_reset')}</button>
-  </div>
 
   <!-- Media position (only when media loaded) -->
   {#if engine.mediaLoaded}
@@ -265,45 +263,6 @@
   .rec-btn.recording .rec-dot {
     border-radius: 2px;
     background: var(--pv-text);
-  }
-
-  .postfx-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 4px;
-    flex-wrap: nowrap;
-  }
-
-  .postfx-actions .toggle-row {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .postfx-actions .toggle-row span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .postfx-actions .reset-btn {
-    flex-shrink: 0;
-  }
-
-  .reset-btn {
-    font-size: 0.7rem !important;
-    padding: 3px 8px !important;
-    opacity: 0.7;
-    transition: opacity 0.15s;
-    white-space: nowrap;
-  }
-
-  .reset-btn:hover { opacity: 1; }
-
-  .reset-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-    pointer-events: none;
   }
 
   @media (max-width: 768px) {
