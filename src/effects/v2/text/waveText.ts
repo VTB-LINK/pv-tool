@@ -9,11 +9,68 @@ import type { EffectMeta } from '../schema';
 import type { UpdateContext } from '../../../types/engine';
 import { resolveColor } from '../../../types/engine';
 
+// ── Tokenizer: split Latin by word, CJK by character ──
+
+/** CJK ideographs + kana (used to detect CJK-dominant runs) */
+const CJK_RE = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}]/u;
+/** Opening punctuation (attach forward to next token) */
+const OPEN_PUNCT_RE = /^[\p{Ps}\p{Pi}¡¿]+$/u;
+/** Any punctuation-only token (attach backward to previous token) */
+const PUNCT_RE = /^\p{P}+$/u;
+/** Split text into runs: CJK chars vs everything else (punctuation stays with non-CJK) */
+const RUNS_RE = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}]+|[^\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}]+/gu;
+
+/**
+ * Tokenize mixed-script text for wave layout:
+ * - Latin/other runs → split by whitespace into word tokens (keeps apostrophes, hyphens intact)
+ * - CJK runs (incl. kana) → each character is a token
+ * - Opening punctuation tokens → attach to next token
+ * - Other punctuation-only tokens → attach to previous token
+ */
+function tokenize(text: string): string[] {
+  const runs = text.match(RUNS_RE);
+  if (!runs) return [];
+
+  const raw: string[] = [];
+  for (const run of runs) {
+    if (CJK_RE.test(run)) {
+      // CJK/kana run: each character is a token
+      for (const ch of run) raw.push(ch);
+    } else {
+      // Latin/other run: split by whitespace
+      for (const word of run.split(/\s+/)) {
+        if (word) raw.push(word);
+      }
+    }
+  }
+
+  // Post-process: absorb punctuation-only tokens
+  const result: string[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const tok = raw[i];
+    if (OPEN_PUNCT_RE.test(tok)) {
+      // Opening punct → attach to next token
+      if (i + 1 < raw.length) {
+        raw[i + 1] = tok + raw[i + 1];
+      } else {
+        result.push(tok);
+      }
+    } else if (PUNCT_RE.test(tok) && result.length > 0) {
+      // Closing/other punct → attach to previous token
+      result[result.length - 1] += tok;
+    } else {
+      result.push(tok);
+    }
+  }
+  return result;
+}
+
 // ── i18n ──
 const i18n = {
   name:          { zh: '波浪文字',   en: 'Wave Text',       ja: 'ウェーブテキスト' },
   category:      { zh: '文字',       en: 'Text',            ja: 'テキスト' },
   color:         { zh: '颜色',       en: 'Color',           ja: '色' },
+  wordSplit:     { zh: '西文按词分割', en: 'Word Split',      ja: '単語分割' },
   fontSize:      { zh: '字号',       en: 'Font Size',       ja: 'フォントサイズ' },
   font:          { zh: '字体',       en: 'Font',            ja: 'フォント' },
   fontWeight:    { zh: '字重',       en: 'Font Weight',     ja: 'フォントウェイト' },
@@ -34,6 +91,7 @@ export class WaveTextV2 extends BaseEffectV2 {
     version: 2,
     fields: [
       { key: 'color',        label: i18n.color,      type: { kind: 'color', default: '#ffffff', paletteRef: true } },
+      { key: 'wordSplit',    label: i18n.wordSplit,   type: { kind: 'boolean', default: true } },
       { key: 'fontSize',     label: i18n.fontSize,   type: { kind: 'number', min: 16, max: 200, step: 2, default: 48 } },
       { key: 'fontFamily',   label: i18n.font,       type: { kind: 'string', default: '"Noto Sans JP", sans-serif' } },
       { key: 'fontWeight',   label: i18n.fontWeight,  type: { kind: 'string', default: '900', options: ['400', '600', '700', '800', '900'] } },
@@ -58,7 +116,7 @@ export class WaveTextV2 extends BaseEffectV2 {
     this.container.addChild(this.wrapper);
   }
 
-  /** Lay out individual character sprites across the screen width */
+  /** Lay out tokens in two interleaved rows with dynamic spacing */
   private layoutChars(text: string, sw: number, sh: number): void {
     // Tear down previous glyphs
     this.wrapper.removeChildren().forEach(c => {
@@ -68,8 +126,9 @@ export class WaveTextV2 extends BaseEffectV2 {
     this.restY = [];
     this.lastText = text;
 
-    const letters = [...text];
-    if (letters.length === 0) return;
+    const useWordSplit = this.config.wordSplit ?? true;
+    const tokens = useWordSplit ? tokenize(text) : [...text];
+    if (tokens.length === 0) return;
 
     const fillColor = resolveColor(this.config.color ?? '#ffffff', this.palette);
     const size = this.config.fontSize ?? 48;
@@ -77,21 +136,55 @@ export class WaveTextV2 extends BaseEffectV2 {
     const weight = (this.config.fontWeight ?? '900') as PIXI.TextStyleFontWeight;
     const stagger = this.config.staggerY ?? 14;
     const fraction = this.config.spreadFrac ?? 0.45;
-
-    const totalWidth = sw * fraction;
-    const gap = letters.length > 1 ? totalWidth / (letters.length - 1) : 0;
-    const originX = sw / 2 - totalWidth / 2;
     const centerY = sh * (this.config.y ?? 0.5);
 
-    for (let idx = 0; idx < letters.length; idx++) {
-      const glyph = new PIXI.Text({
-        text: letters[idx],
-        style: { fontFamily: family, fontSize: size, fontWeight: weight, fill: fillColor },
-      });
-      glyph.anchor.set(0.5);
-      glyph.x = originX + idx * gap;
+    const style = { fontFamily: family, fontSize: size, fontWeight: weight, fill: fillColor };
 
-      // Alternating vertical offset
+    // Create glyphs
+    const widths: number[] = [];
+    for (const tok of tokens) {
+      const glyph = new PIXI.Text({ text: tok, style });
+      glyph.anchor.set(0.5);
+      this.wrapper.addChild(glyph);
+      this.glyphs.push(glyph);
+      widths.push(glyph.width);
+    }
+
+    // Compute X positions
+    let centers: number[];
+    if (useWordSplit) {
+      // Dynamic spacing: measure-based, no overlap
+      const latinPad = size * 0.35;
+      const cjkPad = size * 0.12;
+      function minPadBetween(a: string, b: string): number {
+        const aIsLatin = !CJK_RE.test(a);
+        const bIsLatin = !CJK_RE.test(b);
+        if (aIsLatin || bIsLatin) return latinPad;
+        return cjkPad;
+      }
+      centers = [0];
+      for (let i = 1; i < tokens.length; i++) {
+        const pad = minPadBetween(tokens[i - 1], tokens[i]);
+        const minDist = widths[i - 1] / 2 + pad + widths[i] / 2;
+        centers.push(centers[i - 1] + minDist);
+      }
+    } else {
+      // Legacy: uniform spread
+      const totalWidth = sw * fraction;
+      const gap = tokens.length > 1 ? totalWidth / (tokens.length - 1) : 0;
+      centers = tokens.map((_, i) => i * gap);
+    }
+
+    // Center the layout on screen
+    const totalSpan = centers[centers.length - 1];
+    const offsetX = sw / 2 - totalSpan / 2;
+
+    // Assign positions and Y offsets
+    for (let idx = 0; idx < tokens.length; idx++) {
+      const glyph = this.glyphs[idx];
+      glyph.x = offsetX + centers[idx];
+
+      // Even indices → top row (up), odd indices → bottom row (down)
       const targetY = centerY + (idx % 2 === 0 ? -stagger : stagger);
       this.restY.push(targetY);
 
@@ -99,9 +192,6 @@ export class WaveTextV2 extends BaseEffectV2 {
       glyph.y = targetY + 45;
       glyph.alpha = 0;
       glyph.scale.set(0.15);
-
-      this.wrapper.addChild(glyph);
-      this.glyphs.push(glyph);
     }
   }
 
