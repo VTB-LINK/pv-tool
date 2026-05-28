@@ -95,7 +95,7 @@ export class WaveTextV2 extends BaseEffectV2 {
       { key: 'fontSize',     label: i18n.fontSize,   type: { kind: 'number', min: 16, max: 200, step: 2, default: 48 } },
       { key: 'fontFamily',   label: i18n.font,       type: { kind: 'string', default: '"Noto Sans JP", sans-serif' } },
       { key: 'fontWeight',   label: i18n.fontWeight,  type: { kind: 'string', default: '900', options: ['400', '600', '700', '800', '900'] } },
-      { key: 'spreadFrac',   label: i18n.spread,     type: { kind: 'number', min: 0.1, max: 1, step: 0.05, default: 0.45 } },
+      { key: 'spreadFrac',   label: i18n.spread,     type: { kind: 'number', min: 0, max: 1, step: 0.05, default: 0 } },
       { key: 'staggerY',     label: i18n.vertOffset,  type: { kind: 'number', min: 0, max: 80, step: 1, default: 14 } },
       { key: 'blendMode',    label: i18n.blendMode,   type: { kind: 'string', default: 'difference', options: ['normal', 'difference', 'screen', 'multiply', 'overlay'] } },
       { key: 'enterSpeed',   label: i18n.enterSpeed,  type: { kind: 'number', min: 0.5, max: 8, step: 0.5, default: 2.5 }, group: '动画' },
@@ -153,14 +153,15 @@ export class WaveTextV2 extends BaseEffectV2 {
     // Compute X positions
     let centers: number[];
     if (useWordSplit) {
-      // Dynamic spacing: measure-based, no overlap
+      // Dynamic spacing: measure-based, no overlap + spreadFrac as extra gap
       const latinPad = size * 0.35;
       const cjkPad = size * 0.12;
+      const extraPad = fraction * size * 2;  // spreadFrac adds extra spacing (0 = tight, 1 = +2×fontSize per gap)
       function minPadBetween(a: string, b: string): number {
         const aIsLatin = !CJK_RE.test(a);
         const bIsLatin = !CJK_RE.test(b);
-        if (aIsLatin || bIsLatin) return latinPad;
-        return cjkPad;
+        if (aIsLatin || bIsLatin) return latinPad + extraPad;
+        return cjkPad + extraPad;
       }
       centers = [0];
       for (let i = 1; i < tokens.length; i++) {
