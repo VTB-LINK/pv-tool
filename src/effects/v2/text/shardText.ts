@@ -209,7 +209,7 @@ export class ShardTextV2 extends BaseEffectV2 {
       // Layout
       { key: 'shardColor',    label: i18n.color,     type: { kind: 'color', default: '#ffffff', paletteRef: true }, group: GRP_LAYOUT },
       { key: 'maxFontSize',   label: i18n.maxSize,   type: { kind: 'number', min: 16, max: 240, step: 2, default: 84 }, group: GRP_LAYOUT },
-      { key: 'fontFace',      label: i18n.font,      type: { kind: 'string', default: '"Noto Serif JP", "Yu Mincho", serif' }, group: GRP_LAYOUT },
+      { key: 'fontFamily',    label: i18n.font,      type: { kind: 'string', default: '"Noto Serif JP", "Yu Mincho", serif' }, group: GRP_LAYOUT },
       { key: 'shardWeight',   label: i18n.weight,    type: { kind: 'string', default: '900', options: ['400', '600', '700', '800', '900'] }, group: GRP_LAYOUT },
       { key: 'fitWidthFrac',  label: i18n.fitWidth,  type: { kind: 'number', min: 0.2, max: 1, step: 0.02, default: 0.84 }, group: GRP_LAYOUT },
       { key: 'fitHeightFrac', label: i18n.fitHeight, type: { kind: 'number', min: 0.05, max: 0.8, step: 0.01, default: 0.26 }, group: GRP_LAYOUT },
@@ -222,7 +222,7 @@ export class ShardTextV2 extends BaseEffectV2 {
       { key: 'staggerDelay',     label: i18n.stagger,   type: { kind: 'number', min: 0, max: 2, step: 0.02, default: 0.55 }, group: GRP_ANIM, advanced: true },
       // Float / breathe
       { key: 'enableFloat', label: i18n.floatOn,  type: { kind: 'boolean', default: true }, group: GRP_ANIM },
-      { key: 'floatAmount', label: i18n.floatAmt, type: { kind: 'number', min: 0, max: 48, step: 1, default: 8 }, group: GRP_ANIM },
+      { key: 'floatAmount', label: i18n.floatAmt, type: { kind: 'number', min: 0, max: 48, step: 1, default: 5 }, group: GRP_ANIM },
       { key: 'floatSpeed',  label: i18n.floatSpd, type: { kind: 'number', min: 0.1, max: 5, step: 0.1, default: 1.3 }, group: GRP_ANIM, advanced: true },
       // Beat — opt-in (off by default): when enabled, pieces push outward on each
       // beat. Kept off by default so calm templates do not twitch on every BPM beat.
@@ -349,7 +349,7 @@ export class ShardTextV2 extends BaseEffectV2 {
 
     const color = resolveColor(this.config.shardColor ?? '#ffffff', this.palette);
     const baseSize = this.config.maxFontSize ?? 84;
-    const family = this.config.fontFace ?? '"Noto Serif JP", "Yu Mincho", serif';
+    const family = this.config.fontFamily ?? '"Noto Serif JP", "Yu Mincho", serif';
     const weight = String(this.config.shardWeight ?? '900');
 
     // Shared measuring context (reused for the fit pass and metrics).
@@ -500,7 +500,7 @@ export class ShardTextV2 extends BaseEffectV2 {
     const useAssemble = this.config.enableAssemble ?? true;
     const useFloat = this.config.enableFloat ?? true;
     const useBeat = this.config.enableBeat ?? false;
-    const floatAmt = this.config.floatAmount ?? 8;
+    const floatAmt = this.config.floatAmount ?? 5;
     const floatSpd = this.config.floatSpeed ?? 1.3;
     const beatPush = this.config.beatPush ?? 44;
     const beat = Math.max(0, ctx.beatIntensity ?? 0);
