@@ -20,6 +20,20 @@ export const crimeSceneTemplate: TemplateConfig = {
   animationSpeed: 2.5,
   effects: [
     {
+      type: 'chalkFigure',
+      layer: 'decoration',
+      config: {
+        chalkColor: '$primary',
+        figureScale: 1.7,
+        figureOpacity: 0.85,
+        centerX: 0.5,
+        centerY: 0.56,
+        orientation: 0.15,
+        chalkLineWidth: 5,
+        roughnessSeed: 7,
+      },
+    },
+    {
       type: 'bloodSplatter',
       layer: 'background',
       config: {

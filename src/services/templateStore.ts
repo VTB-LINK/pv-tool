@@ -275,6 +275,37 @@ export async function encodeShareCode(template: TemplateConfig): Promise<string>
   return uint8ToBase64(encrypted);
 }
 
+// ── Cross-fork import compatibility ──
+// Share codes produced by other pv-tool forks may reference effect/template
+// identifiers that differ from ours. These maps translate those identifiers to
+// our own on import so such share codes render correctly. This is an interop
+// shim over an external data format, not a code dependency.
+const IMPORT_EFFECT_TYPE_ALIASES: Record<string, string> = {
+  victimOutline: 'chalkFigure',
+  crayonShatter: 'crayonScrawl',
+  shatterText: 'shardText',
+};
+
+const IMPORT_TEMPLATE_ID_ALIASES: Record<string, string> = {
+  tpl_haruhikage: 'tpl_springAfterglow',
+  '春日影': 'tpl_springAfterglow',
+  Haruhikage: 'tpl_springAfterglow',
+};
+
+function remapImportedIdentifiers(template: TemplateConfig): TemplateConfig {
+  for (const effect of template.effects) {
+    const mapped = IMPORT_EFFECT_TYPE_ALIASES[effect.type];
+    if (mapped) effect.type = mapped;
+  }
+  if (template.nameKey && IMPORT_TEMPLATE_ID_ALIASES[template.nameKey]) {
+    template.nameKey = IMPORT_TEMPLATE_ID_ALIASES[template.nameKey];
+  }
+  if (template.baseTemplateName && IMPORT_TEMPLATE_ID_ALIASES[template.baseTemplateName]) {
+    template.baseTemplateName = IMPORT_TEMPLATE_ID_ALIASES[template.baseTemplateName];
+  }
+  return template;
+}
+
 export async function decodeShareCode(code: string): Promise<TemplateConfig> {
   const cleaned = normalizeShareCodeInput(code);
   const encrypted = base64ToUint8(cleaned);
@@ -285,5 +316,5 @@ export async function decodeShareCode(code: string): Promise<TemplateConfig> {
   if (!template.name || !template.palette || !Array.isArray(template.effects)) {
     throw new Error('Invalid template data');
   }
-  return template;
+  return remapImportedIdentifiers(template);
 }

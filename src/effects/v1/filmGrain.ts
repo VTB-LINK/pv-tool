@@ -61,7 +61,7 @@ export class FilmGrain extends BaseEffect {
 
   update(ctx: UpdateContext): void {
     const intervalFrames = this.config.updateInterval ?? 3;
-    const intervalSec = intervalFrames / (ctx.fps || 60);
+    const intervalSec = intervalFrames / 60;
     if (ctx.time - this.lastRegenTime >= intervalSec) {
       this.lastRegenTime = ctx.time;
       this.regenerate();

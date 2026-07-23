@@ -77,6 +77,10 @@ export interface UpdateContext {
   motionIntensity: number;
   currentText: string;
   beatIntensity: number;
+  /** True when any dynamic lyric source (Now Playing / NXPC / LRC / SRT) drives the text.
+   *  Text effects use this to keep interludes/blank lines empty instead of falling back
+   *  to the template's default text. */
+  lyricsActive: boolean;
   motionTargets: MotionTargetInfo[];
 }
 

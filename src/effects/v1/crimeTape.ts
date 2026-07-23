@@ -16,8 +16,8 @@ interface TapeStrip {
   texts: PIXI.Text[];
   /** 垂直基准位置（归一化 0~1） */
   yBase: number;
-  /** 水平偏移量，用于滚动 */
-  scrollOffset: number;
+  /** 初始水平偏移量（固定种子，px） */
+  initialOffset: number;
   /** 滚动速度（px/s），正负决定方向 */
   scrollSpeed: number;
   /** 倾斜角度 rad */
@@ -69,7 +69,7 @@ export class CrimeTape extends BaseEffect {
         graphics,
         texts: [],
         yBase,
-        scrollOffset: Math.random() * 400,
+        initialOffset: Math.random() * 400,
         scrollSpeed: stripSpeed,
         angle,
         tapeWidth,
@@ -133,21 +133,18 @@ export class CrimeTape extends BaseEffect {
   update(ctx: UpdateContext): void {
     this.initStrips(ctx.screenWidth, ctx.screenHeight);
 
-    const dt = ctx.deltaTime;
-
     for (const strip of this.strips) {
       // 更新垂直位置（跟随 screenHeight）
       strip.container.y = strip.yBase * ctx.screenHeight;
 
-      // 滚动
-      strip.scrollOffset += strip.scrollSpeed * dt * ctx.animationSpeed;
-
       // 重绘带子
       this.drawTape(strip, ctx.screenWidth);
 
-      // 以单个 spacing 为周期取模，第一个文字始终在屏幕左侧一格内，保证全程无缝
+      // 偏移量为 ctx.time 的纯函数，seek/暂停恢复均可复现（速度 x 时间 x animationSpeed + 固定初始偏移）
       const sp = strip.spacing;
-      const phase = ((strip.scrollOffset % sp) + sp) % sp;
+      const offset = strip.initialOffset + strip.scrollSpeed * ctx.time * ctx.animationSpeed;
+      // 以单个 spacing 为周期取模，第一个文字始终在屏幕左侧一格内，保证全程无缝
+      const phase = ((offset % sp) + sp) % sp;
       for (let i = 0; i < strip.texts.length; i++) {
         strip.texts[i].x = phase - sp + i * sp;
       }

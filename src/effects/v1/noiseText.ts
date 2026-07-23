@@ -91,7 +91,7 @@ export class NoiseText extends BaseEffect {
     const count = this.config.count ?? 12;
     const color = resolveColor(this.config.color ?? '#ffffff', this.palette);
     const bgColor = resolveColor(this.config.bgColor ?? '#000000', this.palette);
-    const corruptIntervalSec = 5 / (ctx.fps || 60);
+    const corruptIntervalSec = 5 / 60;
 
     // Spawn new blocks to maintain count
     while (this.blocks.length < count) {
@@ -107,14 +107,14 @@ export class NoiseText extends BaseEffect {
       if (block.birthTime < 0) block.birthTime = ctx.time;
       const age = ctx.time - block.birthTime;
 
-      if (age > block.lifetimeSec) {
+      if (age < 0 || age > block.lifetimeSec) {
         this.blocks[i] = this.spawnBlock(w, h);
         this.blocks[i].birthTime = ctx.time;
         continue;
       }
 
       // Flicker: occasionally skip rendering
-      if (Math.random() < 0.08) continue;
+      if (ctx.deltaTime > 0 && Math.random() < 0.08) continue;
 
       // Occasionally corrupt a character
       if (doCorrupt && Math.random() < 0.3) {

@@ -46,28 +46,39 @@ export class CuteOutlineText extends BaseEffect {
   }
 
   update(ctx: UpdateContext): void {
-    const newText = ctx.currentText || this.config.text || '';
+    const newText = ctx.lyricsActive ? ctx.currentText : (ctx.currentText || this.config.text || '');
 
     // 文字切换淡入淡出效果
-    if (newText !== this.displayedText && this.fadeState === 'idle') {
-      this.pendingText = newText;
-      this.fadeState = 'fadeOut';
-    }
-
-    const fadeSpeed = 4 * Math.max(ctx.animationSpeed, 0.5);
-    if (this.fadeState === 'fadeOut') {
-      this.textAlpha -= ctx.deltaTime * fadeSpeed;
-      if (this.textAlpha <= 0) {
-        this.textAlpha = 0;
-        this.textObj.text = this.pendingText;
-        this.displayedText = this.pendingText;
-        this.fadeState = 'fadeIn';
+    if (ctx.deltaTime <= 0) {
+      // 暂停或静止 seek（无时间流逝）时直接落定，避免淡入淡出卡住或丢失新歌词
+      if (this.displayedText !== newText) {
+        this.textObj.text = newText;
+        this.displayedText = newText;
       }
-    } else if (this.fadeState === 'fadeIn') {
-      this.textAlpha += ctx.deltaTime * fadeSpeed;
-      if (this.textAlpha >= 1) {
-        this.textAlpha = 1;
-        this.fadeState = 'idle';
+      this.pendingText = newText;
+      this.fadeState = 'idle';
+      this.textAlpha = 1;
+    } else {
+      if (newText !== this.displayedText && this.fadeState === 'idle') {
+        this.pendingText = newText;
+        this.fadeState = 'fadeOut';
+      }
+
+      const fadeSpeed = 4 * Math.max(ctx.animationSpeed, 0.5);
+      if (this.fadeState === 'fadeOut') {
+        this.textAlpha -= ctx.deltaTime * fadeSpeed;
+        if (this.textAlpha <= 0) {
+          this.textAlpha = 0;
+          this.textObj.text = this.pendingText;
+          this.displayedText = this.pendingText;
+          this.fadeState = 'fadeIn';
+        }
+      } else if (this.fadeState === 'fadeIn') {
+        this.textAlpha += ctx.deltaTime * fadeSpeed;
+        if (this.textAlpha >= 1) {
+          this.textAlpha = 1;
+          this.fadeState = 'idle';
+        }
       }
     }
     this.textObj.alpha = this.textAlpha;

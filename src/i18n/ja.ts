@@ -120,6 +120,7 @@ export const ja: Record<LocaleKey, string> = {
   'tpl_flyMeToTheMoon': 'Fly Me to the Moon',
   'tpl_kawaiPixel': 'Kawaiiピクセル',
   'tpl_crimeScene': '犯罪現場',
+  'tpl_springAfterglow': '春の名残',
 
   // File picker
   'choose_file': 'ファイル選択',

@@ -387,7 +387,22 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
     this.textSegments = [this.userText];
 
     if (this.currentTemplate) {
+      // A new lyric line rebuilds effects via a full template reload; preserve the
+      // user's runtime post-FX so switching songs under Now Playing does not reset
+      // manually adjusted zoom/shake/tilt/glitch/hue.
+      const pfx = {
+        shake: this._shake,
+        zoom: this._zoom,
+        tilt: this._tilt,
+        glitch: this._glitch,
+        hueShift: this._hueShift,
+      };
       this.loadTemplate(this.currentTemplate);
+      this._shake = pfx.shake;
+      this._zoom = pfx.zoom;
+      this._tilt = pfx.tilt;
+      this.glitch = pfx.glitch;
+      this.hueShift = pfx.hueShift;
     }
   }
 
@@ -1441,6 +1456,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       motionIntensity: this._motionIntensity,
       currentText: this.getDisplayText(lyricClock),
       beatIntensity: this.beat.getIntensity(time) * this._beatReactivity,
+      lyricsActive: this._npActive || this._nxpcActive || !!this.lyricTimeline || !!this._srtTimeline,
       motionTargets: this.motionTargets,
     };
 

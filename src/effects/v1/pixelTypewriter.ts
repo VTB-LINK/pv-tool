@@ -22,9 +22,8 @@ export class PixelTypewriter extends BaseEffect {
   private currentText: string = '';
   private targetText: string = '';
   private charIndex: number = 0;
-  private lastCharTime: number = 0;
+  private segmentStartTime: number = 0;
   private showCursor: boolean = true;
-  private lastCursorBlink: number = 0;
   private leftContainer!: PIXI.Container;
   private rightContainer!: PIXI.Container;
 
@@ -108,21 +107,18 @@ export class PixelTypewriter extends BaseEffect {
     // Update target text
     if (ctx.currentText !== this.targetText) {
       this.targetText = ctx.currentText;
-      this.charIndex = 0;
-      this.currentText = '';
-      this.lastCharTime = ctx.time;
+      this.segmentStartTime = ctx.time;
     }
 
-    // Add characters one by one
-    if (this.charIndex < this.targetText.length) {
-      if (ctx.time - this.lastCharTime >= charDelay) {
-        this.currentText += this.targetText[this.charIndex];
-        this.charIndex++;
-        this.lastCharTime = ctx.time;
-        
-        // Split text between left and right
-        this.updateTextSplit(maxCharsPerSide);
-      }
+    // Derive the revealed character count from elapsed segment time so any
+    // playhead position (forward seek, backward seek, or paused) matches.
+    const revealed = Math.max(0, Math.min(this.targetText.length, Math.floor((ctx.time - this.segmentStartTime) / charDelay)));
+    if (revealed !== this.charIndex) {
+      this.charIndex = revealed;
+      this.currentText = this.targetText.substring(0, revealed);
+
+      // Split text between left and right
+      this.updateTextSplit(maxCharsPerSide);
     }
 
     // Position containers
@@ -162,10 +158,8 @@ export class PixelTypewriter extends BaseEffect {
     const isTyping = this.charIndex < this.targetText.length;
     
     if (isTyping || this.config.showCursorWhenDone) {
-      if (ctx.time - this.lastCursorBlink >= blinkSpeed) {
-        this.showCursor = !this.showCursor;
-        this.lastCursorBlink = ctx.time;
-      }
+      // Derive blink state from absolute time so pause/seek stays in sync
+      this.showCursor = Math.floor(ctx.time / blinkSpeed) % 2 === 0;
 
       if (this.showCursor) {
         const cursorColor = resolveColor(this.config.cursorColor ?? '$primary', this.palette);

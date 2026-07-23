@@ -12,8 +12,6 @@ import type { UpdateContext } from '../../types/engine';
 export class TextureBackground extends BaseEffect {
   readonly name = 'textureBackground';
   private tiling!: PIXI.TilingSprite;
-  private driftX = 0;
-  private driftY = 0;
 
   protected setup(): void {
     const intensity = this.config.intensity ?? 0.15;
@@ -47,9 +45,7 @@ export class TextureBackground extends BaseEffect {
     this.tiling.height = ctx.screenHeight;
 
     const speed = (this.config.driftSpeed ?? 0.5) * ctx.animationSpeed;
-    this.driftX += speed * ctx.deltaTime * ctx.motionIntensity;
-    this.driftY += speed * 0.7 * ctx.deltaTime * ctx.motionIntensity;
-    this.tiling.tilePosition.x = this.driftX;
-    this.tiling.tilePosition.y = this.driftY;
+    this.tiling.tilePosition.x = speed * ctx.time * ctx.motionIntensity;
+    this.tiling.tilePosition.y = speed * 0.7 * ctx.time * ctx.motionIntensity;
   }
 }
