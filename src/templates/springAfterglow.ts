@@ -28,10 +28,10 @@ export const springAfterglowTemplate: TemplateConfig = {
     {
       type: 'halftoneBlocks',
       layer: 'background',
-      config: { color: '$primary', alpha: 0.13, size: 3, spacing: 7 },
+      config: { count: 8, color: '$primary', alpha: 0.13, blockSize: 80, dotSpacing: 7, dotRadius: 1.6 },
     },
     {
-      type: 'crayonScrawl',
+      type: 'crayonScrawlV2',
       layer: 'decoration',
       config: {
         shapeCount: 8,
@@ -50,7 +50,7 @@ export const springAfterglowTemplate: TemplateConfig = {
       },
     },
     {
-      type: 'shardText',
+      type: 'shardTextV2',
       layer: 'text',
       config: {
         shardColor: '$primary',

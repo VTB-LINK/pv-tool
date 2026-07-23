@@ -281,9 +281,17 @@ export async function encodeShareCode(template: TemplateConfig): Promise<string>
 // our own on import so such share codes render correctly. This is an interop
 // shim over an external data format, not a code dependency.
 const IMPORT_EFFECT_TYPE_ALIASES: Record<string, string> = {
-  victimOutline: 'chalkFigure',
-  crayonShatter: 'crayonScrawl',
-  shatterText: 'shardText',
+  // Other-fork identifiers → ours.
+  victimOutline: 'chalkFigureV2',
+  crayonShatter: 'crayonScrawlV2',
+  shatterText: 'shardTextV2',
+  // waveText was migrated to v2 here (type 'waveTextV2'); other forks — and our own
+  // pre-migration share codes — still reference the v1 'waveText'.
+  waveText: 'waveTextV2',
+  // Tolerate our own pre-release identifiers (renamed to the V2 suffix).
+  chalkFigure: 'chalkFigureV2',
+  crayonScrawl: 'crayonScrawlV2',
+  shardText: 'shardTextV2',
 };
 
 const IMPORT_TEMPLATE_ID_ALIASES: Record<string, string> = {

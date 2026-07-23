@@ -1456,7 +1456,7 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
       motionIntensity: this._motionIntensity,
       currentText: this.getDisplayText(lyricClock),
       beatIntensity: this.beat.getIntensity(time) * this._beatReactivity,
-      lyricsActive: this._npActive || this._nxpcActive || !!this.lyricTimeline || !!this._srtTimeline,
+      lyricsActive: this._npActive || this._nxpcActive || (this.lyricTimeline?.length ?? 0) > 0 || (this._srtTimeline?.length ?? 0) > 0,
       motionTargets: this.motionTargets,
     };
 

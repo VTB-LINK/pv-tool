@@ -1,9 +1,10 @@
 // VTB-LIVE Fork - Copyright (c) 2026 VTB-LIVE
 // Licensed under AGPL-3.0.
 // Effects V2 — Chalk Figure
-// A static, hand-drawn crime-scene chalk body outline: a spread-eagle lying
-// silhouette drawn as many short, broken, retraced stroke fragments with a
-// faint dusty halo, using frozen seeded per-vertex jitter (no animation).
+// A static, hand-drawn crime-scene chalk body outline: an asymmetric sprawled
+// silhouette with bent limbs and interior gesture strokes, drawn as many short,
+// broken, retraced stroke fragments with a faint dusty halo, using frozen seeded
+// per-vertex jitter (no animation).
 
 import * as PIXI from 'pixi.js';
 import { BaseEffectV2 } from '../BaseEffect';
@@ -62,6 +63,42 @@ function capsuleLoop(
 }
 
 /**
+ * A bent limb: two connected capsule segments (upper + lower) meeting at a
+ * mid-joint (elbow/knee). The lower segment turns by `bend` relative to the
+ * upper one, and is slightly thinner, so the limb reads as jointed rather than
+ * as one straight bar. Returns two closed loops.
+ */
+function bentLimb(
+  rootX: number, rootY: number,
+  baseAngle: number, len1: number, len2: number, bend: number,
+  r1: number, r2: number,
+): Pt[][] {
+  const ex = rootX + Math.cos(baseAngle) * len1;
+  const ey = rootY + Math.sin(baseAngle) * len1;
+  const a2 = baseAngle + bend;
+  const tx = ex + Math.cos(a2) * len2;
+  const ty = ey + Math.sin(a2) * len2;
+  return [
+    capsuleLoop(rootX, rootY, ex, ey, r1, 16, 10),
+    capsuleLoop(ex, ey, tx, ty, r2, 16, 10),
+  ];
+}
+
+/** Densify an open control polyline into evenly interpolated vertices. */
+function densify(ctrl: Pt[], perSeg: number): Pt[] {
+  const out: Pt[] = [];
+  for (let i = 0; i < ctrl.length - 1; i++) {
+    const a = ctrl[i], b = ctrl[i + 1];
+    const last = i === ctrl.length - 2;
+    for (let k = 0; k <= (last ? perSeg : perSeg - 1); k++) {
+      const t = k / perSeg;
+      out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+    }
+  }
+  return out;
+}
+
+/**
  * Break a closed loop into many short, overlapping/gapped fragments so the
  * silhouette reads as retraced chalk marks rather than one clean contour.
  * Structure is deterministic (independent of the jitter PRNG).
@@ -72,7 +109,7 @@ function fragmentLoop(loop: Pt[]): Pt[][] {
   let i = 0;
   let step = 0;
   while (i < n) {
-    const fragLen = 5 + (step % 4); // 5..8 vertices per fragment
+    const fragLen = 3 + (step % 3); // 3..5 vertices per fragment (dense retrace)
     const frag: Pt[] = [];
     for (let k = 0; k < fragLen; k++) frag.push(loop[(i + k) % n]);
     frags.push(frag);
@@ -88,19 +125,112 @@ function fragmentLoop(loop: Pt[]): Pt[][] {
 }
 
 /**
- * Spread-eagle lying body authored in a local frame (~660×400, landscape ~1.6:1,
- * origin near torso center): rounded head, torso, two arms and two legs fanning
- * toward the corners. Each part is one closed outline loop.
+ * Break an OPEN path (interior gesture stroke) into short fragments without
+ * wrapping the ends together. Same overlap/gap cadence as fragmentLoop.
  */
-function buildBodyLoops(): Pt[][] {
-  return [
-    circleLoop(0, -128, 50, 48),                    // head
-    capsuleLoop(0, -78, 0, 78, 52, 10, 10),         // torso (neck → hip)
-    capsuleLoop(-28, -58, -298, -138, 20, 12, 8),   // left arm
-    capsuleLoop(28, -58, 298, -138, 20, 12, 8),     // right arm
-    capsuleLoop(-24, 70, -228, 212, 26, 12, 8),     // left leg
-    capsuleLoop(24, 70, 228, 212, 26, 12, 8),       // right leg
-  ];
+function fragmentPath(path: Pt[]): Pt[][] {
+  const n = path.length;
+  const frags: Pt[][] = [];
+  let i = 0;
+  let step = 0;
+  while (i < n - 1) {
+    const fragLen = 3 + (step % 3);
+    const frag: Pt[] = [];
+    for (let k = 0; k < fragLen && i + k < n; k++) frag.push(path[i + k]);
+    if (frag.length >= 2) frags.push(frag);
+    const mode = step % 3;
+    const adv =
+      mode === 0 ? fragLen - 2 :
+      mode === 1 ? fragLen - 1 :
+                   fragLen + 1;
+    i += Math.max(1, adv);
+    step++;
+  }
+  return frags;
+}
+
+const DEG = Math.PI / 180;
+
+/**
+ * Sprawled body authored in a local frame (~660×400, landscape, origin near
+ * torso center). Geometry is seed-perturbed and deliberately ASYMMETRIC: head
+ * and torso sit slightly off the vertical axis, and each arm/leg gets its own
+ * length, radius, splay angle and mid-joint bend drawn from `rnd` — so no two
+ * limbs are exact mirrors. `rnd` returns values in [-1, 1). `asym` scales the
+ * perturbation amplitude; `interior` toggles the gesture strokes.
+ *
+ * Returns closed outline `loops` (drawn closed) and open interior `strokes`.
+ */
+function buildBody(
+  rnd: () => number,
+  asym: number,
+  interior: boolean,
+): { loops: Pt[][]; strokes: Pt[][] } {
+  const v = (c: number, sp: number): number => c + rnd() * sp * asym;
+
+  const loops: Pt[][] = [];
+
+  // Head + torso, each nudged off the centerline in its own direction.
+  const headX = v(0, 12);
+  const torsoTop = v(0, 8);
+  const torsoBot = v(0, 10);
+  loops.push(circleLoop(headX, v(-128, 6), v(50, 4), 64));            // head
+  loops.push(capsuleLoop(torsoTop, -80, torsoBot, 80, v(52, 4), 18, 12)); // torso
+
+  // Shoulder / hip anchors (slightly uneven left vs. right).
+  const lsx = v(-30, 5), lsy = v(-60, 5);
+  const rsx = v(30, 5), rsy = v(-60, 5);
+  const lhx = v(-24, 5), lhy = v(74, 5);
+  const rhx = v(24, 5), rhy = v(74, 5);
+
+  // Arms fan to the upper corners; independent draws break the mirror.
+  for (const seg of bentLimb(
+    lsx, lsy, v(214, 15) * DEG, v(148, 24), v(150, 28), v(0.20, 0.22),
+    v(20, 3), v(15, 2.5),
+  )) loops.push(seg); // left arm (up-left)
+  for (const seg of bentLimb(
+    rsx, rsy, v(326, 15) * DEG, v(154, 24), v(146, 28), v(-0.16, 0.22),
+    v(20, 3), v(15, 2.5),
+  )) loops.push(seg); // right arm (up-right)
+
+  // Legs fan to the lower corners.
+  for (const seg of bentLimb(
+    lhx, lhy, v(134, 13) * DEG, v(118, 22), v(132, 26), v(-0.14, 0.20),
+    v(27, 3.5), v(20, 3),
+  )) loops.push(seg); // left leg (down-left)
+  for (const seg of bentLimb(
+    rhx, rhy, v(46, 13) * DEG, v(124, 22), v(126, 26), v(0.17, 0.20),
+    v(27, 3.5), v(20, 3),
+  )) loops.push(seg); // right leg (down-right)
+
+  const strokes: Pt[][] = [];
+  if (interior) {
+    // Spine down the torso with a slight lateral wander.
+    strokes.push(densify([
+      { x: torsoTop, y: -66 },
+      { x: v(0, 6), y: -22 },
+      { x: v(0, 6), y: 30 },
+      { x: torsoBot, y: 66 },
+    ], 6));
+    // Collar line arcing across the chest between the shoulders.
+    strokes.push(densify([
+      { x: lsx + 8, y: lsy + 6 },
+      { x: v(0, 4), y: -52 },
+      { x: rsx - 8, y: rsy + 6 },
+    ], 6));
+    // Short chest hatch reaching toward the left arm.
+    strokes.push(densify([
+      { x: v(-10, 4), y: v(-30, 4) },
+      { x: v(-72, 6), y: v(-50, 6) },
+    ], 6));
+    // Short waist hatch reaching toward the right leg.
+    strokes.push(densify([
+      { x: v(8, 4), y: v(40, 4) },
+      { x: v(62, 6), y: v(72, 6) },
+    ], 6));
+  }
+
+  return { loops, strokes };
 }
 
 // ── i18n (field labels; name/category are inlined in meta) ──
@@ -113,7 +243,9 @@ const i18n = {
   figureOpacity:   { zh: '整体不透明度', en: 'Figure Opacity',  ja: '全体不透明度' },
   chalkColor:      { zh: '粉笔颜色',   en: 'Chalk Color',     ja: 'チョーク色' },
   roughnessSeed:   { zh: '随机种子',   en: 'Roughness Seed',  ja: 'ラフネスシード' },
+  interiorStrokes: { zh: '内部笔触',   en: 'Interior Strokes', ja: '内部ストローク' },
   roughnessFactor: { zh: '粗糙度',     en: 'Roughness',       ja: 'ラフネス' },
+  limbAsymmetry:   { zh: '肢体不对称', en: 'Limb Asymmetry',  ja: '手足の非対称' },
   haloSpread:      { zh: '粉尘扩散',   en: 'Halo Spread',     ja: 'ハロー拡散' },
   haloWidthFactor: { zh: '粉尘线宽比', en: 'Halo Width',      ja: 'ハロー線幅比' },
   haloOpacity:     { zh: '粉尘不透明度', en: 'Halo Opacity',    ja: 'ハロー不透明度' },
@@ -127,7 +259,7 @@ const GRP_ADV = '高级';
 
 export class ChalkFigureV2 extends BaseEffectV2 {
   static readonly meta: EffectMeta = {
-    type: 'chalkFigure',
+    type: 'chalkFigureV2',
     name: { zh: '粉笔人形', en: 'Chalk Figure', ja: 'チョーク人形' },
     category: { zh: '特殊形状', en: 'Special Shapes', ja: '特殊形状' },
     layer: 'decoration',
@@ -141,10 +273,12 @@ export class ChalkFigureV2 extends BaseEffectV2 {
       // Chalk look
       { key: 'chalkColor',     label: i18n.chalkColor,     type: { kind: 'color', default: '#ffffff', paletteRef: true }, group: GRP_CHALK },
       { key: 'chalkLineWidth', label: i18n.chalkLineWidth, type: { kind: 'number', min: 1, max: 12, step: 0.5, default: 5 }, group: GRP_CHALK },
-      { key: 'figureOpacity',  label: i18n.figureOpacity,  type: { kind: 'number', min: 0, max: 1, step: 0.01, default: 0.88 }, group: GRP_CHALK },
+      { key: 'figureOpacity',  label: i18n.figureOpacity,  type: { kind: 'number', min: 0, max: 1, step: 0.01, default: 0.85 }, group: GRP_CHALK },
       { key: 'roughnessSeed',  label: i18n.roughnessSeed,  type: { kind: 'integer', min: 0, max: 999999, default: 1 }, group: GRP_CHALK },
+      { key: 'interiorStrokes', label: i18n.interiorStrokes, type: { kind: 'boolean', default: true }, group: GRP_CHALK },
       // Advanced texture tuning
       { key: 'roughnessFactor', label: i18n.roughnessFactor, type: { kind: 'number', min: 0, max: 1, step: 0.01, default: 0.42 }, group: GRP_ADV, advanced: true },
+      { key: 'limbAsymmetry',   label: i18n.limbAsymmetry,   type: { kind: 'number', min: 0, max: 2, step: 0.05, default: 1 }, group: GRP_ADV, advanced: true },
       { key: 'haloSpread',      label: i18n.haloSpread,      type: { kind: 'number', min: 1, max: 4, step: 0.1, default: 2.35 }, group: GRP_ADV, advanced: true },
       { key: 'haloWidthFactor', label: i18n.haloWidthFactor, type: { kind: 'number', min: 0.1, max: 1, step: 0.02, default: 0.4 }, group: GRP_ADV, advanced: true },
       { key: 'haloOpacity',     label: i18n.haloOpacity,     type: { kind: 'number', min: 0, max: 1, step: 0.01, default: 0.3 }, group: GRP_ADV, advanced: true },
@@ -158,6 +292,8 @@ export class ChalkFigureV2 extends BaseEffectV2 {
   private gMain!: PIXI.Graphics;
   private gHalo!: PIXI.Graphics;
   private built = false;
+  private lastW = 0;
+  private lastH = 0;
 
   protected setup(): void {
     this.figure = new PIXI.Container();
@@ -171,12 +307,15 @@ export class ChalkFigureV2 extends BaseEffectV2 {
   /**
    * Build the two stroke passes once, with frozen seeded jitter, and place the
    * container. Idempotent: after a successful build subsequent frames are no-ops
-   * unless a config/palette change marks a rebuild.
+   * unless a config/palette change marks a rebuild. Geometry is screen-independent;
+   * only the container position depends on the screen size.
    */
   private build(sw: number, sh: number): void {
-    const scale = this.config.figureScale ?? 1.5;
+    const scale = Math.max(0.05, Number(this.config.figureScale) || 1.5);
     const lineWidth = this.config.chalkLineWidth ?? 5;
     const roughness = this.config.roughnessFactor ?? 0.42;
+    const asym = Math.max(0, Number(this.config.limbAsymmetry ?? 1));
+    const interior = this.config.interiorStrokes ?? true;
     const haloSpread = this.config.haloSpread ?? 2.35;
     const haloWidthFactor = this.config.haloWidthFactor ?? 0.4;
     const haloOpacity = this.config.haloOpacity ?? 0.3;
@@ -187,60 +326,82 @@ export class ChalkFigureV2 extends BaseEffectV2 {
     const J = lineWidth * scale * roughness;
     const Jhalo = J * haloSpread;
 
-    // Deterministic Park-Miller minimal-standard PRNG, seeded once at build.
-    // Seed 0 is degenerate (state stays 0, noise() collapses to ≈ −a), producing a
-    // clean diagonally-offset double outline; the field defaults to 1 for genuine
-    // per-vertex roughness.
-    let state = Math.floor(this.config.roughnessSeed ?? 1) % 2147483647;
-    if (state < 0) state += 2147483647;
-    const noise = (a: number): number => {
-      state = (state * 16807) % 2147483647;
-      const u = (state - 1) / 2147483646; // u in [0,1)
-      return (u - 0.5) * 2 * a;           // uniform in [−a, +a]
+    const seed = (Math.floor(this.config.roughnessSeed ?? 1) >>> 0);
+
+    // Geometry PRNG — mulberry32, seeded on a distinct mixing constant so limb
+    // asymmetry is deterministic yet does not consume the jitter noise stream.
+    let gs = (seed ^ 0x85ebca6b) >>> 0;
+    const grand = (): number => {
+      gs = (gs + 0x6d2b79f5) | 0;
+      let t = Math.imul(gs ^ (gs >>> 15), 1 | gs);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296 * 2 - 1; // [-1, 1)
     };
 
-    // Assemble the broken-fragment silhouette.
-    const loops = buildBodyLoops();
-    const frags: Pt[][] = [];
-    for (const loop of loops) for (const f of fragmentLoop(loop)) frags.push(f);
+    // Jitter PRNG — mulberry32, the per-vertex scatter stream (unchanged look).
+    let s = (seed ^ 0x9e3779b9) >>> 0;
+    const noise = (a: number): number => {
+      s = (s + 0x6d2b79f5) | 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      const u = ((t ^ (t >>> 14)) >>> 0) / 4294967296; // u in [0,1)
+      return (u - 0.5) * 2 * a;                        // uniform in [−a, +a]
+    };
+
+    // Assemble the broken-fragment silhouette: closed outline loops + open
+    // interior gesture strokes, each split into short retraced marks.
+    const { loops, strokes } = buildBody(grand, asym, interior);
+    const loopFrags: Pt[][] = [];
+    for (const loop of loops) for (const f of fragmentLoop(loop)) loopFrags.push(f);
+    const strokeFrags: Pt[][] = [];
+    for (const path of strokes) for (const f of fragmentPath(path)) strokeFrags.push(f);
+
+    // One jittered pass: closed outline fragments are linked end-to-start;
+    // open interior fragments are left as-is.
+    const drawFrags = (g: PIXI.Graphics, amp: number): void => {
+      for (const frag of loopFrags) {
+        const p0 = frag[0];
+        g.moveTo(p0.x * scale + noise(amp), p0.y * scale + noise(amp));
+        for (let k = 1; k < frag.length; k++) {
+          const p = frag[k];
+          g.lineTo(p.x * scale + noise(amp), p.y * scale + noise(amp));
+        }
+        g.closePath();
+      }
+      for (const frag of strokeFrags) {
+        const p0 = frag[0];
+        g.moveTo(p0.x * scale + noise(amp), p0.y * scale + noise(amp));
+        for (let k = 1; k < frag.length; k++) {
+          const p = frag[k];
+          g.lineTo(p.x * scale + noise(amp), p.y * scale + noise(amp));
+        }
+      }
+    };
 
     // Pass 1 — main chalk line: full thickness, opaque, per-vertex jitter ±J.
     this.gMain.clear();
-    for (const frag of frags) {
-      const p0 = frag[0];
-      this.gMain.moveTo(p0.x * scale + noise(J), p0.y * scale + noise(J));
-      for (let k = 1; k < frag.length; k++) {
-        const p = frag[k];
-        this.gMain.lineTo(p.x * scale + noise(J), p.y * scale + noise(J));
-      }
-      this.gMain.closePath(); // link last vertex back to first
-    }
+    drawFrags(this.gMain, J);
     this.gMain.stroke({ width: T, color, alpha: 1, cap: 'round', join: 'round' });
 
     // Pass 2 — dust halo: thinner, fainter echo with a wider scatter ±(J·spread).
     this.gHalo.clear();
-    for (const frag of frags) {
-      const p0 = frag[0];
-      this.gHalo.moveTo(p0.x * scale + noise(Jhalo), p0.y * scale + noise(Jhalo));
-      for (let k = 1; k < frag.length; k++) {
-        const p = frag[k];
-        this.gHalo.lineTo(p.x * scale + noise(Jhalo), p.y * scale + noise(Jhalo));
-      }
-      this.gHalo.closePath();
-    }
+    drawFrags(this.gHalo, Jhalo);
     this.gHalo.stroke({ width: T * haloWidthFactor, color, alpha: haloOpacity, cap: 'round', join: 'round' });
 
     // Place / rotate / fade the whole figure as one unit.
     this.figure.position.set((this.config.centerX ?? 0.5) * sw, (this.config.centerY ?? 0.5) * sh);
     this.figure.rotation = this.config.orientation ?? 0;
-    this.figure.alpha = this.config.figureOpacity ?? 0.88;
+    const op = Number(this.config.figureOpacity);
+    this.figure.alpha = Number.isFinite(op) ? Math.min(1, Math.max(0, op)) : 0.85;
 
+    this.lastW = sw;
+    this.lastH = sh;
     this.built = true;
   }
 
   update(ctx: UpdateContext): void {
-    // Lazy build once a valid, nonzero screen size is known. The figure captures
-    // that first size and does not rebuild on resize.
+    // Lazy build once a valid, nonzero screen size is known. The geometry is
+    // frozen at build; only placement tracks later resizes.
     if (!this.built) {
       if (ctx.screenWidth > 0 && ctx.screenHeight > 0) {
         this.build(ctx.screenWidth, ctx.screenHeight);
@@ -248,10 +409,24 @@ export class ChalkFigureV2 extends BaseEffectV2 {
       return;
     }
 
+    // Resize-safe placement: geometry is screen-independent, but the fractional
+    // center maps to pixels, so re-apply position when the screen size changes.
+    if (
+      ctx.screenWidth > 0 && ctx.screenHeight > 0 &&
+      (ctx.screenWidth !== this.lastW || ctx.screenHeight !== this.lastH)
+    ) {
+      this.lastW = ctx.screenWidth;
+      this.lastH = ctx.screenHeight;
+      this.figure.position.set(
+        (this.config.centerX ?? 0.5) * ctx.screenWidth,
+        (this.config.centerY ?? 0.5) * ctx.screenHeight,
+      );
+    }
+
     // The figure is static by default. The optional breathing below is gated behind
     // `beatBreath` (default off) and only modulates alpha.
     if (this.config.beatBreath) {
-      const base = this.config.figureOpacity ?? 0.88;
+      const base = this.config.figureOpacity ?? 0.85;
       const k = this.config.beatBreathAmount ?? 0.08;
       this.figure.alpha = Math.min(1, base * (1 + k * (ctx.beatIntensity ?? 0)));
     }

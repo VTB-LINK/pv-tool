@@ -58,11 +58,13 @@
   }
 
   async function handleMediaFile(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     // Route through the store's loadMedia (same as desktop) so effect opacity and
     // reactive media state are updated; calling engine.addMedia directly left the
     // opaque background fill covering the media on mobile.
     if (file) await loadMedia(file, 'fit');
+    input.value = ''; // allow re-selecting the same file
   }
 </script>
 

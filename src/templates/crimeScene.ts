@@ -20,7 +20,7 @@ export const crimeSceneTemplate: TemplateConfig = {
   animationSpeed: 2.5,
   effects: [
     {
-      type: 'chalkFigure',
+      type: 'chalkFigureV2',
       layer: 'decoration',
       config: {
         chalkColor: '$primary',
