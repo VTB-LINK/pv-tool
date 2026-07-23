@@ -5,7 +5,7 @@
   import Section from '../common/Section.svelte';
   import Slider from '../common/Slider.svelte';
   import type { SelectMenuOption } from '../common/options';
-  import { engine, selectTemplate, selectCustomTemplate, showToast } from '../../stores/engine.svelte';
+  import { engine, selectTemplate, selectCustomTemplate, showToast, loadMedia } from '../../stores/engine.svelte';
   import { templates } from '../../templates';
   import { t } from '../../i18n';
 
@@ -57,9 +57,14 @@
     engine.instance?.setText(value);
   }
 
-  function handleMediaFile(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) engine.instance?.addMedia(file, 'fit');
+  async function handleMediaFile(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    // Route through the store's loadMedia (same as desktop) so effect opacity and
+    // reactive media state are updated; calling engine.addMedia directly left the
+    // opaque background fill covering the media on mobile.
+    if (file) await loadMedia(file, 'fit');
+    input.value = ''; // allow re-selecting the same file
   }
 </script>
 

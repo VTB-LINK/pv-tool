@@ -26,7 +26,6 @@
 
   let popoverEl: HTMLDivElement | undefined = $state();
   let hexInputText = $state('');
-  let hexInputEl: HTMLInputElement | undefined = $state();
   // Track whether the last change came from the text input to avoid overwriting it
   let inputIsSource = false;
 
@@ -85,7 +84,6 @@
         <input
           class="cpa-hex-input"
           type="text"
-          bind:this={hexInputEl}
           value={hexInputText}
           maxlength="9"
           spellcheck="false"

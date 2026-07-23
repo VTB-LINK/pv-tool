@@ -3,7 +3,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { PVEngine } from '../../engine/PVEngine';
-  import { resolveTemplateWithOptions, hydratePreviewEngine, engine } from '../../stores/engine.svelte';
+  import { resolveTemplateWithOptions, hydratePreviewEngine } from '../../stores/engine.svelte';
   import type { MissingMode } from '../../stores/engine.svelte';
   import type { TemplateConfig } from '../../types/engine';
   import { t } from '../../i18n';

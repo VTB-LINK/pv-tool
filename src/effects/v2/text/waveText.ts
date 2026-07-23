@@ -108,7 +108,6 @@ export class WaveTextV2 extends BaseEffectV2 {
   private restY: number[] = [];
   private wrapper!: PIXI.Container;
   private lastText = '';
-  private entryTime = -100;
 
   protected setup(): void {
     this.wrapper = new PIXI.Container();
@@ -199,11 +198,10 @@ export class WaveTextV2 extends BaseEffectV2 {
   update(ctx: UpdateContext): void {
     // Rebuild when text changes
     if (ctx.currentText !== this.lastText) {
-      this.entryTime = ctx.time;
       this.layoutChars(ctx.currentText, ctx.screenWidth, ctx.screenHeight);
     }
 
-    const since = ctx.time - this.entryTime;
+    const since = ctx.segmentTime;
     const speed = this.config.enterSpeed ?? 2.5;
     const perCharDelay = this.config.charDelay ?? 0.1;
 

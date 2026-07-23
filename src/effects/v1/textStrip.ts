@@ -68,26 +68,36 @@ export class TextStrip extends BaseEffect {
   }
 
   update(ctx: UpdateContext): void {
-    const newText = ctx.currentText || this.config.text || '';
+    const newText = ctx.lyricsActive ? ctx.currentText : (ctx.currentText || this.config.text || '');
 
-    if (newText !== this.displayedText && this.fadeState === 'idle') {
+    // 暂停/拖动时 deltaTime<=0，基于时间的淡入淡出无法推进；
+    // 无论当前是否在淡变途中，都直接结算到目标文本并恢复满不透明度，
+    // 避免文本不更新或卡在半透明状态。
+    if (ctx.deltaTime <= 0) {
+      if (newText !== this.displayedText) this.buildText(newText);
       this.pendingText = newText;
-      this.fadeState = 'fadeOut';
-    }
-
-    const fadeSpeed = 4 * Math.max(ctx.animationSpeed, 0.5);
-    if (this.fadeState === 'fadeOut') {
-      this.textAlpha -= ctx.deltaTime * fadeSpeed;
-      if (this.textAlpha <= 0) {
-        this.textAlpha = 0;
-        this.buildText(this.pendingText);
-        this.fadeState = 'fadeIn';
+      this.textAlpha = 1;
+      this.fadeState = 'idle';
+    } else {
+      if (newText !== this.displayedText && this.fadeState === 'idle') {
+        this.pendingText = newText;
+        this.fadeState = 'fadeOut';
       }
-    } else if (this.fadeState === 'fadeIn') {
-      this.textAlpha += ctx.deltaTime * fadeSpeed;
-      if (this.textAlpha >= 1) {
-        this.textAlpha = 1;
-        this.fadeState = 'idle';
+
+      const fadeSpeed = 4 * Math.max(ctx.animationSpeed, 0.5);
+      if (this.fadeState === 'fadeOut') {
+        this.textAlpha -= ctx.deltaTime * fadeSpeed;
+        if (this.textAlpha <= 0) {
+          this.textAlpha = 0;
+          this.buildText(this.pendingText);
+          this.fadeState = 'fadeIn';
+        }
+      } else if (this.fadeState === 'fadeIn') {
+        this.textAlpha += ctx.deltaTime * fadeSpeed;
+        if (this.textAlpha >= 1) {
+          this.textAlpha = 1;
+          this.fadeState = 'idle';
+        }
       }
     }
     this.textContainer.alpha = this.textAlpha;

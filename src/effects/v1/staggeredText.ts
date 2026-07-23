@@ -37,7 +37,6 @@ export class StaggeredText extends BaseEffect {
   private chars: PIXI.Text[] = [];
   private currentText = '';
   private currentMode: LayoutMode = 'diag-left';
-  private modeStartTime = 0;
   private modeIndex = 0;
 
   protected setup(): void {
@@ -164,7 +163,7 @@ export class StaggeredText extends BaseEffect {
   }
 
   update(ctx: UpdateContext): void {
-    const text = ctx.currentText || this.config.text || '';
+    const text = ctx.lyricsActive ? ctx.currentText : (ctx.currentText || this.config.text || '');
     const w = ctx.screenWidth;
     const h = ctx.screenHeight;
     const modeDuration = this.config.modeDuration ?? 3;
@@ -172,17 +171,12 @@ export class StaggeredText extends BaseEffect {
     const fontFamily = this.config.fontFamily ?? '"Noto Sans JP", "Hiragino Kaku Gothic Pro", sans-serif';
     const transitionDuration = this.config.transition ?? 0.4;
 
-    // Cycle through modes
-    const elapsed = ctx.time - this.modeStartTime;
-    if (elapsed >= modeDuration || this.modeStartTime === 0) {
-      if (this.modeStartTime !== 0) {
-        this.modeIndex = (this.modeIndex + 1) % MODES.length;
-      }
-      this.currentMode = MODES[this.modeIndex];
-      this.modeStartTime = ctx.time;
-    }
+    // Cycle through modes derived from timeline position (seek/pause safe)
+    const cycleIndex = Math.floor(ctx.time / modeDuration);
+    this.modeIndex = ((cycleIndex % MODES.length) + MODES.length) % MODES.length;
+    this.currentMode = MODES[this.modeIndex];
 
-    const modeElapsed = ctx.time - this.modeStartTime;
+    const modeElapsed = ctx.time - cycleIndex * modeDuration;
     const fadeIn = Math.min(1, modeElapsed / transitionDuration);
     const fadeOut = Math.min(1, (modeDuration - modeElapsed) / transitionDuration);
     const alpha = Math.min(fadeIn, fadeOut);
@@ -232,7 +226,7 @@ export class StaggeredText extends BaseEffect {
       t.style.fill = color;
 
       // Smooth lerp to target
-      const lerp = Math.min(1, 0.08 * speed * 60);
+      const lerp = Math.min(1, 0.08 * speed * ctx.deltaTime * 60);
       t.x += (s.targetX - t.x) * lerp;
       t.y += (s.targetY - t.y) * lerp;
       t.rotation += (s.rotation - t.rotation) * lerp;

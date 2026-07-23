@@ -120,6 +120,7 @@ export const en: Record<LocaleKey, string> = {
   'tpl_flyMeToTheMoon': 'Fly Me to the Moon',
   'tpl_kawaiPixel': 'Kawaii Pixel',
   'tpl_crimeScene': 'Crime Scene',
+  'tpl_springAfterglow': 'Spring Afterglow',
 
   // File picker
   'choose_file': 'Choose File',

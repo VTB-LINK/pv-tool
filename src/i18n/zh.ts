@@ -118,6 +118,7 @@ export const zh = {
   'tpl_flyMeToTheMoon': 'Fly Me to the Moon',
   'tpl_kawaiPixel': 'Kawaii像素',
   'tpl_crimeScene': '案发现场',
+  'tpl_springAfterglow': '春日残照',
 
   // File picker
   'choose_file': '选择文件',
