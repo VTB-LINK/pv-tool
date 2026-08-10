@@ -3,11 +3,30 @@
 
 // Manages WebSocket connection to Metabox Nexus-PlayerCap (NXPC) service
 // and provides lyric, song info, and playback state data to the engine.
+//
+// Wire contract: PlayerCap 3.0. Three time quantities travel together and must not
+// be confused:
+//   timestamp — the line's own time on the lyric timeline, offset not applied
+//   play_time — when that line goes on screen (timestamp - offset); 0 when index is -1
+//   position  — whole-song playback position in seconds, carried by lyric_update,
+//               all_lyrics, playback_pause and playback_resume
+// The engine clock is a whole-song position, so it is anchored on `position`; lyric
+// line times come from `play_time`, which is on that same clock.
 
 import type { LyricLine } from '../types/engine';
 
 const DEFAULT_HOST = 'localhost:8765';
 const RECONNECT_DELAY = 2000;
+
+/** Coerce a wire value to a finite number, falling back when the field is absent. */
+function numberOr(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+/** Same as numberOr, but reports absence instead of substituting a value. */
+function numberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
 
 /**
  * Build a full WebSocket URL from host and optional player.
@@ -41,12 +60,26 @@ export async function fetchPlayerSupport(host: string): Promise<string[]> {
   }
 }
 
+/** Payload of one `lyric_update` push. */
+export interface NxpcLyric {
+  /** Line index. `-1` means the platform returned no usable lyrics for this song. */
+  index: number;
+  /**
+   * Main lyric text. When index is -1 this may still hold a platform placeholder
+   * such as "纯音乐，请欣赏" — decide by index, never by text.
+   */
+  text: string;
+  /** Whole-song playback position in seconds. */
+  position: number;
+}
+
 export interface NxpcCallbacks {
   onSongInfo: (name: string, singer: string, title: string) => void;
-  onLyric: (text: string, playTime: number) => void;
+  onLyric: (lyric: NxpcLyric) => void;
   onLyricClear: () => void;
-  onAllLyrics: (lines: LyricLine[], duration: number) => void;
-  onPauseState: (isPaused: boolean) => void;
+  onAllLyrics: (lines: LyricLine[], duration: number, position: number) => void;
+  /** `position` is the whole-song position carried by the event, or null when absent. */
+  onPauseState: (isPaused: boolean, position: number | null) => void;
   onIdle: () => void;
   onStatus: (status: string) => void;
   /** Called once when the connection drops unexpectedly after having been established. */
@@ -62,6 +95,8 @@ export class NxpcProvider {
   private _player: string;
   /** True after at least one successful ws.onopen, reset to false after disconnect fires. */
   private _connectedOnce = false;
+  /** True after the v2-payload warning has been emitted, so it is logged only once. */
+  private _legacyWarned = false;
 
   constructor(callbacks: NxpcCallbacks, host?: string, player?: string) {
     this.callbacks = callbacks;
@@ -169,31 +204,36 @@ export class NxpcProvider {
 
       case 'lyric_update':
         if (data && data.text !== undefined) {
-          this.callbacks.onLyric(
-            data.text ?? '',
-            data.play_time ?? 0,
-          );
+          this.warnLegacyFields(data.position === undefined);
+          this.callbacks.onLyric({
+            index: numberOr(data.index, 0),
+            text: data.text ?? '',
+            position: numberOr(data.position, 0),
+          });
         } else {
           this.callbacks.onLyricClear();
         }
         break;
 
       case 'all_lyrics':
-        if (data && data.lyrics && Array.isArray(data.lyrics)) {
+        if (data && Array.isArray(data.lyrics)) {
+          this.warnLegacyFields(data.lyrics.length > 0 && data.lyrics[0].timestamp === undefined);
           const lines: LyricLine[] = data.lyrics.map((item: any) => ({
-            time: item.time ?? 0,
+            // play_time is the on-screen time on the same clock as `position`;
+            // `timestamp` is the raw line time with no offset applied.
+            time: numberOr(item.play_time, numberOr(item.timestamp, 0)),
             text: item.text ?? '',
           }));
-          this.callbacks.onAllLyrics(lines, data.duration ?? 0);
+          this.callbacks.onAllLyrics(lines, numberOr(data.duration, 0), numberOr(data.position, 0));
         }
         break;
 
       case 'playback_pause':
-        this.callbacks.onPauseState(true);
+        this.callbacks.onPauseState(true, numberOrNull(data?.position));
         break;
 
       case 'playback_resume':
-        this.callbacks.onPauseState(false);
+        this.callbacks.onPauseState(false, numberOrNull(data?.position));
         break;
 
       case 'lyric_idle':
@@ -201,7 +241,8 @@ export class NxpcProvider {
         break;
 
       case 'player_switch':
-        // Active player changed — clear stale lyrics so they don't linger.
+      case 'player_clear':
+        // Active player changed or was cleared — drop stale lyrics so they don't linger.
         this.callbacks.onLyricClear();
         break;
 
@@ -214,6 +255,18 @@ export class NxpcProvider {
       default:
         break;
     }
+  }
+
+  /**
+   * Warn once when a payload lacks its PlayerCap 3.0 fields, which means the service is
+   * still on the v2 contract. Without this the missing fields would read as undefined and
+   * degrade to zero, leaving every lyric time and the playback position silently wrong.
+   */
+  private warnLegacyFields(missing: boolean): void {
+    if (!missing || this._legacyWarned) return;
+    this._legacyWarned = true;
+    console.warn('[NXPC] Payload is missing PlayerCap 3.0 fields (position / timestamp); '
+      + 'the service looks like v2. Lyric times and playback position will be wrong.');
   }
 
   private scheduleReconnect(): void {
