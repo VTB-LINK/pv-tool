@@ -663,18 +663,23 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         this._nxpcSongTitle = title || name;
       },
 
-      onAllLyrics: (_lines, duration) => {
+      onAllLyrics: (_lines, duration, position) => {
         this._nxpcDuration = duration;
-        this._nxpcTime = 0;
+        // all_lyrics also arrives when connecting mid-song; anchor on the reported
+        // position rather than restarting the local clock from zero.
+        this._nxpcTime = position;
         this._nxpcPaused = false;
         this.rebuildAllEffects();
       },
 
-      onLyric: (text, playTime) => {
-        this._nxpcTime = playTime;
+      onLyric: ({ index, text, position }) => {
+        this._nxpcTime = position;
         this._nxpcPaused = false;
-        this.userText = text;
-        this.textSegments = [text];
+        // index -1 means the platform has no lyrics for this song. `text` may still carry
+        // the platform's placeholder line, which must not be rendered as a lyric.
+        const display = index === -1 ? '' : text;
+        this.userText = display;
+        this.textSegments = [display];
       },
 
       onLyricClear: () => {
@@ -687,8 +692,11 @@ async init(parent: HTMLElement, options?: { fixedWidth?: number, fixedHeight?: n
         this.textSegments = [''];
       },
 
-      onPauseState: (isPaused) => {
+      onPauseState: (isPaused, position) => {
         this._nxpcPaused = isPaused;
+        // playback_resume also fires on seek, and its position may jump backwards.
+        // Re-anchor the local clock instead of interpolating on from the old value.
+        if (position !== null) this._nxpcTime = position;
       },
 
       onIdle: () => {
